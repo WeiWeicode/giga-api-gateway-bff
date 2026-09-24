@@ -1,0 +1,627 @@
+/**
+ * Gateway 管理 CLI(IMPL-PLAN W3-5.7、W3-4.15):第二階段管理 API 完成前,由 Gateway 負責人以此維護設定。
+ *
+ *   npm run gw -- import-openapi --file <路徑或 URL> --target <http://host:512xx> [--env test|prod]
+ *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由
+ *   npm run gw -- publish [--note 說明]              發佈所有草稿(≤ 5 秒全部 BFF 生效)
+ *   npm run gw -- rollback --to <版本>               以歷史版本產生新版本
+ *   npm run gw -- releases                           列出最近 20 個發佈版本
+ *   npm run gw -- local:create --emp <工號> [--base-url https://<gateway-ip>]   IT 代建本機帳號,產生 72 小時啟用連結
+ *   npm run gw -- local:unlock --emp <工號>
+ *   npm run gw -- user:disable|user:enable --emp <工號>
+ *
+ * 容器內:node dist/bff/src/cli/index.js <指令> ...
+ * 所有寫入皆記錄 gw.audit_log(actor = --actor 或 cli:<OS 使用者>)。
+ */
+import { createHash, randomBytes } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { userInfo } from 'node:os';
+import { parseArgs } from 'node:util';
+import { and, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { Redis } from 'ioredis';
+import { parse as parseYaml } from 'yaml';
+import { loadConfig, type AppConfig } from '../config.js';
+import { createGwDb, openPool, type GwDatabase } from '../db/client.js';
+import { createExternalDb } from '../db/external/index.js';
+import {
+  aggregateStep,
+  apiImportBatch,
+  apiImportItem,
+  apiRoute,
+  auditLog,
+  company,
+  configRelease,
+  localAccountToken,
+  localCredential,
+  permission,
+  rateLimitPolicy,
+  role,
+  roleAdGroup,
+  roleCompany,
+  rolePermission,
+  upstream,
+  upstreamTarget,
+  user,
+} from '../db/schema/index.js';
+import { publishRelease, rollbackRelease } from '../db/sync/release.js';
+import { AdDirectory } from '../modules/auth/ldap.js';
+import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo } from '../modules/auth/profile.js';
+import { checkUpstreamPort, parseOpenApi } from './openapi.js';
+
+interface Ctx {
+  config: AppConfig;
+  db: GwDatabase;
+  redis: Redis;
+  actor: string;
+}
+
+type Tx = Parameters<Parameters<GwDatabase['transaction']>[0]>[0];
+
+const out = (v: unknown) => console.log(typeof v === 'string' ? v : JSON.stringify(v, null, 2));
+
+class CliError extends Error {
+  constructor(
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+  }
+}
+
+async function readSource(file: string): Promise<string> {
+  if (/^https?:\/\//.test(file)) {
+    const res = await fetch(file);
+    if (!res.ok) throw new CliError(`無法下載 ${file}:HTTP ${res.status}`);
+    return res.text();
+  }
+  return readFile(file, 'utf8');
+}
+
+function permParts(code: string) {
+  const [system = 'gw', resource = 'default', ...rest] = code.split('.');
+  return { systemCode: system.slice(0, 30), resource: resource.slice(0, 50), action: (rest.join('.') || 'use').slice(0, 30) };
+}
+
+async function ensurePermissions(tx: Tx, perms: { code: string; name: string }[], actor: string): Promise<number> {
+  if (!perms.length) return 0;
+  const existing = new Set(
+    (
+      await tx
+        .select({ code: permission.code })
+        .from(permission)
+        .where(
+          inArray(
+            permission.code,
+            perms.map((p) => p.code),
+          ),
+        )
+    ).map((p) => p.code),
+  );
+  const missing = perms.filter((p) => !existing.has(p.code));
+  for (const p of missing) await tx.insert(permission).values({ code: p.code, name: p.name, ...permParts(p.code), createdBy: actor, updatedBy: actor });
+  return missing.length;
+}
+
+/** 角色、權限對應變更後:遞增受影響使用者的權限版本(CLI 以全體使用者為範圍,下一次請求即重新計算) */
+async function bumpAllPermVersions(tx: Tx, actor: string): Promise<void> {
+  await tx
+    .update(user)
+    .set({ permVersion: sql`${user.permVersion} + 1`, updatedBy: actor })
+    .where(sql`1 = 1`);
+}
+
+async function invalidatePvCache(redis: Redis): Promise<void> {
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', 'gw:pv:*', 'COUNT', 500);
+    if (keys.length) await redis.del(...keys);
+    cursor = next;
+  } while (cursor !== '0');
+}
+
+async function upsertUpstream(
+  tx: Tx,
+  u: {
+    code: string;
+    name?: string;
+    systemCode: string;
+    timeoutMs?: number;
+    retryCount?: number;
+    circuitFailThreshold?: number;
+    healthCheckPath?: string;
+    forwardCookies?: boolean;
+  },
+  actor: string,
+): Promise<number> {
+  const [cur] = await tx.select().from(upstream).where(eq(upstream.code, u.code));
+  const values = {
+    name: u.name ?? u.code,
+    systemCode: u.systemCode,
+    timeoutMs: u.timeoutMs ?? cur?.timeoutMs ?? 10_000,
+    retryCount: u.retryCount ?? cur?.retryCount ?? 1,
+    circuitFailThreshold: u.circuitFailThreshold ?? cur?.circuitFailThreshold ?? 10,
+    healthCheckPath: u.healthCheckPath ?? cur?.healthCheckPath ?? '/healthz',
+    forwardCookies: u.forwardCookies ?? cur?.forwardCookies ?? false,
+    updatedBy: actor,
+  };
+  if (cur) {
+    await tx.update(upstream).set(values).where(eq(upstream.upstreamId, cur.upstreamId));
+    return cur.upstreamId;
+  }
+  const [row] = await tx
+    .insert(upstream)
+    .output({ id: upstream.upstreamId })
+    .values({ code: u.code, ...values, createdBy: actor });
+  return row!.id;
+}
+
+async function setTargets(tx: Tx, upstreamId: number, env: string, urls: string[], actor: string): Promise<void> {
+  for (const url of urls) if (!checkUpstreamPort(url)) throw new CliError(`UPSTREAM_PORT_OUT_OF_RANGE:${url} 的 port 不在 51200–51300`);
+  await tx.delete(upstreamTarget).where(and(eq(upstreamTarget.upstreamId, upstreamId), eq(upstreamTarget.environment, env)));
+  for (const baseUrl of urls) await tx.insert(upstreamTarget).values({ upstreamId, baseUrl, environment: env, createdBy: actor, updatedBy: actor });
+}
+
+async function audit(tx: Tx, actor: string, action: string, entityType: string, entityId: string, after: unknown): Promise<void> {
+  await tx.insert(auditLog).values({ actorName: actor, action, entityType, entityId, afterJson: JSON.stringify(after) });
+}
+
+/* ------------------------------------------------------------------ */
+
+async function importOpenApi(ctx: Ctx, file: string, target: string, env: string) {
+  const text = await readSource(file);
+  const doc = (file.endsWith('.json') || text.trimStart().startsWith('{') ? JSON.parse(text) : parseYaml(text)) as Record<string, unknown>;
+  const spec = parseOpenApi(doc);
+  const policies = new Map((await ctx.db.select().from(rateLimitPolicy)).map((p) => [p.code, p.policyId]));
+  for (const r of spec.routes)
+    if (r.rateLimitPolicy && !policies.has(r.rateLimitPolicy))
+      spec.errors.push({ operation: r.routeCode, message: `x-rate-limit 政策不存在:${r.rateLimitPolicy}` });
+  if (!checkUpstreamPort(target)) spec.errors.push({ operation: '(target)', message: `UPSTREAM_PORT_OUT_OF_RANGE:${target}` });
+  const fileHash = createHash('sha256').update(text).digest('hex');
+
+  if (spec.errors.length) {
+    await ctx.db.transaction(async (tx) => {
+      const [batch] = await tx
+        .insert(apiImportBatch)
+        .output({ id: apiImportBatch.batchId })
+        .values({
+          sourceType: 'openapi',
+          fileName: file.slice(-260),
+          fileHash,
+          status: 'failed',
+          total: spec.routes.length,
+          errors: spec.errors.length,
+          createdBy: ctx.actor,
+          updatedBy: ctx.actor,
+        });
+      for (const [i, e] of spec.errors.entries())
+        await tx
+          .insert(apiImportItem)
+          .values({ batchId: batch!.id, rowNo: i + 1, routeCode: e.operation.slice(0, 100), action: 'error', errorMessage: e.message.slice(0, 1000) });
+    });
+    throw new CliError('IMPORT_HAS_ERRORS:匯入批次含錯誤項目,未寫入任何路由', spec.errors);
+  }
+
+  const summary = await ctx.db.transaction(async (tx) => {
+    const upstreamId = await upsertUpstream(tx, { code: spec.upstreamCode, systemCode: spec.systemCode }, ctx.actor);
+    await setTargets(tx, upstreamId, env, [target], ctx.actor);
+    const createdPerms = await ensurePermissions(tx, spec.permissions, ctx.actor);
+    const [batch] = await tx
+      .insert(apiImportBatch)
+      .output({ id: apiImportBatch.batchId })
+      .values({
+        sourceType: 'openapi',
+        fileName: file.slice(-260),
+        fileHash,
+        upstreamId,
+        status: 'committed',
+        total: spec.routes.length,
+        createdBy: ctx.actor,
+        updatedBy: ctx.actor,
+      });
+    const counts = { created: 0, updated: 0, unchanged: 0 };
+    for (const [i, r] of spec.routes.entries()) {
+      const values = {
+        name: r.name,
+        systemCode: r.systemCode,
+        method: r.method,
+        publicPath: r.publicPath,
+        routeType: 'proxy',
+        upstreamId,
+        upstreamMethod: null,
+        upstreamPath: r.upstreamPath,
+        authMode: r.authMode,
+        permissionCode: r.permissionCode,
+        rateLimitPolicyId: r.rateLimitPolicy ? policies.get(r.rateLimitPolicy)! : null,
+        cacheTtlSec: r.cacheTtlSec,
+        cacheScope: r.cacheScope,
+        timeoutMs: r.timeoutMs,
+        auditLevel: r.auditLevel,
+        tags: r.tags,
+        source: 'openapi',
+      };
+      const [cur] = await tx.select().from(apiRoute).where(eq(apiRoute.routeCode, r.routeCode));
+      let action: 'create' | 'update' | 'unchanged';
+      if (!cur) {
+        await tx
+          .insert(apiRoute)
+          .values({ routeCode: r.routeCode, ...values, status: 'draft', importBatchId: batch!.id, createdBy: ctx.actor, updatedBy: ctx.actor });
+        action = 'create';
+      } else if (Object.entries(values).some(([k, v]) => (cur as Record<string, unknown>)[k] !== v) || cur.status === 'disabled') {
+        // 修改已發佈的路由:存為草稿,線上仍使用目前發佈版本(BACKEND-GUIDE §7.3)
+        await tx
+          .update(apiRoute)
+          .set({ ...values, status: 'draft', importBatchId: batch!.id, updatedBy: ctx.actor })
+          .where(eq(apiRoute.routeId, cur.routeId));
+        action = 'update';
+      } else action = 'unchanged';
+      counts[action === 'create' ? 'created' : action === 'update' ? 'updated' : 'unchanged']++;
+      await tx.insert(apiImportItem).values({ batchId: batch!.id, rowNo: i + 1, routeCode: r.routeCode, action, payload: JSON.stringify(r) });
+    }
+    await tx
+      .update(apiImportBatch)
+      .set({ created: counts.created, updated: counts.updated, skipped: counts.unchanged })
+      .where(eq(apiImportBatch.batchId, batch!.id));
+    await audit(tx, ctx.actor, 'route.import', 'api_import_batch', String(batch!.id), { upstream: spec.upstreamCode, target, env, ...counts, createdPerms });
+    return { batchId: batch!.id, upstream: spec.upstreamCode, ...counts, createdPermissions: createdPerms };
+  });
+  out(summary);
+}
+
+interface ApplyFile {
+  policies?: { code: string; limitCount: number; windowSec: number; keyBy: string; burst?: number }[];
+  upstreams?: {
+    code: string;
+    name?: string;
+    systemCode: string;
+    timeoutMs?: number;
+    retryCount?: number;
+    circuitFailThreshold?: number;
+    healthCheckPath?: string;
+    targets?: Record<string, string[]>;
+  }[];
+  permissions?: { code: string; name: string }[];
+  roles?: { code: string; name: string; description?: string; permissions?: string[]; adGroups?: string[]; companies?: string[] }[];
+  companies?: { compName: string; domains?: string[] }[];
+  routes?: {
+    routeCode: string;
+    name: string;
+    systemCode: string;
+    method: string;
+    publicPath: string;
+    routeType: 'aggregate' | 'mock' | 'proxy';
+    authMode: string;
+    permissionCode?: string;
+    upstream?: string;
+    upstreamPath?: string;
+    mockResponse?: unknown;
+    rateLimitPolicy?: string;
+    timeoutMs?: number;
+    steps?: {
+      stepKey: string;
+      upstream: string;
+      method?: string;
+      path: string;
+      required?: boolean;
+      order?: number;
+      timeoutMs?: number;
+      permissionCode?: string;
+    }[];
+  }[];
+}
+
+async function applyConfig(ctx: Ctx, file: string) {
+  const cfg = parseYaml(await readSource(file)) as ApplyFile;
+  const result = await ctx.db.transaction(async (tx) => {
+    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, pvBumped: false };
+    for (const p of cfg.policies ?? []) {
+      const [cur] = await tx.select().from(rateLimitPolicy).where(eq(rateLimitPolicy.code, p.code));
+      const v = { limitCount: p.limitCount, windowSec: p.windowSec, keyBy: p.keyBy, burst: p.burst ?? null, updatedBy: ctx.actor };
+      if (cur) await tx.update(rateLimitPolicy).set(v).where(eq(rateLimitPolicy.policyId, cur.policyId));
+      else await tx.insert(rateLimitPolicy).values({ code: p.code, ...v, createdBy: ctx.actor });
+      r.policies++;
+    }
+    const upIds = new Map<string, number>();
+    for (const u of cfg.upstreams ?? []) {
+      const id = await upsertUpstream(tx, u, ctx.actor);
+      upIds.set(u.code, id);
+      for (const [env, urls] of Object.entries(u.targets ?? {})) await setTargets(tx, id, env, urls, ctx.actor);
+      r.upstreams++;
+    }
+    r.permissions = await ensurePermissions(tx, cfg.permissions ?? [], ctx.actor);
+
+    for (const c of cfg.companies ?? []) {
+      const [row] = await tx.select({ id: company.companyId }).from(company).where(eq(company.compName, c.compName));
+      if (!row) await tx.insert(company).values({ compName: c.compName, createdBy: ctx.actor, updatedBy: ctx.actor });
+    }
+
+    for (const ro of cfg.roles ?? []) {
+      let [cur] = await tx.select().from(role).where(eq(role.code, ro.code));
+      if (!cur)
+        [cur] = await tx
+          .insert(role)
+          .output()
+          .values({ code: ro.code, name: ro.name, description: ro.description ?? null, createdBy: ctx.actor, updatedBy: ctx.actor });
+      const roleId = cur!.roleId;
+      if (ro.permissions) {
+        const ids = ro.permissions.length
+          ? await tx.select({ id: permission.permissionId, code: permission.code }).from(permission).where(inArray(permission.code, ro.permissions))
+          : [];
+        const unknown = ro.permissions.filter((c) => !ids.some((i) => i.code === c));
+        if (unknown.length) throw new CliError(`角色 ${ro.code} 的權限不存在:${unknown.join(', ')}`);
+        await tx.delete(rolePermission).where(
+          and(
+            eq(rolePermission.roleId, roleId),
+            ids.length
+              ? notInArray(
+                  rolePermission.permissionId,
+                  ids.map((i) => i.id),
+                )
+              : sql`1 = 1`,
+          ),
+        );
+        const have = new Set(
+          (await tx.select({ id: rolePermission.permissionId }).from(rolePermission).where(eq(rolePermission.roleId, roleId))).map((x) => x.id),
+        );
+        for (const i of ids) if (!have.has(i.id)) await tx.insert(rolePermission).values({ roleId, permissionId: i.id, createdBy: ctx.actor });
+      }
+      if (ro.adGroups) {
+        await tx.delete(roleAdGroup).where(eq(roleAdGroup.roleId, roleId));
+        for (const dn of ro.adGroups) await tx.insert(roleAdGroup).values({ roleId, adGroupDn: dn, createdBy: ctx.actor });
+      }
+      if (ro.companies) {
+        await tx.delete(roleCompany).where(eq(roleCompany.roleId, roleId));
+        for (const name of ro.companies) {
+          let [c] = await tx.select({ id: company.companyId }).from(company).where(eq(company.compName, name));
+          if (!c) [c] = await tx.insert(company).output({ id: company.companyId }).values({ compName: name, createdBy: ctx.actor, updatedBy: ctx.actor });
+          await tx.insert(roleCompany).values({ roleId, companyId: c!.id, createdBy: ctx.actor });
+        }
+      }
+      await audit(tx, ctx.actor, 'role.apply', 'role', ro.code, ro);
+      r.roles++;
+    }
+    if (r.roles || r.permissions) {
+      await bumpAllPermVersions(tx, ctx.actor);
+      r.pvBumped = true;
+    }
+
+    const policyIds = new Map((await tx.select().from(rateLimitPolicy)).map((p) => [p.code, p.policyId]));
+    const upstreamIdOf = async (code: string) => {
+      if (upIds.has(code)) return upIds.get(code)!;
+      const [u] = await tx.select({ id: upstream.upstreamId }).from(upstream).where(eq(upstream.code, code));
+      if (!u) throw new CliError(`上游不存在:${code}`);
+      upIds.set(code, u.id);
+      return u.id;
+    };
+    for (const rt of cfg.routes ?? []) {
+      const values = {
+        name: rt.name,
+        systemCode: rt.systemCode,
+        method: rt.method,
+        publicPath: rt.publicPath,
+        routeType: rt.routeType,
+        upstreamId: rt.upstream ? await upstreamIdOf(rt.upstream) : null,
+        upstreamPath: rt.upstreamPath ?? null,
+        authMode: rt.authMode,
+        permissionCode: rt.permissionCode ?? null,
+        rateLimitPolicyId: rt.rateLimitPolicy ? (policyIds.get(rt.rateLimitPolicy) ?? null) : null,
+        timeoutMs: rt.timeoutMs ?? null,
+        mockResponse: rt.mockResponse === undefined ? null : JSON.stringify(rt.mockResponse),
+        source: 'manual',
+        status: 'draft',
+        updatedBy: ctx.actor,
+      };
+      let [cur] = await tx.select({ id: apiRoute.routeId }).from(apiRoute).where(eq(apiRoute.routeCode, rt.routeCode));
+      if (cur) await tx.update(apiRoute).set(values).where(eq(apiRoute.routeId, cur.id));
+      else
+        [cur] = await tx
+          .insert(apiRoute)
+          .output({ id: apiRoute.routeId })
+          .values({ routeCode: rt.routeCode, ...values, createdBy: ctx.actor });
+      await tx.delete(aggregateStep).where(eq(aggregateStep.routeId, cur!.id));
+      for (const s of rt.steps ?? []) {
+        await tx.insert(aggregateStep).values({
+          routeId: cur!.id,
+          stepKey: s.stepKey,
+          stepOrder: s.order ?? 1,
+          upstreamId: await upstreamIdOf(s.upstream),
+          method: s.method ?? 'GET',
+          pathTemplate: s.path,
+          required: s.required ?? false,
+          timeoutMs: s.timeoutMs ?? 5000,
+          permissionCode: s.permissionCode ?? null,
+          createdBy: ctx.actor,
+          updatedBy: ctx.actor,
+        });
+      }
+      r.routes++;
+    }
+    await audit(tx, ctx.actor, 'config.apply', 'file', file.slice(-100), { ...r });
+    return r;
+  });
+  if (result.pvBumped) await invalidatePvCache(ctx.redis);
+  out(result);
+}
+
+async function createLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
+  const emp = normalizeEmpNo(empArg);
+  if (!isValidEmpNo(emp)) throw new CliError(`工號格式錯誤:${empArg}`);
+  // 一個工號只有一種驗證方式:任一 AD 網域找得到者必須使用 AD(PRD §8.2.5)
+  const ad = new AdDirectory(ctx.config.ldapDomains);
+  for (const code of ad.codes) if (await ad.exists(code, emp).catch(() => false)) throw new CliError(`${emp} 在 AD 網域 ${code} 已有帳號,不可建立本機帳號`);
+
+  const ext: { bpm?: ReturnType<typeof createExternalDb>; los?: ReturnType<typeof createExternalDb> } = {};
+  const pools = [];
+  for (const [name, src] of [
+    ['bpm', ctx.config.bpmDb],
+    ['los', ctx.config.losDb],
+  ] as const) {
+    if (!src) continue;
+    const p = await openPool(src, { appName: `giganexus-cli-${name}`, poolMax: 1 }).catch(() => null);
+    if (p) {
+      pools.push(p);
+      ext[name] = createExternalDb(p);
+    }
+  }
+  try {
+    const lookup = await lookupEmployee(ext, emp);
+    if (lookup.selfVirtual) throw new CliError(`${emp} 為兼任帳號,不可單獨登入`);
+    const merged = mergeProfile(lookup);
+    if (merged.profileSource === 'ad_only') throw new CliError(`${emp} 在 LOS / BPM 查無資料`);
+    if (merged.employmentStatus === 'resigned') throw new CliError(`${emp} 已離職`);
+
+    const token = randomBytes(32).toString('base64url');
+    const userId = await ctx.db.transaction(async (tx) => {
+      let [u] = await tx.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
+      if (!u)
+        [u] = await tx
+          .insert(user)
+          .output({ id: user.userId })
+          .values({ employeeNo: emp, displayName: merged.displayName ?? emp, profileSource: merged.profileSource, createdBy: ctx.actor, updatedBy: ctx.actor });
+      await applyProfile(tx, u!.id, merged, ctx.actor);
+      const [cred] = await tx.select().from(localCredential).where(eq(localCredential.userId, u!.id));
+      if (cred?.status === 'active') throw new CliError(`${emp} 已有啟用中的本機帳號`);
+      if (cred)
+        await tx
+          .update(localCredential)
+          .set({ status: 'pending_verify', registeredVia: 'admin', mustChangePassword: false, updatedBy: ctx.actor })
+          .where(eq(localCredential.userId, u!.id));
+      else
+        await tx
+          .insert(localCredential)
+          .values({ userId: u!.id, status: 'pending_verify', registeredVia: 'admin', createdBy: ctx.actor, updatedBy: ctx.actor });
+      // 同用途新 token 產生時,舊 token 一併作廢
+      await tx
+        .update(localAccountToken)
+        .set({ usedAt: new Date() })
+        .where(and(eq(localAccountToken.userId, u!.id), eq(localAccountToken.purpose, 'activate'), isNull(localAccountToken.usedAt)));
+      await tx.insert(localAccountToken).values({
+        userId: u!.id,
+        purpose: 'activate',
+        tokenHash: createHash('sha256').update(token).digest('hex'),
+        expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
+      });
+      await audit(tx, ctx.actor, 'local.create', 'user', emp, { emp, companies: merged.companies.map((c) => c.compName) });
+      return u!.id;
+    });
+    out({ employeeNo: emp, userId, activationToken: token, link: `${baseUrl.replace(/\/$/, '')}/register/activate?token=${token}`, expiresInHours: 72 });
+  } finally {
+    await Promise.all(pools.map((p) => p.close()));
+  }
+}
+
+async function setUserDisabled(ctx: Ctx, empArg: string, disabled: boolean) {
+  const emp = normalizeEmpNo(empArg);
+  const [u] = await ctx.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
+  if (!u) throw new CliError(`找不到使用者 ${emp}`);
+  await ctx.db.transaction(async (tx) => {
+    await tx
+      .update(user)
+      .set({ isDisabled: disabled, permVersion: sql`${user.permVersion} + 1`, updatedBy: ctx.actor })
+      .where(eq(user.userId, u.id));
+    await audit(tx, ctx.actor, disabled ? 'user.disable' : 'user.enable', 'user', emp, { disabled });
+  });
+  // 強制登出:撤銷 Refresh Token 家族;舊 Access Token 因 pv 變更下一次請求即失效
+  const families = await ctx.redis.smembers(`gw:user:rt:${u.id}`);
+  if (families.length) await ctx.redis.del(...families.map((f) => `gw:rt:${f}`), `gw:user:rt:${u.id}`);
+  await ctx.redis.del(`gw:pv:${u.id}`);
+  out({ employeeNo: emp, disabled, revokedSessions: families.length });
+}
+
+async function main() {
+  const [command, ...rest] = process.argv.slice(2);
+  const { values } = parseArgs({
+    args: rest,
+    options: {
+      file: { type: 'string' },
+      target: { type: 'string' },
+      env: { type: 'string', default: 'test' },
+      note: { type: 'string' },
+      to: { type: 'string' },
+      emp: { type: 'string' },
+      'base-url': { type: 'string', default: 'https://localhost' },
+      actor: { type: 'string' },
+    },
+  });
+  if (!command || command === 'help') {
+    console.log('用法見 bff/src/cli/index.ts 檔頭註解');
+    return;
+  }
+  const config = loadConfig();
+  const pool = await openPool(config.gwDb, { appName: 'giganexus-cli', poolMax: 2 });
+  const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true });
+  await redis.connect().catch(() => undefined);
+  const ctx: Ctx = { config, db: createGwDb(pool, config.sql2012Guard), redis, actor: values.actor ?? `cli:${userInfo().username}` };
+  const need = (v: string | undefined, name: string) => {
+    if (!v) throw new CliError(`缺少參數 --${name}`);
+    return v;
+  };
+  try {
+    switch (command) {
+      case 'import-openapi':
+        await importOpenApi(ctx, need(values.file, 'file'), need(values.target, 'target'), values.env === 'prod' ? 'prod' : 'test');
+        break;
+      case 'apply':
+        await applyConfig(ctx, need(values.file, 'file'));
+        break;
+      case 'publish': {
+        const r = await publishRelease(ctx.db, ctx.redis, { actor: ctx.actor, note: values.note, environment: config.gwEnv });
+        out(r.redisSynced ? r : { ...r, message: '已發佈,同步中(Redis 更新失敗,由補償機制於 60 秒內修正)' });
+        break;
+      }
+      case 'rollback':
+        out(await rollbackRelease(ctx.db, ctx.redis, { actor: ctx.actor, toVersion: Number(need(values.to, 'to')), note: values.note }));
+        break;
+      case 'releases':
+        out(
+          await ctx.db
+            .select({
+              version: configRelease.releaseId,
+              publishedBy: configRelease.publishedBy,
+              publishedAt: configRelease.publishedAt,
+              note: configRelease.note,
+              rolledBackFrom: configRelease.rolledBackFrom,
+              diff: configRelease.diffSummary,
+            })
+            .top(20)
+            .from(configRelease)
+            .orderBy(desc(configRelease.releaseId)),
+        );
+        break;
+      case 'local:create':
+        await createLocalAccount(ctx, need(values.emp, 'emp'), values['base-url']!);
+        break;
+      case 'local:unlock': {
+        const emp = normalizeEmpNo(need(values.emp, 'emp'));
+        const [u] = await ctx.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
+        if (!u) throw new CliError(`找不到使用者 ${emp}`);
+        await ctx.db.transaction(async (tx) => {
+          await tx
+            .update(localCredential)
+            .set({ status: 'active', failedCount: 0, lockedAt: null, updatedBy: ctx.actor })
+            .where(and(eq(localCredential.userId, u.id), eq(localCredential.status, 'locked')));
+          await audit(tx, ctx.actor, 'local.unlock', 'user', emp, {});
+        });
+        await ctx.redis.del(`gw:login:fail:${emp}`);
+        out({ employeeNo: emp, unlocked: true });
+        break;
+      }
+      case 'user:disable':
+      case 'user:enable':
+        await setUserDisabled(ctx, need(values.emp, 'emp'), command === 'user:disable');
+        break;
+      default:
+        throw new CliError(`未知的指令:${command}`);
+    }
+  } finally {
+    await pool.close();
+    redis.disconnect();
+  }
+}
+
+main().catch((err: unknown) => {
+  if (err instanceof CliError) {
+    console.error(`錯誤:${err.message}`);
+    if (err.details) console.error(JSON.stringify(err.details, null, 2));
+  } else console.error(err);
+  process.exit(1);
+});

@@ -39,6 +39,7 @@ api-gateway-bff/
 │  │  │  └─ client.ts          # 連線池:giganexus_gw(讀寫)、LOS / BPM / PortalSolar(唯讀)
 │  │  ├─ plugins/              # db、redis、auth、rbac、metrics
 │  │  ├─ modules/auth|rbac|router|admin|notify|webhook|health
+│  │  ├─ cli/                  # 管理 CLI(W3-5.7 OpenAPI 匯入 / 發佈 / 回滾、W3-4.15 IT 代建)
 │  │  ├─ workers/notify.worker.ts
 │  │  ├─ workers/employee-sync.worker.ts   # BPM + LOS → gw.user
 │  │  └─ server.ts
@@ -49,6 +50,8 @@ api-gateway-bff/
 ├─ db/seed/                    # 內建角色、權限、預設政策(Drizzle seed 腳本)
 ├─ drizzle.config.ts
 ├─ deploy/                     # docker-compose.yml(共用)+ .test.yml / .prod.yml(見 DEPLOYMENT.md §5)
+│  └─ dev/                     # 本機完整環境(docker-compose.dev.yml):模擬資料庫初始化、開發用憑證產生、路由設定
+├─ tools/                      # 測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端 / Endpoint gRPC)、sample-spa(範例 SPA)
 └─ .gitlab-ci.yml
 ```
 
@@ -73,3 +76,22 @@ api-gateway-bff/
 | 連線池 | Drizzle 使用 `mssql` 連線池;共連 4 個資料庫(`giganexus_gw`、LOS、BPM、PortalSolar) | `giganexus_gw`:每個 BFF 實例 max 10;LOS / BPM / PortalSolar:每實例 max 3(只供登入補查與舊帳號遷移),worker 另設。`/readyz` 只檢查 `giganexus_gw`,LOS / BPM 停機不影響服務就緒,只發告警 |
 | 已驗證的參考實作 | GeneralBackend 已在正式環境以 tedious + `encrypt: false` 連線 SQL Server 2012、以 mssql 查詢 BPM | PoC 以其連線參數為基準;不沿用其每次請求建立連線的寫法(見 [REFERENCES.md](REFERENCES.md) §1.4) |
 | 外部資料庫帳號 | LOS、BPM、PortalSolar 由其他系統擁有 | 各申請一個**唯讀**登入帳號,只授權指定 view / 表;BPM 連線 `encrypt: true`;兩者皆存 Docker secret |
+
+### 4.1 Drizzle PoC 紀錄(W3-1.1)
+
+> 測試程式:`bff/test/integration/poc-drizzle.test.ts`(對應 [IMPL-PLAN.md](IMPL-PLAN.md) §4.1 檢查表);版本鎖定 `drizzle-orm` / `drizzle-kit` `1.0.0-rc.4`、`mssql` `11.0.2`(tedious 18,與 GeneralBackend 同一主版本;drizzle 的 peer 要求 `mssql@^11`)。
+
+**2026-09-24 本機預驗**:SQL Server 2022 容器、資料庫相容層級 110,所有執行期 SQL 經 2012 語法檢查(`SQL2012_GUARD=error`)。**非 M0 判定依據**,M0 需對 SQL Server 2012 RTM 測試庫(P-04)重跑同一組測試。
+
+| # | 檢查項目 | 本機預驗 | 備註 |
+| --- | --- | --- | --- |
+| 1 | `mssql`(`encrypt: false`)連線 | 通過 | |
+| 2 | INT IDENTITY、DATETIME2(3)、NVARCHAR(MAX)、UNIQUEIDENTIFIER、ROWVERSION | 通過 | Drizzle 無 ROWVERSION / UNIQUEIDENTIFIER 內建型別,以 `customType` 定義;INSERT 時 ROWVERSION 欄位送 `default` 可正常執行 |
+| 3 | `drizzle-kit generate` 的 SQL 可在 2012 執行 | 通過(需手動調整) | ① drizzle-kit 先建 FK 再建唯一索引,參照非主鍵唯一欄位(`permission.code`)的 FK 會失敗 → 調整為「資料表 → 索引 → FK」;② 叢集索引設定無法以 schema 表達 → 稽核表手動改;③ 產出 SQL 未含 2016+ 語法 |
+| 4 | 篩選唯一索引 | 通過 | `uniqueIndex().on(...).where(sql\`...\`)` 可直接定義 |
+| 5 | CRUD、交易回滾、巢狀交易(savepoint) | 通過 | |
+| 6 | `OFFSET … FETCH`、`TOP` | 通過 | API 為 `.orderBy().offset(n).fetch(m)`、`.select().top(n).from()` |
+| 7 | ROWVERSION 樂觀鎖 | 通過 | UPDATE 需用 `.output({ inserted: { rowVer } })` 取回新版本;衝突時回傳 0 筆 |
+| 8 | migration 可重複執行、記錄已套用版本 | 通過 | 紀錄表在 schema `drizzle`(`gw_app` 無權讀取),整批 migration 在單一交易內執行 |
+| 9 | 100 並行查詢(pool max 10) | 通過 | |
+| 10 | 同一程式查詢 BPM(`encrypt: true`)與 LOS / PortalSolar(`encrypt: false`)唯讀 view | 通過 | 本機 BPM 為同一容器、自簽憑證(`trustServerCertificate: true`) |

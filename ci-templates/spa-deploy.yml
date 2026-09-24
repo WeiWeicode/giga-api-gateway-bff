@@ -1,0 +1,70 @@
+# 前端 SPA 部署範本(IMPL-PLAN W3-2.3a、FRONTEND-GUIDE.md §9、DEPLOYMENT.md §3.4)
+#
+# 前端專案的 .gitlab-ci.yml:
+#   include:
+#     - project: '<group>/giga-api-gateway-bff'
+#       file: '/ci-templates/spa-deploy.yml'
+#   variables:
+#     SPA_APP: mes            # 已登記的子路徑名稱(/mes/)
+#
+# 專案需提供 Dockerfile:建置 dist/ 後,最終映像檔含 /dist/$SPA_APP 與 publish 腳本
+# (可參考 tools/sample-spa/Dockerfile 與 publish.sh:publish / rollback、symlink 原子切換、保留 5 版)。
+# 注意:本範本尚未在實際 GitLab Runner 上執行過。
+
+stages: [build, deploy-test, deploy-prod]
+
+variables:
+  SPA_IMAGE: $CI_REGISTRY_IMAGE/spa/$SPA_APP
+  GW_WWW_VOLUME: giganexus-gw_gw_www
+
+spa:build:
+  stage: build
+  tags: [windows-runner]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker build --build-arg RELEASE_SHA=$CI_COMMIT_SHA -t "$SPA_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$SPA_IMAGE:$CI_COMMIT_SHA"
+
+.spa-publish: &spa-publish
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker run --rm -e RELEASE_SHA=$CI_COMMIT_SHA -v $GW_WWW_VOLUME:/srv/www "$SPA_IMAGE:$CI_COMMIT_SHA" publish $SPA_APP
+    - curl -skf -o /dev/null "https://127.0.0.1/$SPA_APP/"
+
+.spa-rollback: &spa-rollback
+  when: manual
+  script:
+    - docker run --rm -v $GW_WWW_VOLUME:/srv/www "$SPA_IMAGE:$CI_COMMIT_SHA" rollback $SPA_APP
+
+spa:deploy-test:
+  <<: *spa-publish
+  stage: deploy-test
+  tags: [windows-runner]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+spa:rollback-test:
+  <<: *spa-rollback
+  stage: deploy-test
+  tags: [windows-runner]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: manual
+
+spa:deploy-prod:
+  <<: *spa-publish
+  stage: deploy-prod
+  tags: [prod-deploy]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+spa:rollback-prod:
+  <<: *spa-rollback
+  stage: deploy-prod
+  tags: [prod-deploy]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual

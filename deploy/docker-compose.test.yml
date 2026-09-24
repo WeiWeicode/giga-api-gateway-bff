@@ -1,0 +1,11 @@
+# B 測試區(主機 2)覆寫設定(DEPLOYMENT.md §1、§5)。變數見 deploy/test.env.example(實際檔案放在主機受保護目錄,不入版控)。
+services:
+  nginx:
+    environment:
+      GW_ENV: test
+  bff-1:
+    environment:
+      LOG_LEVEL: info
+  bff-2:
+    environment:
+      LOG_LEVEL: info

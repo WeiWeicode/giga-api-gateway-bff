@@ -1,0 +1,96 @@
+# GigaNexus Gateway Pipeline(DEPLOYMENT.md §2)
+#   check        所有分支:lint、型別、單元測試、2012 語法檢查、nginx -t
+#   build        develop / main:建置 bff、nginx 映像檔並推送(tag = commit SHA)
+#   deploy-test  develop 自動部署測試區(主機 2,windows-runner)
+#   deploy-prod  main 手動核可部署正式區(主機 3,prod-deploy,Protected);拉取與測試區相同 SHA 的映像檔
+#
+# 注意:本檔尚未在實際 GitLab Runner 上執行過;假設 Runner 可執行 sh 與 docker(docker executor 或 Git Bash)。
+# 測試區 / 正式區主機上需有:${GW_DEPLOY_DIR}/<區域>.env、${GW_SECRETS_DIR}、${GW_CONFIG_DIR}/ldap-domains.json(DEPLOYMENT.md §5)
+
+stages: [check, build, deploy-test, deploy-prod]
+
+variables:
+  BFF_IMAGE: $CI_REGISTRY_IMAGE/gateway/bff
+  NGINX_IMAGE: $CI_REGISTRY_IMAGE/gateway/nginx
+  COMPOSE: docker compose -f deploy/docker-compose.yml
+
+.windows-runner: &windows-runner
+  tags: [windows-runner]
+
+check:bff:
+  <<: *windows-runner
+  stage: check
+  image: node:22-alpine
+  script:
+    - cd bff
+    - npm ci
+    - npm run lint
+    - npm run format:check
+    - npm run typecheck
+    - npm run db:check-2012
+    - npm test
+
+check:nginx:
+  <<: *windows-runner
+  stage: check
+  script:
+    # nginx -t 需要憑證與可解析的上游主機:以開發用自簽憑證與假 host 檢查設定
+    - docker run --rm -v "$CI_PROJECT_DIR:/repo" -w /repo alpine:3.20 sh -c "apk add -q openssl && OUT=/repo/.ci-secrets sh deploy/dev/gen-dev-secrets.sh"
+    - docker build -t gw-nginx-check:$CI_COMMIT_SHORT_SHA nginx/
+    - docker run --rm --add-host bff-1:127.0.0.1 --add-host bff-2:127.0.0.1 -e GW_ENV=test -v "$CI_PROJECT_DIR/.ci-secrets/pki:/etc/nginx/pki:ro" gw-nginx-check:$CI_COMMIT_SHORT_SHA nginx -t
+
+build:
+  <<: *windows-runner
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    # main 以 fast-forward 合併時,映像檔已由 develop 建置,直接沿用
+    - |
+      if docker manifest inspect "$BFF_IMAGE:$CI_COMMIT_SHA" >/dev/null 2>&1; then
+        echo "映像檔已存在,略過建置"; exit 0
+      fi
+    - docker build -f bff/Dockerfile -t "$BFF_IMAGE:$CI_COMMIT_SHA" .
+    - docker build -t "$NGINX_IMAGE:$CI_COMMIT_SHA" nginx/
+    - docker push "$BFF_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$NGINX_IMAGE:$CI_COMMIT_SHA"
+
+.deploy: &deploy
+  script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - export IMAGE_TAG=$CI_COMMIT_SHA REGISTRY=$CI_REGISTRY_IMAGE
+    - C="$COMPOSE -f deploy/docker-compose.$GW_ENV.yml --env-file $GW_DEPLOY_DIR/$GW_ENV.env"
+    - $C pull
+    # 1. migration(失敗即中止)
+    - $C run --rm migrate
+    # 2. BFF 逐一更新,等待 /readyz
+    - $C up -d --no-deps bff-1
+    - sh deploy/wait-healthy.sh bff-1
+    - $C up -d --no-deps bff-2
+    - sh deploy/wait-healthy.sh bff-2
+    # 3. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
+    - $C up -d --no-deps nginx
+    # 4. 冒煙測試
+    - sh deploy/smoke-test.sh "https://127.0.0.1"
+
+deploy-test:
+  <<: *deploy
+  stage: deploy-test
+  tags: [windows-runner]
+  variables:
+    GW_ENV: test
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+  environment: { name: test }
+
+deploy-prod:
+  <<: *deploy
+  stage: deploy-prod
+  tags: [prod-deploy]
+  variables:
+    GW_ENV: prod
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+  environment: { name: production }

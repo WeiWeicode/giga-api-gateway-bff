@@ -1,0 +1,27 @@
+# 由 nginx 官方映像的 envsubst 於容器啟動時產生 /etc/nginx/conf.d/00-env.conf。
+# 同一個映像檔在測試區 / 正式區以環境變數區分(DEPLOYMENT.md §2:正式區使用測試區測過的同一個映像檔)。
+
+# 登入 / 註冊 / 密碼 API 的 IP 限流(PRD §7.3:例如 5 r/min)
+limit_req_zone $binary_remote_addr zone=gw_auth:10m rate=${GW_AUTH_RATE};
+
+# Endpoint Server(W6):WebSocket 串流與 Agent gRPC;以變數指定,尚未部署時 Nginx 仍可啟動
+map $host $endpoint_ws_upstream   { default "${ENDPOINT_WS_UPSTREAM}"; }
+map $host $endpoint_grpc_upstream { default "${ENDPOINT_GRPC_UPSTREAM}"; }
+
+# Webhook 來源 IP 白名單(PRD §7.5);清單依部署區放在 allowlists/<GW_ENV>/
+geo $webhook_bpm_allowed {
+    default 0;
+    include /etc/nginx/allowlists/${GW_ENV}/webhook-bpm.conf;
+}
+
+# 內網服務(下游後端取 JWKS、監控)可存取的來源
+geo $internal_service_client {
+    default 0;
+    include /etc/nginx/allowlists/${GW_ENV}/internal-services.conf;
+}
+
+# Agent 裝置憑證的簽發者必須是 Agent 專用中繼 CA(PRD §7.6)
+map $ssl_client_i_dn $agent_issuer_ok {
+    default 0;
+    include /etc/nginx/allowlists/${GW_ENV}/agent-issuers.conf;
+}

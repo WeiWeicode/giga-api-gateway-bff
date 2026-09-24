@@ -1,0 +1,11 @@
+# A 正式區(主機 3)覆寫設定(DEPLOYMENT.md §1、§5)。變數見 deploy/prod.env.example(實際檔案放在主機受保護目錄,不入版控)。
+services:
+  nginx:
+    environment:
+      GW_ENV: prod
+  bff-1:
+    environment:
+      LOG_LEVEL: info
+  bff-2:
+    environment:
+      LOG_LEVEL: info

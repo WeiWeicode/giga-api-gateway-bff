@@ -1,0 +1,132 @@
+# GigaNexus Gateway — 共用 Compose(DEPLOYMENT.md §3、§5)
+#
+# 測試區 / 正式區:
+#   docker compose --env-file <區域>.env -f deploy/docker-compose.yml -f deploy/docker-compose.<test|prod>.yml pull
+#   docker compose ... run --rm migrate                      # migration + seed,失敗即中止部署
+#   docker compose ... up -d --no-deps bff-1 → 等 /readyz → bff-2 → nginx
+# 本機開發:見 deploy/docker-compose.dev.yml
+#
+# 機密一律放在主機受保護目錄 ${GW_SECRETS_DIR}(不入版控、不寫進映像檔),以唯讀方式掛載:
+#   gw_db_password、gw_migrate_password、los_db_password、bpm_db_password、portal_db_password、
+#   ldap_<網域代碼>_password、jwt/<kid>.pem、pki/(server.crt/key、agent-ca-chain.pem、agent.crl、ca.crt)
+
+name: giganexus-gw
+
+x-bff-env: &bff-env
+  NODE_ENV: production
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  PORT: "3000"
+  GW_ENV: ${GW_ENV:?GW_ENV 必須設定(test / prod)}
+  GW_DB_HOST: ${GW_DB_HOST:?}
+  GW_DB_NAME: ${GW_DB_NAME:?}
+  GW_DB_USER: ${GW_DB_USER:-gw_app}
+  GW_DB_PASSWORD_FILE: /run/secrets/gw/gw_db_password
+  LOS_DB_HOST: ${LOS_DB_HOST:-}
+  LOS_DB_NAME: ${LOS_DB_NAME:-LOS}
+  LOS_DB_USER: ${LOS_DB_USER:-los_reader}
+  LOS_DB_PASSWORD_FILE: /run/secrets/gw/los_db_password
+  BPM_DB_HOST: ${BPM_DB_HOST:-}
+  BPM_DB_NAME: ${BPM_DB_NAME:-BPM}
+  BPM_DB_USER: ${BPM_DB_USER:-bpm_reader}
+  BPM_DB_PASSWORD_FILE: /run/secrets/gw/bpm_db_password
+  BPM_DB_TRUST_SERVER_CERT: ${BPM_DB_TRUST_SERVER_CERT:-false}
+  PORTAL_DB_HOST: ${PORTAL_DB_HOST:-}
+  PORTAL_DB_NAME: ${PORTAL_DB_NAME:-PortalSolar}
+  PORTAL_DB_USER: ${PORTAL_DB_USER:-portal_reader}
+  PORTAL_DB_PASSWORD_FILE: /run/secrets/gw/portal_db_password
+  REDIS_URL: redis://redis:6379
+  JWT_KEYS_DIR: /run/secrets/gw/jwt
+  LDAP_DOMAINS_FILE: /etc/giganexus/ldap-domains.json
+  LDAP_GSC_BIND_PASSWORD_FILE: /run/secrets/gw/ldap_gsc_password
+  LDAP_GSMC_BIND_PASSWORD_FILE: /run/secrets/gw/ldap_gsmc_password
+  LDAP_YGDMC_BIND_PASSWORD_FILE: /run/secrets/gw/ldap_ygdmc_password
+  INTERNAL_NETWORKS: ${INTERNAL_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+  SQL2012_GUARD: "off"
+
+x-bff: &bff
+  image: ${REGISTRY:-localhost:5050}/gateway/bff:${IMAGE_TAG:?IMAGE_TAG 必須設定(commit SHA)}
+  restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_healthy
+  volumes:
+    - ${GW_SECRETS_DIR:?}:/run/secrets/gw:ro
+    - ${GW_CONFIG_DIR:?}/ldap-domains.json:/etc/giganexus/ldap-domains.json:ro
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/readyz >/dev/null || exit 1"]
+    interval: 10s
+    timeout: 3s
+    start_period: 20s
+    retries: 3
+
+services:
+  nginx:
+    image: ${REGISTRY:-localhost:5050}/gateway/nginx:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      GW_ENV: ${GW_ENV}
+      GW_AUTH_RATE: ${GW_AUTH_RATE:-5r/m}
+      ENDPOINT_WS_UPSTREAM: ${ENDPOINT_WS_UPSTREAM:-endpoint-server:51240}
+      ENDPOINT_GRPC_UPSTREAM: ${ENDPOINT_GRPC_UPSTREAM:-endpoint-server:51241}
+    ports:
+      - "${GW_HTTP_PORT:-80}:80"
+      - "${GW_HTTPS_PORT:-443}:443"
+      - "${GW_AGENT_PORT:-9443}:9443"
+    volumes:
+      - gw_www:/srv/www:ro
+      - ${GW_SECRETS_DIR}/pki:/etc/nginx/pki:ro
+    depends_on:
+      - bff-1
+      - bff-2
+
+  bff-1:
+    <<: *bff
+    environment:
+      <<: *bff-env
+      BFF_INSTANCE_ID: bff-1
+    volumes:
+      - ${GW_SECRETS_DIR}:/run/secrets/gw:ro
+      - ${GW_CONFIG_DIR}/ldap-domains.json:/etc/giganexus/ldap-domains.json:ro
+      - bff1_var:/app/var
+
+  bff-2:
+    <<: *bff
+    environment:
+      <<: *bff-env
+      BFF_INSTANCE_ID: bff-2
+    volumes:
+      - ${GW_SECRETS_DIR}:/run/secrets/gw:ro
+      - ${GW_CONFIG_DIR}/ldap-domains.json:/etc/giganexus/ldap-domains.json:ro
+      - bff2_var:/app/var
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # 一次性:migration(migrate 專用帳號)+ seed(DEPLOYMENT.md §3.2 步驟 2)
+  migrate:
+    image: ${REGISTRY:-localhost:5050}/gateway/bff:${IMAGE_TAG}
+    profiles: ["tools"]
+    restart: "no"
+    environment:
+      <<: *bff-env
+      GW_MIGRATE_USER: ${GW_MIGRATE_USER:-gw_migrate}
+      GW_MIGRATE_PASSWORD_FILE: /run/secrets/gw/gw_migrate_password
+    volumes:
+      - ${GW_SECRETS_DIR}:/run/secrets/gw:ro
+      - ${GW_CONFIG_DIR}/ldap-domains.json:/etc/giganexus/ldap-domains.json:ro
+    command: ["sh", "-c", "node dist/bff/src/db/migrate.js && node dist/bff/src/db/seed.js"]
+
+volumes:
+  gw_www:
+  redis_data:
+  bff1_var:
+  bff2_var:

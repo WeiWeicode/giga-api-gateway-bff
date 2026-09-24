@@ -1,0 +1,13 @@
+{
+  "name": "@giganexus/web-kit",
+  "version": "0.1.0",
+  "description": "GigaNexus 前端共用套件:HTTP client、CSRF、401 Refresh、useAuth / can、路由守衛(FRONTEND-GUIDE.md §6–§8)",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": ["src"],
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0 || ^5.0.0"
+  }
+}
