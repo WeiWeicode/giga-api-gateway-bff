@@ -367,7 +367,7 @@ sequenceDiagram
 
 - 以 `drizzle-kit generate` 由 schema 產生 SQL migration,放在 `db/migrations/`,納入版控。
 - **產生的 SQL 須人工審查**,確認不含 SQL Server 2012 不支援的語法(見 §0);必要時手動調整後再提交。
-- 測試區與正式區一律以 `drizzle-kit migrate`(經 W1 Pipeline)套用;**正式區禁止使用 `drizzle-kit push`**。
+- 測試區與正式區一律在部署時以 migration 容器套用(`docker compose run --rm migrate`,以 Drizzle migrator 執行,見 [DEPLOYMENT.md](DEPLOYMENT.md) §3.2–3.3);migration 必須向下相容;**正式區禁止使用 `drizzle-kit push`**。
 - 內建角色、權限、預設政策等種子資料以 Drizzle 撰寫的 seed 腳本(`db/seed/`)匯入,可重複執行(以 `code` 判斷存在與否)。
 
 ## 8. 外部人員資料來源(BPM / LOS)

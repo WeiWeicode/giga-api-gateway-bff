@@ -33,6 +33,7 @@
     當 IT 匯入此規格
     那麼 預覽中 "mes.workorder.list" 為錯誤
     而且 該 operation 不會被寫入草稿
+    而且 提交此批次時回應 code 為 "IMPORT_HAS_ERRORS"
 
   場景大綱: x-permission 對應 auth_mode
     假如 operation 的 "x-permission" 為 "<值>"
@@ -60,7 +61,7 @@
   場景: 路徑衝突時列為錯誤
     假如 已有其他路由使用 "GET /api/mes/work-orders/:id"
     當 IT 匯入另一個上游對應到相同對外路徑的 operation
-    那麼 預覽中該 operation 為錯誤 "路徑衝突"
+    那麼 預覽中該 operation 為錯誤 "ROUTE_PATH_CONFLICT"
 
   場景: 上游 port 不在規定區間時拒絕
     當 IT 登記上游 "legacy-notes" 位址為 "http://notes-host:5121"

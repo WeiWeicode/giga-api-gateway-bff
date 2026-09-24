@@ -25,6 +25,7 @@
   場景: 無權限時回應統一格式
     當 沒有權限的員工呼叫 "GET /api/mes/work-orders"
     那麼 回應狀態為 403
+    而且 回應 code 為 "PERMISSION_DENIED"
     而且 回應內容包含 "code"、"message"、"requestId"
     而且 請求不會轉發到上游
 

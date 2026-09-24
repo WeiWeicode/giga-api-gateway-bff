@@ -35,6 +35,7 @@
     而且 使用者在 60 秒內已呼叫 100 次
     當 使用者再呼叫 "GET /api/mes/work-orders/123"
     那麼 回應狀態為 429
+    而且 回應 code 為 "RATE_LIMITED"
 
   場景: GET 回應快取
     假如 路由 "mes.workorder.get" 設定 cache_ttl_sec 為 30、cache_scope 為 "shared"
@@ -45,6 +46,7 @@
     假如 上游 "go-mes" 超過 10 秒未回應
     當 使用者呼叫 "GET /api/mes/work-orders/123"
     那麼 回應狀態為 504
+    而且 回應 code 為 "UPSTREAM_TIMEOUT"
 
   場景: 冪等方法失敗時重試,非冪等方法不重試
     假如 上游 "go-mes" 第一次回應連線錯誤
@@ -56,6 +58,7 @@
     假如 上游 "go-mes" 連續失敗達 10 次
     當 使用者呼叫 "GET /api/mes/work-orders/123"
     那麼 回應狀態為 503
+    而且 回應 code 為 "UPSTREAM_UNAVAILABLE"
     而且 30 秒內 BFF 不再轉發到 "go-mes"
     而且 30 秒後以試探請求恢復
 
@@ -63,6 +66,7 @@
     假如 上游 "go-mes" 因 aud 不符回應 401
     當 使用者呼叫 "GET /api/mes/work-orders/123"
     那麼 回應狀態為 502
+    而且 回應 code 為 "UPSTREAM_ERROR"
     而且 系統發出上游設定錯誤告警
 
   Rule: 聚合路由

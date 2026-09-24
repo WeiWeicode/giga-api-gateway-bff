@@ -13,7 +13,8 @@
   場景: LOS / BPM 有 Email 時寄驗證連結
     假如 LOS 有 "V112001" 在職資料,姓名 "王小明",Email "wang@example.com"
     當 使用者以工號 "V112001"、姓名 "王小明" 申請註冊
-    那麼 系統寄送 30 分鐘有效的驗證連結到 "wang@example.com"
+    那麼 回應 code 為 "VERIFICATION_SENT"
+    而且 系統寄送 30 分鐘有效的驗證連結到 "wang@example.com"
     而且 本機帳號狀態為 "pending_verify"
     當 使用者在 30 分鐘內開啟連結並設定密碼 "abc12345"
     那麼 本機帳號狀態變為 "active"
@@ -37,7 +38,8 @@
     假如 LOS 與 BPM 都沒有 "V112099"
     而且 所有 AD 網域都查無 "V112099"
     當 使用者以工號 "V112099"、姓名 "陳新人" 申請註冊
-    那麼 本機帳號狀態為 "pending_approval"
+    那麼 回應 code 為 "REGISTRATION_PENDING_APPROVAL"
+    而且 本機帳號狀態為 "pending_approval"
     當 管理員核准此申請
     那麼 系統產生一次性啟用連結
     而且 registered_via 為 "self_approved"
@@ -62,6 +64,7 @@
     假如 同一來源 IP 在 1 小時內已送出 10 次註冊請求
     當 該 IP 再送出註冊請求
     那麼 回應狀態為 429
+    而且 回應 code 為 "RATE_LIMITED"
 
   場景: 在舊入口註冊過的員工也可以直接到新入口網註冊
     假如 舊單一入口 LoginData 有 "V112001"

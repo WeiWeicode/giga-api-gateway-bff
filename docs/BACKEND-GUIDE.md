@@ -53,6 +53,7 @@ flowchart LR
 - 服務以 HTTP 在內網提供即可(TLS 由 Gateway 對外處理);如需加密,於上游設定 `protocol = https` 並提供憑證。
 - 既有系統(例如 `notesapp` 後端 `5121`、GeneralBackend `5123`)在遷移時(PRD §7.2.4、IMPL-PLAN P2-8)改用區間內的 port。
 - **開發前**向 Gateway 負責人申請 port 與服務代碼,登記於 §3.3;未登記的 port 不會被加入上游設定。
+- 部署沿用同一套 GitLab 流程:`develop` 自動部署測試區(主機 2)、`main` 手動部署正式區(主機 3),映像檔以 commit SHA 標記([DEPLOYMENT.md](DEPLOYMENT.md))。與 Gateway 部署在同一台主機時,容器需加入 Gateway 的 Docker 網路,BFF 以容器名稱連線,port 仍依本區間。
 
 ### 3.2 區段分配
 
@@ -176,11 +177,11 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 
 ### 5.3 錯誤格式
 
-與 BFF 統一(PRD §8.1、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6.4):
+與 BFF 統一(完整代碼見 [PRD.md](PRD.md) §8.1.1)。後端自訂代碼**以系統代碼開頭**(例 `MES_WORK_ORDER_NOT_FOUND`),不可使用 `UNAUTHENTICATED`、`PERMISSION_DENIED`、`CSRF_INVALID`、`UPSTREAM_*` 等 Gateway 專用代碼:
 
 ```jsonc
 {
-  "code": "WORK_ORDER_NOT_FOUND",   // 大寫蛇形,前端依此判斷
+  "code": "MES_WORK_ORDER_NOT_FOUND",   // 大寫蛇形,以系統代碼開頭
   "message": "找不到工單",            // 可直接顯示給使用者
   "requestId": "7f3c…",              // 取自 X-Request-Id
   "details": [ { "field": "qty", "message": "必須大於 0" } ]   // 選用,驗證錯誤時使用
@@ -189,12 +190,12 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 
 | 狀態碼 | 後端使用時機 |
 | --- | --- |
-| 400 | 參數驗證失敗(附 `details`) |
-| 403 | **資料層級**無權限(例如看其他部門的資料);API 層級權限由 BFF 處理 |
+| 400 | 參數驗證失敗:`VALIDATION_FAILED`(附 `details`) |
+| 403 | **資料層級**無權限:`DATA_ACCESS_DENIED`(例如看其他部門的資料);API 層級權限由 BFF 處理 |
 | 404 | 資源不存在 |
-| 409 | 資料已被他人修改(樂觀鎖)或狀態衝突 |
+| 409 | 資料已被他人修改:`VERSION_CONFLICT`;或業務狀態衝突(自訂代碼) |
 | 422 | 業務規則不允許(例如工單已結案不能報工) |
-| 500 | 非預期錯誤;**不可回傳堆疊或 SQL 內容** |
+| 500 | 非預期錯誤:`INTERNAL_ERROR`;**不可回傳堆疊或 SQL 內容** |
 
 > 後端**只有在內部 Token 驗證失敗時才回 401**;登入狀態由 Gateway 處理,正常情況不會發生。BFF 收到上游的 401 會視為設定錯誤(金鑰或 `aud` 不符)並告警,對使用者回 502。
 

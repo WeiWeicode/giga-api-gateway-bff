@@ -33,6 +33,7 @@
     假如 使用者已用 "gn_rt" 換發過一次
     當 有人再以舊的 "gn_rt" 呼叫 "POST /api/auth/refresh"
     那麼 回應狀態為 401
+    而且 回應 code 為 "REFRESH_TOKEN_INVALID"
     而且 該 Refresh Token 家族的所有 Token 皆失效
     而且 "gw.auth_log" 新增 event 為 "token_reuse_detected" 的紀錄
 

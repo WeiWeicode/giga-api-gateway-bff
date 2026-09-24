@@ -18,13 +18,13 @@
 | ORM / Migration | **Drizzle ORM**(MSSQL dialect)+ **drizzle-kit** | 型別安全的查詢、schema 定義、migration 產生;與 Redis 的同步規則見 [DATABASE.md](DATABASE.md) §7 |
 | 快取 / 佇列 | **Redis 7** | 路由快照、Session、限流、佇列 |
 | 測試 | Vitest + Testcontainers(Redis)、k6(壓測);資料庫整合測試連**專用的 SQL Server 2012 測試庫**(官方容器映像最早只有 2017,無法代表 2012 的行為);人員同步以 BPM / LOS 唯讀 view 的測試資料驗證 | |
-| 部署 | Docker Compose,經 W1 GitLab Pipeline(測試區自動、正式區手動核可) | |
+| 部署 | Docker Compose(Linux 容器);Windows 主機用 **Docker Desktop**、GitLab 主機(Ubuntu)用 Docker Engine;GitLab CI/CD + Runner + Container Registry(`:5050`) | `develop` 自動部署測試區、`main` 手動部署正式區,見 [DEPLOYMENT.md](DEPLOYMENT.md) |
 
 ## 2. 專案結構(預計)
 
 ```
 api-gateway-bff/
-├─ docs/                 PRD.md、ARCHITECTURE.md、DATABASE.md、TECH-STACK.md、IMPL-PLAN.md、FRONTEND-GUIDE.md、BACKEND-GUIDE.md、REFERENCES.md、Gherkin/*.feature
+├─ docs/                 PRD.md、ARCHITECTURE.md、DATABASE.md、TECH-STACK.md、IMPL-PLAN.md、FRONTEND-GUIDE.md、BACKEND-GUIDE.md、DEPLOYMENT.md、REFERENCES.md、Gherkin/*.feature
 ├─ nginx/
 │  ├─ nginx.conf
 │  ├─ conf.d/portal.conf       # 443:SPA、/api、/ws、/webhook
@@ -48,7 +48,7 @@ api-gateway-bff/
 ├─ db/migrations/              # drizzle-kit 產生、人工審查後的 SQL(版本化)
 ├─ db/seed/                    # 內建角色、權限、預設政策(Drizzle seed 腳本)
 ├─ drizzle.config.ts
-├─ docker-compose.yml
+├─ deploy/                     # docker-compose.yml(共用)+ .test.yml / .prod.yml(見 DEPLOYMENT.md §5)
 └─ .gitlab-ci.yml
 ```
 
@@ -58,8 +58,10 @@ api-gateway-bff/
 - **以主機 IP 對外**(內部無 DNS,PRD Q1):Nginx 開 `:80`(轉址)、`:443`(瀏覽器與系統)、`:9443`(Agent 專用);伺服器憑證 SAN 帶 IP。
 - BFF 無狀態,可水平擴充;Nginx upstream 以 `keepalive` 連 BFF。
 - Secrets(各 AD 網域的 LDAP 服務帳號、JWT 私鑰、SMTP、DB 連線字串)以 Docker secrets / 受保護的 CI 變數注入,**不入版控**。
-- Nginx 設定變更走 Pipeline:`nginx -t` 通過才 `nginx -s reload`。
-- 資料庫 migration 走 Pipeline:`drizzle-kit migrate` 套用已審查的 migration;正式區需手動核可。
+- 主機 2(測試區)、主機 3(正式區)為 Windows + Docker Desktop,各有 GitLab Runner;主機 1(Ubuntu)為 GitLab 與 Container Registry。
+- Nginx 設定在 CI 以 `nginx -t` 檢查通過才建置映像檔;部署時重建 Nginx 容器(正式區安排離峰)。
+- 資料庫 migration 在部署時以一次性容器執行(`docker compose run --rm migrate`),失敗即中止部署;正式區需手動核可。
+- 完整流程、各元件部署與回滾、Docker Desktop 設定見 [DEPLOYMENT.md](DEPLOYMENT.md)。
 
 ## 4. 資料庫與 ORM 注意事項
 

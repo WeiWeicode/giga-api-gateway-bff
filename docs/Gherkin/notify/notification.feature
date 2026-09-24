@@ -46,7 +46,7 @@
     假如 已送出 idempotencyKey 為 "bpm-LV-20261201-001-step2" 的通知
     當 呼叫端在 24 小時內以相同 idempotencyKey 再送一次
     那麼 不會產生新的通知
-    而且 回應指出為重複請求
+    而且 回應 code 為 "DUPLICATE_REQUEST"
 
   場景: 發送失敗以指數退避重試,最終進入死信
     假如 SMTP 伺服器持續回應錯誤

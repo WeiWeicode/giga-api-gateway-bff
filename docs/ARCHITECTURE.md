@@ -84,3 +84,9 @@ flowchart LR
 | D6 | 路由設定 **SQL Server 為事實來源**,Redis 存「已發佈版本」快照 + Pub/Sub 通知,BFF 實例記憶體內建立路由樹 | 查詢路徑不打 DB;Redis 掛掉時仍可用記憶體與本地快照運作 | 每次請求查 Redis:多一次網路往返 |
 | D7 | **身分與人事資料分開取得**:AD 只負責驗證密碼與提供群組;姓名、部門、職稱、主管等人事資料以 **BPM(SQL Server 2019)為主、LOS `EmployeeInfo`(SQL Server 2012)補充**,由排程同步進 `gw.user`,登入時查無資料才即時補查 | AD 的部門欄位不一定有維護;人事資料已存在 BPM / LOS。排程同步讓登入不受外部資料庫延遲或停機影響 | 每次登入即時查兩台資料庫:資料最即時,但任一台停機就影響登入 |
 | D8 | **一個工號只有一種驗證方式**:有 AD 網域者用 AD;無網域子公司員工以 LOS / BPM 的工號自行註冊**本機帳號**(Argon2id 雜湊);兼任帳號不可單獨登入、不同工號不歸戶;舊單一入口(`PortalSolar.LoginData`)帳號首次登入時比對舊密碼、自動建立本機帳號並強制設定新密碼(PRD §8.2.5) | 子公司不一定有網域;身分仍以 LOS / BPM 工號為準,登入後的 Token 與權限模型與 AD 帳號一致 | 為無網域子公司建立 AD 帳號:需 IT 維護大量帳號與網域信任,短期不可行 |
+
+## 4. 部署架構
+
+- 主機 1(Ubuntu):GitLab 與 Container Registry;主機 2(Windows + Docker Desktop):B 測試區 + CI Runner;主機 3(Windows + Docker Desktop):A 正式區 + CD Runner。
+- `develop` 自動部署測試區;`main` 經手動核可後,由正式區 Runner 在本機拉取同一個 commit SHA 的映像檔更新(無 SSH)。
+- 詳細流程、元件部署順序與回滾見 [DEPLOYMENT.md](DEPLOYMENT.md)。

@@ -174,11 +174,11 @@ http.interceptors.response.use(undefined, async (error: AxiosError) => {
 
 ### 6.4 錯誤回應
 
-BFF 統一的錯誤格式:
+BFF 統一的錯誤格式(完整代碼見 [PRD.md](PRD.md) §8.1.1 錯誤代碼總表):
 
 ```jsonc
 {
-  "code": "PERMISSION_DENIED",   // 錯誤代碼,前端依此判斷
+  "code": "PERMISSION_DENIED",   // 錯誤代碼,前端依此判斷(PRD §8.1.1)
   "message": "您沒有此功能的權限", // 可直接顯示給使用者
   "requestId": "7f3c…"            // 與 X-Request-Id 相同
 }
@@ -270,15 +270,15 @@ npm run build   # 產出 dist/,資源路徑皆以 /mes/ 開頭
 
 ```mermaid
 flowchart LR
-    A["GitLab CI<br/>npm ci + build"] --> B["上傳 dist/ 至 Gateway 主機<br/>/srv/www/mes/releases/&lt;版本&gt;/"]
-    B --> C["切換 symlink<br/>current → 新版本"]
-    C --> D["冒煙測試<br/>GET /mes/ = 200"]
+    A["GitLab CI<br/>npm ci + build"] --> B["建置映像檔 spa/mes:SHA<br/>推送 Registry"]
+    B --> C["一次性容器複製到 volume<br/>/srv/www/mes/releases/SHA"]
+    C --> D["切換 current → SHA"]
+    D --> E["冒煙測試<br/>GET /mes/ = 200"]
 ```
 
-- 版本目錄名稱使用 `<日期>-<commit 短碼>`,例如 `20261201-a1b2c3d`。
-- symlink 以原子方式切換(`ln -sfn` 到暫存名稱後 `mv -T`),**不需重啟或 reload Nginx**。
+- `dist/` 打包成映像檔(tag 為 commit SHA),部署時由該區主機的 Runner 以一次性容器複製到 Nginx 掛載的 named volume,再**原子切換** `current`;**不需重啟或 reload Nginx**([DEPLOYMENT.md](DEPLOYMENT.md) §3.4)。
 - 保留最近 5 個版本;回滾使用 Pipeline 的手動回滾 job,將 `current` 指回上一版。
-- 測試區自動部署;正式區需手動核可。
+- 分支:`develop` 自動部署測試區;`main` 經手動核可部署正式區(正式區使用與測試區相同 SHA 的映像檔)。
 - 快取:`index.html` 不快取,`assets/*` 帶 hash 長期快取,因此**部署後使用者重新整理即可取得新版**,不需要求清除快取。
 
 Pipeline 範本由 Gateway 團隊提供(`include` 共用的 `.gitlab-ci` 片段),各專案只需設定子路徑名稱。

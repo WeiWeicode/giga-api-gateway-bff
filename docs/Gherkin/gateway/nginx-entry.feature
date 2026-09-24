@@ -57,6 +57,7 @@
     假如 同一來源 IP 在 1 分鐘內已呼叫 "/api/auth/login" 5 次
     當 該 IP 再次呼叫 "/api/auth/login"
     那麼 回應狀態為 429
+    而且 回應 code 為 "RATE_LIMITED"
 
   場景: 通知 WebSocket 可長時間維持
     假如 使用者已登入

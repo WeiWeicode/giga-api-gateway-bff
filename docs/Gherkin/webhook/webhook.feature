@@ -20,11 +20,13 @@
   場景: 非允許來源 IP 在 Nginx 即被拒絕
     當 其他主機送出 "POST /webhook/bpm"
     那麼 回應狀態為 403
+    而且 回應 code 為 "IP_NOT_ALLOWED"
     而且 BFF 沒有收到請求
 
   場景: 簽章錯誤
     當 BPM 主機以錯誤簽章送出 "POST /webhook/bpm"
     那麼 回應狀態為 401
+    而且 回應 code 為 "WEBHOOK_SIGNATURE_INVALID"
     而且 "gw.webhook_log" 新增 verified 為 0 的紀錄
     而且 事件不會被處理
 
@@ -42,6 +44,7 @@
     假如 已處理 Idempotency-Key 為 "bpm-evt-001" 的事件
     當 BPM 主機以相同 Idempotency-Key 再次送出
     那麼 回應狀態為 200
+    而且 回應 code 為 "DUPLICATE_REQUEST"
     而且 事件不會被重複處理
 
   場景: BPM 簽核完成後通知申請人
@@ -51,3 +54,4 @@
   場景: 未設定的來源
     當 用戶端送出 "POST /webhook/line"
     那麼 回應狀態為 404
+    而且 回應 code 為 "WEBHOOK_SOURCE_NOT_FOUND"

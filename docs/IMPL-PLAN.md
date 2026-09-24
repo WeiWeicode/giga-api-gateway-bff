@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 實作計畫
 
 > 依據 [PRD.md](PRD.md) **v0.4** §13 里程碑,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。
-> 相關文件:[ARCHITECTURE.md](ARCHITECTURE.md)、[DATABASE.md](DATABASE.md)、[TECH-STACK.md](TECH-STACK.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[REFERENCES.md](REFERENCES.md)。
+> 相關文件:[ARCHITECTURE.md](ARCHITECTURE.md)、[DATABASE.md](DATABASE.md)、[TECH-STACK.md](TECH-STACK.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[DEPLOYMENT.md](DEPLOYMENT.md)、[REFERENCES.md](REFERENCES.md)。
 
 ---
 
@@ -97,12 +97,13 @@ gantt
 | P-08 | 規劃 AD 群組:`GN-*` 系列對應內建角色 | IT | 群組清單與成員 | W3-4 |
 | P-09 | SMTP 中繼帳號(Exchange) | IT | 主機、帳號、寄件人位址 | W3-5 |
 | P-10 | ~~LINE 官方帳號申請~~ | — | **暫緩**:本階段不開發 LINE 通知(PRD Q7) | — |
-| P-11 | 測試區(主機 2)、正式區(主機 3)Docker 環境與 Redis | IT / W1 | 主機可部署 Compose;W1 Pipeline 可用 | W3-2 起 |
+| P-11 | 主機 2(測試區)、主機 3(正式區)的 Docker Desktop 與 GitLab Runner(`windows-runner`、`prod-deploy` Protected)、Registry `:5050` 登入、開機自動恢復、Port 80 / 443 / 9443 未被佔用([DEPLOYMENT.md](DEPLOYMENT.md) §6–§7) | IT / W1 | 兩台主機可由 Pipeline 部署 Compose | W3-2 起 |
 | P-12 | LOS、BPM **唯讀帳號**與欄位對應(PRD Q9) | DBA、BPM 負責人 | 兩個唯讀登入帳號;BPM 依 GeneralBackend 的 EFGP 查詢建立唯讀 view([REFERENCES.md](REFERENCES.md) §1.2);LOS `EmployeeInfo` 欄位說明 | W3-4 |
 | P-13 | 防火牆:BFF / worker 主機 → BPM 主機(SQL Server 2019)1433 | 網管 | 防火牆規則;BPM 伺服器憑證的 CA(加密連線用) | W3-4 |
 | P-14 | 防火牆:Gateway `:443` 開放使用者網段;`:9443` 只開放端點(Agent)網段 | 網管 | 防火牆規則 | W3-2、W3-3 |
 | P-15 | 舊單一入口:`PortalSolar.LoginData` 唯讀 view(不含 `EName`)與帳號;以**現行系統**建立 2–3 組測試帳號(參考原始碼為兩三年前的備份,PRD Q18、Q22);演算法常數存入 Docker secret | 提案人、DBA、IT | 唯讀帳號、測試帳號、secret | W3-4 |
 | P-16 | 下游後端 port **51200–51300** 分配([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §3)與防火牆:只允許 Gateway 主機連入後端主機的該區間 | Gateway 負責人、網管 | 分配紀錄、防火牆規則 | W3-5 起各系統上架 |
+| P-17 | Docker Desktop 授權:員工數已確認未達 200 人,**確認年營收是否低於 1,000 萬美元**(PRD Q25);測試區 SMTP 攔截設定([DEPLOYMENT.md](DEPLOYMENT.md) §5.1) | 主管、IT | 授權結論;測試信箱 | W3-2 前 |
 
 ---
 
@@ -115,7 +116,7 @@ gantt
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
 | W3-1.1 | **Drizzle × SQL Server 2012 PoC**(11/16 ~ 11/20) | [TECH-STACK.md](TECH-STACK.md) §4 | PoC 報告 + Go / No-Go 結論 |
-| W3-1.2 | 專案骨架:`bff/`(Fastify 5 + TS)、`nginx/`、`db/`、`docker-compose.yml`、ESLint / Prettier / Vitest、`.gitlab-ci.yml`(lint + test + build) | [TECH-STACK.md](TECH-STACK.md) §2 | 可建置、可跑測試的空專案 |
+| W3-1.2 | 專案骨架:`bff/`(Fastify 5 + TS)、`nginx/`、`db/`、`deploy/docker-compose*.yml`、ESLint / Prettier / Vitest、`.gitlab-ci.yml`(check / build / deploy-test / deploy-prod,分支策略見 [DEPLOYMENT.md](DEPLOYMENT.md) §2) | [TECH-STACK.md](TECH-STACK.md) §2 | 可建置、可跑測試的空專案 |
 | W3-1.3 | Drizzle schema:`gw.*` 全部資料表 | [DATABASE.md](DATABASE.md) §2–§5 | `bff/src/db/schema/` |
 | W3-1.4 | 產生初版 migration,**人工審查 2012 相容性**後套用至測試庫 | [DATABASE.md](DATABASE.md) §0、§7.4 | `db/migrations/0001_*.sql` |
 | W3-1.5 | Seed:內建角色(`gw-super-admin`、`gw-it-admin`、`employee`)、`gw.admin.*` 權限、預設限流政策、公司與 AD 網域對應(碩禾 → `gsc`、`gsmc`;鹽城碩禾 → `ygdmc`) | PRD §8.3 | `db/seed/`,可重複執行 |
@@ -131,7 +132,7 @@ gantt
 - [ ] 基本增刪改查、交易(`db.transaction`)含回滾
 - [ ] `OFFSET … FETCH` 分頁、`TOP`
 - [ ] `ROWVERSION` 樂觀鎖:更新時比對 `row_ver`,衝突可偵測
-- [ ] `drizzle-kit migrate` 可重複執行、記錄已套用版本
+- [ ] migration(Drizzle migrator,以 `docker compose run --rm migrate` 執行)可重複執行、記錄已套用版本
 - [ ] 100 並行查詢下連線池穩定
 - [ ] 同一程式以唯讀 schema 查詢 **SQL Server 2019**(BPM,`encrypt: true`)與 2012 上的 LOS
 
@@ -146,13 +147,13 @@ gantt
 | W3-2.1 | `nginx.conf` 與 `snippets/`:TLS 1.2 / 1.3、安全標頭、`server_tokens off`、`X-Request-Id`、JSON access log | PRD §7.1、§7.7 | `nginx/nginx.conf`、`nginx/snippets/*` |
 | W3-2.2 | `:80` → 301;`:443` server block(以 IP 存取) | PRD §7.1 | `nginx/conf.d/portal.conf` |
 | W3-2.3 | SPA 託管:`/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`,History 模式、快取標頭、gzip;`/srv/www/<app>/current` symlink 結構 | PRD §7.2 | 各路徑以範例 SPA 驗證 |
-| W3-2.3a | 前端部署 CI 範本:上傳 `releases/<版本>`、原子切換 `current`、保留 5 版、手動回滾 job | PRD §7.2.3、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §9 | `ci-templates/spa-deploy.yml` |
+| W3-2.3a | 前端部署 CI 範本:建置 SPA 映像檔、以一次性容器發佈到 `gw_www` volume、原子切換 `current`、保留 5 版、手動回滾 job | PRD §7.2.3、[DEPLOYMENT.md](DEPLOYMENT.md) §3.4 | `ci-templates/spa-deploy.yml` |
 | W3-2.4 | `/api/` → `bff_upstream`(keepalive);清除 `X-Internal-*`、`X-User-*`;body 大小、逾時 | PRD §7.3 | |
 | W3-2.5 | 第一道限流:全域 IP 限流;`/api/auth/login` 嚴格限流 | PRD §7.3 | |
 | W3-2.6 | WebSocket:`/ws/notify` → BFF;`/ws/endpoint/*` → Endpoint Server + `auth_request /_auth/verify`(BFF 端先以 stub 回 204) | PRD §7.4 | |
 | W3-2.7 | `/webhook/{source}`:IP 白名單 → BFF | PRD §7.5 | |
 | W3-2.8 | nginx-prometheus-exporter | PRD §7.7 | Prometheus 可抓到指標 |
-| W3-2.9 | Pipeline:`nginx -t` 通過才 reload | [TECH-STACK.md](TECH-STACK.md) §3 | CI 步驟 |
+| W3-2.9 | Pipeline:`check` 階段以 nginx 映像檔執行 `nginx -t`;Nginx 映像檔建置與部署([DEPLOYMENT.md](DEPLOYMENT.md) §3.2) | [DEPLOYMENT.md](DEPLOYMENT.md) §2.2 | CI 步驟 |
 
 **驗收:** 測試區以正式憑證(或 W2 暫用憑證)通過 HTTPS;SSL Labs 類工具檢查無弱加密;送入偽造 `X-User-Id` 不會到達上游;超過限流回 429;WebSocket 可維持 1 小時以上。
 
@@ -299,3 +300,4 @@ gantt
 | BPM / LOS 欄位對應未定 | P-12 於 12/14 前未就緒 | 先以 AD 資料登入(`profile_source = ad_only`),同步 Worker 與欄位對應於 01/15 前補上;W3-4 其餘項目不受影響 |
 | BPM 資料表結構變動 | 同步安全檢查中止或欄位讀取錯誤 | 以唯讀 view 隔離;view 由 BPM 負責人維護,變更前通知 |
 | 舊演算法測試帳號未就緒 | P-15 於 12/14 前未就緒 | 暫不啟用自動遷移,舊帳號使用者改走自行註冊(LOS / BPM 找得到就可註冊);測試帳號驗證通過後再開啟 |
+| Docker Desktop 授權未確認或主機重開後未自動恢復 | P-17 未完成;重開機演練失敗 | 改在 WSL2 內安裝 Docker Engine 並設為開機啟動;以 Windows 服務執行 Runner |
