@@ -1,6 +1,6 @@
 # GigaNexus Gateway — 實作計畫
 
-> 依據 [PRD.md](PRD.md) **v0.4** §13 里程碑,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。
+> 依據 [PRD.md](PRD.md) **v0.5** §13 里程碑,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。
 > 相關文件:[ARCHITECTURE.md](ARCHITECTURE.md)、[DATABASE.md](DATABASE.md)、[TECH-STACK.md](TECH-STACK.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[DEPLOYMENT.md](DEPLOYMENT.md)、[REFERENCES.md](REFERENCES.md)。
 
 ---
@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.4(對齊 PRD v0.4) |
+| 文件版本 | v0.5(對齊 PRD v0.5:新增 W3-5.7a,Q3 兩區設定不互通) |
 | 建立日期 | 2026-09-24 |
 | 對應工作流 | NexusPlan **W3. API Gateway + BFF**(2026-11-16 ~ 2027-01-29)+ 第二階段(2027-02 ~ 03) |
 | 狀態 | 規劃中 |
@@ -102,7 +102,7 @@ gantt
 | P-13 | 防火牆:BFF / worker 主機 → BPM 主機(SQL Server 2019)1433 | 網管 | 防火牆規則;BPM 伺服器憑證的 CA(加密連線用) | W3-4 |
 | P-14 | 防火牆:Gateway `:443` 開放使用者網段;`:9443` 只開放端點(Agent)網段 | 網管 | 防火牆規則 | W3-2、W3-3 |
 | P-15 | 舊單一入口:`PortalSolar.LoginData` 唯讀 view(不含 `EName`)與帳號;以**現行系統**建立 2–3 組測試帳號(參考原始碼為兩三年前的備份,PRD Q18、Q22);演算法常數存入 Docker secret | 提案人、DBA、IT | 唯讀帳號、測試帳號、secret | W3-4 |
-| P-16 | 下游後端 port **51200–51300** 分配([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §3)與防火牆:只允許 Gateway 主機連入後端主機的該區間 | Gateway 負責人、網管 | 分配紀錄、防火牆規則 | W3-5 起各系統上架 |
+| P-16 | 下游後端 port **51200–51300** 分配([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §3)與防火牆:只允許 Gateway 主機連入後端主機的該區間;各服務測試區 / 正式區 API Key(自動註冊用,§7.5) | Gateway 負責人、網管 | 分配紀錄、防火牆規則、API Key | W3-5 起各系統上架 |
 | P-17 | Docker Desktop 授權:員工數已確認未達 200 人,**確認年營收是否低於 1,000 萬美元**(PRD Q25);測試區 SMTP 攔截設定([DEPLOYMENT.md](DEPLOYMENT.md) §5.1) | 主管、IT | 授權結論;測試信箱 | W3-2 前 |
 
 ---

@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 IT 管理系統(GigaItApp)取代範例 IT 頁面
+- 內容：`/it/` 改由獨立專案 GigaItApp 提供:自有登入(不共用單一入口)、職級 × 部門按鈕權限、儀表板、BFF 服務 / 路由 / 發佈版本與 BFF 角色權限的視覺化與設定(BFF 尚無寫入 API 的部分明確回「尚未開放」)。Gateway 端只新增 Nginx `/it/api/` 轉送與部署設定,細節見後端修改紀錄同日項目與 GigaItApp `README.md`。
+- 檔案：`nginx/`、`deploy/`、`docs/`;GigaItApp `backend/`、`frontend/`、`deploy/`
+- 驗證：見後端修改紀錄同日項目與 GigaItApp `docs/DevelopmentProcess/NewFeatures.md`
+
 ## 2026-09-25 後端自動註冊、路由查詢、Node.js SDK 與樣本
 - 工作項目：W3-5.7a
 - 內容：`gw.api_route` 新增 `gherkin`(行為規格),`description` 作為 API 用途說明,兩者由 OpenAPI 的 `description`、`x-gherkin` 匯入;後端以 API Key 呼叫 `POST /api/admin/registrations`,在 test / prod 啟動時自動註冊為草稿(不自動發佈,只能註冊自己的服務);`GET /api/admin/routes/catalog` 查詢既有路由避免重複開發;新增 `@giganexus/backend-sdk`(`sdk/node`:`GW_ENV=dev|test|prod` 設定、Token 驗證、自動註冊、`gw-lookup`)與 Node.js 後端樣本(`samples/node-backend`,含專用 AGENT.md)。規格同步修訂:PRD v0.5(Q3 改為兩區設定不互通,取消匯出 / 匯入)、BACKEND-GUIDE §7.5。

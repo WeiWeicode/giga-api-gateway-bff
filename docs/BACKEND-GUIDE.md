@@ -81,6 +81,8 @@ flowchart LR
 | 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
+| 51290 | 公司文件系統 | `dms-api`(系統代碼 `dms`,SPA `/dms/`) | HTTP | DMS 負責人 | 測試區 |
+| 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`、API `/it/api/*` 由 Nginx 直接轉入,不經 BFF 路由表) | HTTP | IT 管理系統負責人 | 測試區 |
 | 51241 | Endpoint | `endpoint-grpc`(Agent gRPC,Nginx `:9443` 轉入) | gRPC(TLS) | W6 負責人 | 規劃中 |
 
 ---

@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 資料庫設計(SQL Server + Redis)
 
 > 本文件自 [PRD.md](PRD.md) §9 拆出,為該主題的唯一維護來源;PRD 僅保留摘要與連結。
-> 對應 PRD 版本:**v0.4**(2026-09-24)。
+> 對應 PRD 版本:**v0.5**(2026-09-25)。
 
 ---
 

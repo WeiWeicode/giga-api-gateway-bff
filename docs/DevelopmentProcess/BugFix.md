@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 範例後端 build 因未設 rootDir 失敗
+- 內容：TypeScript 6 在有 `outDir` 時要求明確設定 `rootDir`,`samples/node-backend` 的 `npm run build` 回 TS5011;`typecheck` 用 `--noEmit` 不受影響,只在建置(如 Docker image)時出錯。`tsconfig.build.json` 加上 `rootDir: "."`,輸出維持 `start` 所需的 `dist/src/server.js`。`sdk/node`(`rootDir: "src"`)與 `bff/`(`rootDir: ".."`)已明確設定,不受影響。
+- 檔案：`samples/node-backend/tsconfig.build.json`
+- 驗證：`npm run build && ls dist/src/server.js` 成功;`npm run typecheck` 通過、`npm test` 9 項通過;`sdk/node`、`bff` 的 `npm run build` 皆成功
+
 ## 2026-09-24 Agent 憑證簽發者檢查誤擋有效憑證
 - 工作項目：W3-3.1
 - 內容：`openssl ca` 依 policy 重排 DN,中繼 CA 的 `$ssl_client_i_dn` 為 `O=GigaNexus Dev,CN=GigaNexus Agent CA (dev)`,與 allowlist 寫的順序不同,有效憑證被回 403。修正 allowlist 並加註取得確切字串的指令。

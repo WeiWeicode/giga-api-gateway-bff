@@ -8,6 +8,9 @@ limit_req_zone $binary_remote_addr zone=gw_auth:10m rate=${GW_AUTH_RATE};
 map $host $endpoint_ws_upstream   { default "${ENDPOINT_WS_UPSTREAM}"; }
 map $host $endpoint_grpc_upstream { default "${ENDPOINT_GRPC_UPSTREAM}"; }
 
+# IT 管理系統後端(GigaItApp itapp-api,/it/api/*);以變數指定,尚未部署時 Nginx 仍可啟動
+map $host $itapp_api_upstream { default "${ITAPP_API_UPSTREAM}"; }
+
 # Webhook 來源 IP 白名單(PRD §7.5);清單依部署區放在 allowlists/<GW_ENV>/
 geo $webhook_bpm_allowed {
     default 0;

@@ -1,7 +1,7 @@
 # GigaNexus Gateway
 
 Nginx 反向代理網關 + Node.js BFF(Fastify 5 / TypeScript / Drizzle ORM / SQL Server 2012 / Redis 7)。
-規格見 [docs/](docs/):[PRD](docs/PRD.md)、[ARCHITECTURE](docs/ARCHITECTURE.md)、[DATABASE](docs/DATABASE.md)、[TECH-STACK](docs/TECH-STACK.md)、[IMPL-PLAN](docs/IMPL-PLAN.md)、[FRONTEND-GUIDE](docs/FRONTEND-GUIDE.md)、[BACKEND-GUIDE](docs/BACKEND-GUIDE.md)、[DEPLOYMENT](docs/DEPLOYMENT.md)、[Gherkin](docs/Gherkin/README.md)。
+規格見 [docs/](docs/):[PRD](docs/PRD.md)、[ARCHITECTURE](docs/ARCHITECTURE.md)、[DATABASE](docs/DATABASE.md)、[TECH-STACK](docs/TECH-STACK.md)、[IMPL-PLAN](docs/IMPL-PLAN.md)、[FRONTEND-GUIDE](docs/FRONTEND-GUIDE.md)、[BACKEND-GUIDE](docs/BACKEND-GUIDE.md)、[DEPLOYMENT](docs/DEPLOYMENT.md)、[Gherkin](docs/Gherkin/README.md);上公司環境的調整與交接見 [COMPANY-ENV-PLAN](docs/COMPANY-ENV-PLAN.md)。
 
 ## 目錄(TECH-STACK.md §2)
 
@@ -10,16 +10,18 @@ docs/                 規格文件與 Gherkin 驗收場景
 nginx/                nginx.conf、conf.d/portal.conf(:80/:443)、conf.d/agent.conf(:9443 mTLS)、snippets/、allowlists/<區域>/、Dockerfile
 bff/                  BFF(Node 專案:package.json、src/、test/、Dockerfile)
   src/db/schema/        gw.* 資料表(Drizzle)          src/db/external/   BPM / LOS / PortalSolar 唯讀 view
-  src/db/sync/          發佈、Redis 同步與補償          src/modules/        auth、rbac、router、notify、health
-  src/cli/              管理 CLI(OpenAPI 匯入、發佈、回滾、IT 代建本機帳號)
+  src/db/sync/          發佈、Redis 同步與補償          src/modules/        auth、rbac、router、admin、notify、health
+  src/cli/              管理 CLI(OpenAPI 匯入、發佈、回滾、IT 代建本機帳號、API Key)
   test/unit|integration|e2e/
 web-kit/              前端共用套件 @giganexus/web-kit(HTTP、CSRF、401 Refresh、useAuth / can、路由守衛)
+sdk/node/             下游後端共用套件 @giganexus/backend-sdk(GW_ENV、Token 驗證、自動註冊、gw-lookup 路由查詢)
+samples/node-backend/ Node.js 下游後端樣本(Fastify)與 AI 協作準則 AGENT.md
 ci-templates/         前端 SPA 部署 CI 範本
 db/migrations/        drizzle-kit 產生、人工審查 2012 相容性後的 SQL
 db/seed/              種子資料(內建角色、gw.admin.* 權限、限流政策、公司與網域)
 drizzle.config.ts
 deploy/               docker-compose.yml(共用)+ .test.yml / .prod.yml;dev/ 為本機完整環境
-tools/                測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端)、sample-spa(入口網 + MES 範例 SPA)
+tools/                測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端)、sample-spa(入口網、MES 範例 SPA;IT 頁面已改由 GigaItApp 發佈)
 .gitlab-ci.yml
 ```
 
@@ -41,8 +43,8 @@ sh deploy/dev/up.sh
 | `mssql` + `mssql-init` | SQL Server 2022:`giganexus_gw`、`giganexus_gw_test`、`LOS`、`PortalSolar`(相容層級 110)、`BPM`(150)+ 模擬資料 |
 | `mock-ad` | 模擬 AD 三網域 gsc / gsmc / ygdmc(巢狀群組、AD 錯誤碼) |
 | `mock-mes` / `mock-hrm` / `mock-bpm` / `mock-portal` / `mock-endpoint` | 模擬下游後端(port 51210 / 51220 / 51250 / 51270 / 51240–51241),以 JWKS 驗證 `X-Internal-Token` |
-| `gw-migrate` / `gw-setup` | migration + seed;以 CLI 從各模擬後端的 OpenAPI 匯入路由並發佈 |
-| `spa-portal` / `spa-mes` | 範例 SPA 發佈到 `gw_www`(symlink 原子切換) |
+| `gw-migrate` / `gw-setup` | migration + seed;以 CLI 從各模擬後端的 OpenAPI 匯入路由(含說明與 Gherkin)並發佈 |
+| `spa-portal` / `spa-mes` / `spa-it` | SPA 發佈到 `gw_www`(symlink 原子切換);`spa-it` 以 GigaItApp(`../../GigaItApp/frontend`,可用 `ITAPP_DIR` 指定)建置,取代原 IT 管理 demo |
 
 - 開啟 `https://localhost/`(開發用根憑證 `deploy/dev/secrets/pki/ca.crt`,可匯入瀏覽器)
 - 測試帳號(密碼皆為 `Passw0rd!`,虛構資料):`S112009`(碩禾 AD,MES 作業員)、`S100001`(IT 管理)、`Y110001`(鹽城碩禾,無 MES 權限)、`S112030`(只在新網域 gsmc);本機帳號 `V112001` 以 CLI 代建:`docker compose ... exec bff-1 node dist/bff/src/cli/index.js local:create --emp V112001`
@@ -59,7 +61,9 @@ npm run test:int    # 整合測試(Drizzle PoC;自動重建 giganexus_gw_test)
 npm run test:e2e    # 經 Nginx 的端到端測試(需先 deploy/dev/up.sh)
 ```
 
-E2E 測試對應 `docs/Gherkin` 的 nginx-entry、agent-mtls、ad-login、local-account、token-session、permission、dynamic-routing、release-publish 場景。
+E2E 測試對應 `docs/Gherkin` 的 nginx-entry、agent-mtls、ad-login、local-account、token-session、permission、dynamic-routing、release-publish、service-registration 場景。
+
+後端樣本:`cd samples/node-backend && npm install && npm test`(OpenAPI 自我檢查、Token 驗證、部署區設定)。
 
 ### 容器 ≠ SQL Server 2012
 
@@ -80,6 +84,7 @@ M0 Go / No-Go 仍需以整合測試對**真正的 SQL Server 2012 測試庫**(P-
 | W3-4 AD 多網域登入、本機帳號、JWT Cookie、Refresh Rotation、CSRF、RBAC、內部 Token / JWKS、登入補查 BPM / LOS、IT 代建 | 完成 |
 | W3-4.6b 人員排程同步 Worker、W3-4.16 舊單一入口遷移 | 未開始(後者需 P-15 測試帳號) |
 | W3-5 動態路由、聚合、限流、快取、斷路器、發佈 / 回滾 / 補償、CLI 匯入 | 完成 |
+| W3-5.7a 後端自動註冊(API Key、草稿)、路由查詢、`gw.api_route.gherkin`、Node.js SDK 與樣本 | 完成(容器驗證,待 2012 複驗 migration) |
 | W3-5.8 通知 Worker、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 未開始(`/ws/notify` 連線已可用) |
 
 注意事項:

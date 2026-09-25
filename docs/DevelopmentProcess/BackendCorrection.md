@@ -2,6 +2,16 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-09-25 /it/ 改由 GigaItApp 提供(自有登入):Nginx /it/api/、port 51291
+- 內容：IT 管理頁面改為獨立專案 GigaItApp(`../GigaItApp`),不共用單一入口登入。Nginx 新增 `/it/api/`(一般)與 `= /it/api/auth/login`(套用 `gw_auth` 登入限流)兩個 location,以變數 `$itapp_api_upstream` 轉給 `itapp-api`(未部署時 Nginx 仍可啟動,請求回 502);`00-env.conf.template` 新增 map,`nginx/Dockerfile` 預設 `ITAPP_API_UPSTREAM=itapp-api:51291` 並把 `ITAPP_` 加入 `NGINX_ENVSUBST_FILTER`(否則變數不會被替換,/it/api 回 500);`deploy/docker-compose.yml` 與 test / prod env 範例加入 `ITAPP_API_UPSTREAM`。本機 `docker-compose.dev.yml` 的 `spa-it` 改以 GigaItApp `frontend/` 建置,取代 `tools/sample-spa/it`(原始碼保留未刪)。BACKEND-GUIDE §3.3 登記 51291、PRD §7.2.1 更新 `/it/` 說明。BFF 程式未修改;GigaItApp 以服務帳號讀取既有 `/api/admin/demo/*`、`/api/admin/db/*`、`/api/admin/routes/catalog`。
+- 檔案：`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/Dockerfile`、`deploy/docker-compose.yml`、`deploy/test.env.example`、`deploy/prod.env.example`、`deploy/docker-compose.dev.yml`(不入版控)、`docs/BACKEND-GUIDE.md`、`docs/PRD.md`、`docs/COMPANY-ENV-PLAN.md`、`README.md`
+- 驗證：重建 nginx 映像並重建容器,`nginx -t` 通過,`00-env.conf` 內 `$itapp_api_upstream` 為 `itapp-api:51291`;`/it/api/healthz` 200、`/it/api/auth/me` 未登入 401(含安全標頭、X-Request-Id 只有一個);既有 `/api/auth/me` 401、入口網 `/` 200 不受影響;GigaItApp 發佈到 `it-admin` 後 `/it/`、`/it/gateway/rbac/graph` 200(History 模式)。未執行 BFF 的 `npm test` / E2E(BFF 程式未變更)
+
+## 2026-09-25 登記公司文件系統(DMS):子路徑 /dms/、port 51290
+- 內容：新系統「公司文件系統」上架本機 Gateway(視同測試區)。Nginx 新增 `/dms/` SPA location(`/docs` 為保留路徑,改用 `/dms/`);BACKEND-GUIDE §3.3 登記 port 51290 / `dms-api`、PRD §7.2.1 登記子路徑。以 CLI 建立 API Key `dms-api`,後端(`GW_ENV=test`)啟動時自動註冊 6 條草稿路由與權限 `dms.document.read` / `write`;以 `apply` 新增角色 `dms-reader`(公司 碩禾)、`dms-editor`(GN-IT-Admins)後發佈 v32、v33。後端與前端原始碼在獨立專案(`TestGigaAPP/dms-backend`、`dms-frontend`)。
+- 檔案：`nginx/conf.d/portal.conf`、`docs/BACKEND-GUIDE.md`、`docs/PRD.md`
+- 驗證：新映像 `nginx -t` 通過後重建 nginx 容器;`/dms` 301、`/dms/`、`/dms/documents/1` 200(History 模式);經 Gateway 以 S100001 / S112009 / Y110001 聯測:無權限 403 `PERMISSION_DENIED`、他部門文件 403 `DATA_ACCESS_DENIED`、缺 CSRF 403、版本衝突 409、重複 DELETE 204、`/api/dms/categories` 第二次 `x-cache: HIT`。權限授權對象為暫定,需系統負責人確認
+
 ## 2026-09-25 本機路由補上說明與行為規格;CLI apply 支援 description / gherkin
 - 工作項目：W3-5.7a
 - 內容：CLI `apply` 的 routes 新增 `description`、`gherkin` 欄位。本機模擬後端(`tools/mock-upstream/services.js`)17 支 operation 補上 `description` 與 `x-gherkin`(依實際回應行為撰寫),`deploy/dev/config/gateway-routes.yaml` 的聚合、mock、萬用路由也補上;重建後 20 條已發佈路由皆有說明與行為規格。E2E 09 的 MES 重新匯入範例改為從線上路由取得說明,維持「不變」判斷。
