@@ -167,6 +167,67 @@ flowchart LR
 | **資料保存** | Redis 資料、SPA 靜態檔(`gw_www`)、CRL 使用 named volume;不使用 Windows 目錄掛載 |
 | **Port 衝突** | 主機上已有其他容器(例如 `notesapp`)。部署前確認 `80`、`443`、`9443` 未被佔用 |
 | **防火牆** | Windows 防火牆開放 `80`、`443`(使用者網段)、`9443`(端點網段);`51200–51300` 只開放給 Gateway 主機 |
+| **來源 IP** | Docker Desktop 的 published port 可能讓 Nginx 看不到真實來源 IP,**上線前必須驗證**(§6.1、PRD Q26) |
+
+### 6.1 來源 IP 保留(待 Windows 主機驗證)
+
+**現象**:本機開發環境(macOS Docker Desktop 4.92,engine 29.8.0)的 Nginx access log,`remote_addr` 一律是 `192.168.65.1`(Docker Desktop VM 的閘道)。2026-09-25 以一次性 `nginx:alpine` 容器實測,從本機區網 IP 或 `127.0.0.1` 連入都一樣。
+
+**原因**:Docker Desktop 的 published port 是由主機上的 `com.docker.backend` 程序接受連線,再經共享記憶體通道,在 VM 內**另外建立一條連線**到容器,因此原始來源 IP 不會帶進容器。Windows(WSL2 後端)使用同一套機制,社群也回報容器只看到閘道 IP(參考 1、2)。主機 2、3 若同樣如此,以下依賴 `$remote_addr` / `$binary_remote_addr` 或 BFF `req.ip` 的功能會全部失效:
+
+| 依賴來源 IP 的功能 | 位置 | 所有連線變成同一個 IP 時 |
+| --- | --- | --- |
+| 全站限流 `gw_ip`(50 r/s,burst 100) | `nginx/nginx.conf`、`nginx/conf.d/portal.conf`(`:443` server 層) | 全公司共用一份額度,尖峰時 SPA 與 API 回 429 |
+| 登入 / 註冊 / 密碼 API 限流 `gw_auth`(`GW_AUTH_RATE`,預設 5 r/m,burst 4) | `nginx/templates/00-env.conf.template`、`portal.conf` | 全公司每分鐘約只能登入 5 次,上班時段大量 429 |
+| BFF 登入失敗 IP 計數(15 分鐘 50 次,`LOGIN_FAIL_IP_LIMIT`) | `bff/src/modules/auth/login.ts` | 任何人累計輸錯 50 次,所有人 15 分鐘內都無法登入 |
+| ~~Agent 同時串流數 `limit_conn agent_conn 10`~~ | `nginx/nginx.conf` | **已處理(2026-09-25)**:改以裝置憑證指紋(`$ssl_client_fingerprint`)計算,每張憑證 10 條,不受來源 IP 影響。原本以 IP 計算時,200 台 Agent 會共用 10 條串流,其餘回 429(gRPC `UNAVAILABLE`) |
+| Webhook IP 白名單(PRD §7.5) | `nginx/allowlists/<區域>/webhook-bpm.conf` | BPM 主機 IP 永遠比對不到,一律 403;若為此加入閘道 IP,等於對所有來源開放 |
+| 內網服務白名單(JWKS、`/readyz`、`/docs`、`/metrics`) | `nginx/allowlists/<區域>/internal-services.conf` | 同上:只能全部拒絕或全部放行 |
+| 「記住我」僅限內網(PRD Q4、IMPL-PLAN W3-4.4) | BFF `INTERNAL_NETWORKS` | 閘道 IP 落在預設值 `192.168.0.0/16` 內,所有人都被判定為內網 |
+| API Key `allowed_ips`、路由限流 `keyBy: ip` | BFF | 白名單同樣只能全拒或全放;限流共用一份額度 |
+| 稽核與 access log 的來源 IP | `gw.auth_log`、Nginx log、`X-Real-IP` / `X-Forwarded-For` | 無法追查請求來自哪台電腦(PRD §12 稽核「從哪」) |
+
+#### 方案比較
+
+| 方案 | 保留來源 IP | 說明 / 代價 |
+| --- | --- | --- |
+| A. 維持 Docker Desktop 預設(現行) | 否 | 見上表 |
+| B. Docker Desktop「Enable host networking」(4.34 起,`network_mode: host`) | 否 | 官方文件說明此功能運作在 layer 4,仍由 Docker Desktop 轉送;社群回報搭配 WSL mirrored 模式時,容器看到的仍是 `192.168.65.x`(參考 3、4) |
+| C. Docker Desktop + WSL `networkingMode=mirrored` | 否 | mirrored 只作用在使用者自己的 WSL 發行版;Docker Desktop 不使用 mirrored 網卡,published port 仍經 `com.docker.backend`(參考 4) |
+| D. 在 WSL2 內自行安裝 Docker Engine(預設 NAT 模式)+ `netsh interface portproxy` | 否 | portproxy 是 Windows 上的 TCP 轉送,Nginx 看到的是 Windows 主機的 vEthernet IP |
+| E. 在 WSL2 內自行安裝 Docker Engine + mirrored 模式 | 預期可以,**需實測** | WSL 直接使用主機的網卡與 IP,連入封包經 Docker 的 iptables DNAT 轉到容器,不改變來源位址;社群有改用此方式解決的案例(參考 4、5)。限制:需 **Windows 11 22H2 以上**(Windows Server 2022 不支援,Server 2025 目前無法啟用,參考 6);需設定 Hyper-V 防火牆允許連入;WSL 在沒有使用中的工作階段時會停止 VM,需以工作排程器於開機時啟動並讓 VM 常駐;GitLab Runner 需改在 WSL 內執行或以 `DOCKER_HOST` 指向;mirrored 模式較新,仍有已知問題(例如 IPv6 無法連入容器)。**不需 Docker Desktop 授權**,可一併解決 Q25 |
+| F. Hyper-V Linux VM(外部虛擬交換器)+ Docker Engine | 可以(與一般 Linux 主機相同) | VM 在區網有自己的 IP,行為與 Linux 上的 Docker 完全相同,最可預期;以 Hyper-V「自動啟動動作」在主機開機時啟動 VM,不需使用者登入(同時解決 §6「開機自動啟動」)。**不需 Docker Desktop 授權**(Q25)。代價:需 Windows Pro / Enterprise / Server 的 Hyper-V;需網管配發新 IP,Gateway IP 改變後伺服器憑證 SAN、防火牆、使用者連結與 Agent 設定都改用新 IP(Q1);多一台 VM 需要維護與更新;主機上其他系統的容器是否一併移入另行評估 |
+| G. Nginx 不放在 Docker,直接執行 nginx for Windows | 可以 | 官方標示為 beta:只有一個 worker 實際工作、只使用 `select()` / `poll()`,不應期待高效能與擴充性,且不是 Windows 服務(參考 7);與「正式區使用測試區測過的同一個映像檔」(§2)的做法不同,設定、envsubst 範本與憑證路徑需另外處理。200 條 Agent 長連線加上瀏覽器流量,不建議 |
+| H. 前面加一台 Linux 的 L4 轉送(HAProxy 或 Nginx `stream`),以 PROXY protocol 帶入來源 IP | 可以 | Docker Desktop 只轉送 TCP 內容,PROXY protocol 標頭會原樣送到容器內的 Nginx;Nginx 改為 `listen ... proxy_protocol`,並以 `set_real_ip_from <Docker 閘道 IP>`、`real_ip_header proxy_protocol` 取出來源 IP。TLS / mTLS 仍在原 Nginx 終止,憑證不需搬移。代價:需要一台 Linux 主機(主機 1 為 GitLab,不建議混用);多一個故障點;使用者改連轉送主機的 IP;**Windows 防火牆必須只允許轉送主機連入 80 / 443 / 9443**,否則任何人都能直接連入並偽造 PROXY 標頭 |
+| I. 接受遺失,改用其他鍵值補償 | — | (Agent `limit_conn` 已改以裝置憑證計算);登入改以 BFF 的帳號失敗鎖定為主,放寬 Nginx `gw_ip` / `gw_auth` 並停用 BFF IP 失敗計數;Webhook 只靠 HMAC 簽章與時間戳(W3-5.10);「記住我」無法判定內網(需重新決定 Q4);稽核沒有來源 IP。PRD §7.5、Q4、§12 的要求無法滿足,只適合過渡使用 |
+
+**建議**:
+
+1. 先依下方步驟在主機 2、3 驗證;若 `remote_addr` 是另一台電腦的真實 IP,本風險即可關閉。
+2. 若確認遺失,優先採用 **F(Hyper-V Linux VM)**;主機為 Windows 11 22H2 以上且希望不另開 VM 時,可先以 **E** 做 PoC(同樣用下方步驟驗證)。已有可用的 Linux 主機時可考慮 **H**。B、C、D 無法解決,G 不建議。
+3. Agent `limit_conn` 已改以裝置憑證指紋計算(2026-09-25,`nginx/nginx.conf`),不論驗證結果都適用(子公司經 NAT 連入時同樣共用來源 IP)。
+
+#### 驗證步驟(不影響 Gateway,可在部署前執行)
+
+1. 記錄主機環境(PowerShell):`Get-ComputerInfo -Property OsName,OsVersion`、`wsl --version`、`docker version --format '{{.Server.Platform.Name}}'`,以及 `%USERPROFILE%\.wslconfig` 的內容(是否有 `networkingMode`)。
+2. 在主機上啟動一次性容器:`docker run -d --rm --name ipcheck -p 18080:80 nginx:alpine`
+3. 在**另一台電腦**先以 `ipconfig` 記下自己的 IP,再執行(PowerShell 需用 `curl.exe`,不是 `curl` 別名):
+   `curl.exe -s -o NUL -w "%{http_code}" "http://<主機 IP>:18080/?probe=ipcheck-<電腦名稱>"`
+   連不到時,先確認 Windows 防火牆是否擋住 `18080`(測試完即移除暫時開放的規則)。
+4. 回到主機查看並清除:`docker logs ipcheck 2>&1 | Select-String ipcheck`,之後 `docker stop ipcheck`。
+5. 判讀:每行第一個欄位就是 Nginx 的 `remote_addr`。等於另一台電腦的 IP → **保留**;是 `192.168.65.x`、`172.x.x.x` 或主機自己的 IP → **遺失**。將結果(含步驟 1 的版本)記錄到 PRD Q26。
+6. Gateway 部署到測試區後再複驗一次:`curl.exe -k -s -o NUL -w "%{http_code}" "https://<主機 IP>/api/auth/me?probe=ipcheck"`(預期 401),在主機執行 `docker logs giganexus-gw-nginx-1 --since 5m 2>&1 | Select-String ipcheck` 檢查 JSON log 的 `remote_addr`;Agent 通道(`:9443`)以測試 Agent 連線後檢查 `json_agent` log 的 `remote_addr`。
+7. 若改採方案 E 或 F,以同樣步驟重新驗證。
+
+參考(2026-09-25 查閱):
+
+1. Docker Docs — Networking(port 轉送機制):<https://docs.docker.com/desktop/features/networking/>
+2. docker/for-win#12644「WSL uses docker gateway ip for all incoming requests」:<https://github.com/docker/for-win/issues/12644>
+3. Docker Docs — Host network driver(Docker Desktop 4.34+、layer 4):<https://docs.docker.com/engine/network/drivers/host/>
+4. Docker Community Forums「Host networking not working on Docker Desktop in WSL2 with mirrored mode」(2025-05):<https://forums.docker.com/t/host-networking-not-working-on-docker-desktop-in-wsl2-with-mirrored-mode/147994>
+5. Microsoft Learn — Accessing network applications with WSL(NAT / portproxy / mirrored、Hyper-V 防火牆):<https://learn.microsoft.com/en-us/windows/wsl/networking>
+6. microsoft/WSL#12569「Support mirrored networking mode on Windows Server 2025」:<https://github.com/microsoft/WSL/issues/12569>
+7. nginx for Windows — Known issues:<https://nginx.org/en/docs/windows.html>
 
 ---
 
@@ -176,6 +237,7 @@ flowchart LR
 - [ ] GitLab Runner 已註冊並設定 tag(主機 2 `windows-runner`、主機 3 `prod-deploy` Protected)
 - [ ] 兩台主機可登入 Registry `:5050`(HTTPS 憑證或 `insecure-registries`)
 - [ ] `80`、`443`、`9443` 未被其他容器佔用;Windows 防火牆規則已設定
+- [ ] 來源 IP 驗證(§6.1):從另一台電腦連入時,Nginx log 的 `remote_addr` 是那台電腦的 IP
 - [ ] 機密檔案已放入受保護目錄,權限只限 Docker 服務帳號
 - [ ] 伺服器憑證(SAN 含本機 IP)、Agent 中繼 CA、CRL 已放入對應 volume
 - [ ] 測試區 SMTP 已設定攔截

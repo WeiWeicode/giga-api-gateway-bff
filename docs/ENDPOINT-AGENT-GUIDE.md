@@ -137,7 +137,7 @@ flowchart LR
 | 轉送 | **所有 gRPC 路徑**都轉給 Endpoint Server `:51241`(`grpc_pass grpcs://`),新增 service 不需要改 Nginx |
 | Nginx → Endpoint Server | TLS,Nginx 以企業根 CA 驗證 Endpoint Server 的憑證(§5.1) |
 | 逾時 | `grpc_read_timeout` / `grpc_send_timeout` / `client_body_timeout` 皆 1 小時:**任一方向超過 1 小時沒有資料就中斷** |
-| 同時進行的串流數 | 同一來源 IP **10 條**(`limit_conn`,算的是進行中的 HTTP/2 串流,不是 TCP 連線),超過回 429 |
+| 同時進行的串流數 | 每張裝置憑證 **10 條**(`limit_conn`,以憑證指紋計算,算的是進行中的 HTTP/2 串流,不是 TCP 連線;Agent 與 Watchdog 使用同一張憑證,共用額度),超過回 429 |
 | 串流累計大小 | 不限制(`client_max_body_size 0`);單則訊息上限由 Endpoint Server 設定 |
 | 一條連線的串流數 | Nginx 預設每條連線處理 1000 個請求或使用 1 小時後送 GOAWAY,gRPC 用戶端會自動換新連線,進行中的串流不受影響 |
 
@@ -404,7 +404,7 @@ message PrepareShutdownReply {}
 - 與 Agent 使用**同一個位址 `:9443`、同一張電腦憑證**,呼叫另一個 service `giganexus.watchdog.v1.WatchdogService`。
 - **Nginx 不需要調整**:`:9443` 轉送所有 gRPC 路徑(已實測 `/giganexus.watchdog.v1.WatchdogService/Report` 可經 Nginx 到達 Endpoint Server)。Endpoint Server 以 service 區分 Agent 與 Watchdog,以 DN 對應到同一台裝置。
 - 兩支程式持有同一把私鑰,Endpoint Server **無法以密碼學區分**是誰呼叫;兩者都以 SYSTEM 執行,能取得 SYSTEM 的人本來就控制了整台電腦,可以接受。Endpoint Server 仍應只讓 `WatchdogService` 做 Watchdog 的事,不要因為 DN 相同就開放所有功能。
-- 以**單次呼叫**為主:每 5 分鐘及狀態改變時呼叫 `Report`,不佔用長串流。每台電腦同時進行的串流約為 Agent 1–2 條加 Watchdog 0–1 條,在 `limit_conn` 10 條以內(但見 §9 G4、G5)。
+- 以**單次呼叫**為主:每 5 分鐘及狀態改變時呼叫 `Report`,不佔用長串流。每台電腦同時進行的串流約為 Agent 1–2 條加 Watchdog 0–1 條,在每張憑證 `limit_conn` 10 條以內。
 - `Report` 內容建議:Agent 服務狀態、Agent 版本、Watchdog 版本、最後一次 `GetStatus` 結果、24 小時內重啟次數、憑證到期日、最近錯誤;回覆帶目標版本(§7.4)。
 
 ```csharp
@@ -511,8 +511,8 @@ sequenceDiagram
 | G1 | CRL 定期更新並 reload Nginx(W3-3.4) | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
 | G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 IMPL-PLAN W3-3 驗收字面不同;不會到達 Endpoint Server | 待確認是否接受 |
 | G3 | 200 條連線維持 1 小時壓測(W3-3.6) | — | 未做;需要 Go 測試工具(W3-3.5) |
-| G4 | Docker Desktop 下 Nginx 看到的來源 IP | 本機(macOS)所有連線的來源都是 `192.168.65.1`;若 Windows 主機相同,**所有 Agent 共用同一個 10 條串流額度** | 待在 Windows 主機驗證 |
-| G5 | 子公司經 NAT 連入 | 同一公司的電腦共用來源 IP,同樣受 `limit_conn` 限制 | 待網管確認 |
+| G4 | Docker Desktop 下 Nginx 看到的來源 IP | 本機(macOS)所有連線的來源都是 `192.168.65.1`。`limit_conn` 已改以裝置憑證計算,Agent 通道不再受影響;其他依賴來源 IP 的功能見 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1、PRD Q26 | Agent 部分已處理(2026-09-25) |
+| G5 | 子公司經 NAT 連入 | 同一公司的電腦共用來源 IP;`limit_conn` 已改以裝置憑證計算,不受影響 | 已處理(2026-09-25) |
 | G6 | reload 時,舊的 Nginx worker 要等長串流結束才會退出(未設定 `worker_shutdown_timeout`) | CRL 更新頻繁 reload 時,舊 worker 可能累積最多 1 小時 | 建議與 G1 一起處理 |
 | G7 | 只允許已知的 gRPC 路徑(例:`/giganexus.agent.v1.*`、`/giganexus.watchdog.v1.*`) | 目前轉送所有路徑,由 Endpoint Server 回 `UNIMPLEMENTED` | 正式 proto 定案後再評估 |
 

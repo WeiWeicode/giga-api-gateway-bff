@@ -87,6 +87,7 @@
 | 下游後端 API Key | 每個後端服務在測試區、正式區各建一把(`gw client:create --code <服務代碼> [--ips <主機網段>]`),明文交給該服務存入 Docker secret(`GW_API_KEY_FILE`);後端的 `GW_BASE_URL` 指向該區 Gateway,且主機網段需列入 `internal-services.conf`(取 JWKS)(BACKEND-GUIDE §7.5) | P-16 |
 | 下游後端信任 Gateway 憑證 | Gateway 憑證由 AD CS 簽發(P-05);Node.js 後端以 `NODE_EXTRA_CA_CERTS` 指向企業根 CA,否則自動註冊與取 JWKS 會因憑證驗證失敗(本機以開發用根憑證 `deploy/dev/secrets/pki/ca.crt` 驗證過) | P-05 |
 | Windows 主機 | `GW_SECRETS_DIR` 等路徑使用 Windows 路徑;確認 80 / 443 / 9443 未被佔用;Docker Desktop 開機自動啟動 | P-11、P-17 |
+| **Windows 主機:來源 IP 驗證** | 本機 Docker Desktop 的 Nginx 看到的來源一律是 `192.168.65.1`。**部署前**依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 以一次性容器(`-p 18080:80`)從另一台電腦連入,檢查 log 的 `remote_addr`;若遺失,Nginx 的 IP 限流(`gw_ip`、`gw_auth`)、`webhook-bpm.conf` / `internal-services.conf` 白名單、BFF「記住我」內網判定(`INTERNAL_NETWORKS`)與登入失敗 IP 計數都會失效(PRD §14.1),需依 PRD Q26 改變執行方式。結果確定前不修改這些設定(Agent `limit_conn` 已改以裝置憑證計算,不受影響) | P-11、P-17 |
 
 ---
 

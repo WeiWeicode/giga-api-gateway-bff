@@ -2,6 +2,17 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-09-25 Agent 通道 limit_conn 改以裝置憑證計算
+- 工作項目：W3-3.3
+- 內容：`:9443` 的 `limit_conn_zone` 鍵值由 `$binary_remote_addr` 改為 `$ssl_client_fingerprint`,每張裝置憑證 10 條同時串流(`agent.conf` 的 `limit_conn agent_conn 10` 不變)。原本以來源 IP 計算,Docker Desktop 轉送(所有連線來源皆為閘道 IP)或子公司 NAT 時,多台電腦共用 10 條,其餘收到 429 / gRPC `UNAVAILABLE`。選指紋而非 `$ssl_client_s_dn`:長度固定 40 字元(`limit_conn` 鍵值超過 255 bytes 會不計數),憑證更新後自然換新額度。Agent 與 Watchdog 使用同一張電腦憑證,共用 10 條(ENDPOINT-AGENT-GUIDE 估計每台 1–3 條)。無憑證 / 無效憑證的請求在 HTTP 層即回 400,不會進到 `limit_conn`。PRD §7.6、§14.1,DEPLOYMENT.md §6.1,COMPANY-ENV-PLAN §3,ENDPOINT-AGENT-GUIDE §4 / §9 G4、G5,Gherkin `agent-mtls.feature` 同步更新(新增「共用來源 IP 的不同裝置各自計算」場景)
+- 檔案：`nginx/nginx.conf`、`docs/PRD.md`、`docs/DEPLOYMENT.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/Gherkin/gateway/agent-mtls.feature`
+- 驗證：以 worktree 的 `nginx/` 建置測試映像,另起容器接上本機 dev 網路(`:19443`,未動到執行中的 dev Nginx),`nginx -t` 通過。以 `@grpc/grpc-js` 腳本(同 `06-websocket-agent` 的 `Stream` 雙向串流)比較:舊設定(dev Nginx `:9443`)憑證 A 開 10 條後,A 的第 11 條與另一張有效憑證 B(PC-004,以 dev Agent CA 臨時簽發於 scratchpad)的第 1 條**都被拒**(429);新設定 A 的第 11 條被拒(429)、**B 成功**。兩者 Nginx 看到的來源皆為 `192.168.65.1`。無憑證請求仍回 400。測試容器與映像已刪除。`npm run test:e2e` 未執行(dev Nginx 仍為舊映像,需重建後執行)
+
+## 2026-09-25 Docker Desktop 來源 IP 遺失:風險評估與驗證步驟(未修改設定)
+- 內容：本機 Nginx access log 的 `remote_addr` 一律是 `192.168.65.1`(Docker Desktop VM 閘道)。查證 Docker Desktop 的 published port 由主機上的 `com.docker.backend` 接受連線後在 VM 內另建連線,來源 IP 不會帶進容器;Windows(WSL2)機制相同,Docker Desktop 的 host networking 與 WSL mirrored 模式都無法解決,WSL2 內自行安裝 Docker Engine(mirrored 模式,需 Windows 11 22H2+)、Hyper-V Linux VM、Linux L4 轉送 + PROXY protocol 可以保留。盤點受影響項目:Nginx `gw_ip` / `gw_auth` 限流、`:9443` `limit_conn agent_conn`、Webhook 與內網服務白名單、BFF「記住我」內網判定、登入失敗 IP 計數、API Key `allowed_ips`、稽核來源 IP。DEPLOYMENT.md 新增 §6.1(影響、方案比較、Windows 主機驗證步驟)與上線前檢查項目;PRD §14.1 新增風險、新增 Q26;COMPANY-ENV-PLAN §3 新增驗證項目。**Nginx 與 BFF 設定未修改**,待主機驗證與 Q26 決定
+- 檔案：`docs/DEPLOYMENT.md`、`docs/PRD.md`、`docs/COMPANY-ENV-PLAN.md`
+- 驗證：本機 Docker Desktop 4.92(engine 29.8.0)以一次性 `nginx:alpine` 容器(`-p 18080:80`)分別從本機區網 IP(`192.168.0.142`)與 `127.0.0.1` 連入,log 的來源皆為 `192.168.65.1`,容器已停止。Windows 主機 2、3 **尚未驗證**
+
 ## 2026-09-25 Agent 通道:長串流累計 10 MB 被切斷;補雙向串流 E2E
 - 工作項目：W3-3
 - 內容：`:9443` 沿用全域 `client_max_body_size 10m`,HTTP/2 串流的 body 是整條串流累計,Agent 長連線上傳滿 10 MB 即被 Nginx 以 RST_STREAM 切斷(error log `client intended to send too large chunked body`,用戶端收到 `INTERNAL`)。`agent.conf` 改為 `client_max_body_size 0`,單則訊息大小改由 Endpoint Server 的 `MaxRecvMsgSize` 限制。E2E 補上雙向串流(一問一答 3 輪、同連線兩條串流、11 MB 累計)、偽造 `x-client-cert-*` 標頭會被覆寫、無效憑證無法建立串流;Gherkin `agent-mtls.feature` 新增對應場景。

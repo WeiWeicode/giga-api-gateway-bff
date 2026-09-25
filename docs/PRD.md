@@ -15,7 +15,7 @@
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
 | 對應工作流 | NexusPlan **W3. API Gateway + BFF**(2026-11-16 ~ 2027-01-29) |
 | 規劃依據 | `GigaNexusAIPlan/docs/PRD.md`(§8 W3)、`archatlas/src/data/sample-atlas.json`(`nginx-gateway`、`node-bff` 節點與上下游) |
-| 狀態 | 規劃中(v0.5:待決事項 Q6(待壓測)、Q25) |
+| 狀態 | 規劃中(v0.5:待決事項 Q6(待壓測)、Q25、Q26) |
 
 ### 1.1 修訂紀錄
 
@@ -25,7 +25,7 @@
 | v0.2 | 2026-09-24 | ① 整體架構、資料庫設計、技術棧拆為獨立文件,新增 [IMPL-PLAN.md](IMPL-PLAN.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md);② 資料庫改為既有 **SQL Server 2012 Standard**,獨立資料庫 `giganexus_gw`,以 **Drizzle ORM** 存取並同步 Redis(PoC 未過改用 Kysely),DB 連線內網不加密;③ 人事資料改由 **BPM(SQL Server 2019)為主、LOS `EmployeeInfo` 補充**,AD 只負責驗證與群組(D7);④ §7.2 SPA 託管改為子路徑登記、symlink 部署與既有系統過渡;⑤ **LINE 通知暫緩**,移至第三階段;⑥ 統一錯誤回應格式;⑦ Q2、Q3、Q4、Q5、Q7、Q8、Q10 定案 |
 | v0.3 | 2026-09-24 | ① 參考既有 GeneralBackend 專案([REFERENCES.md](REFERENCES.md)):ORM 備案增加第三條路 Sequelize、BPM 欄位對應確定、AD 改為多網域(新增 Q11、Q12);② Q11 定案(三個網域全納入),新增**本機帳號與自行註冊**(§8.2.5),供無 AD 網域的子公司使用;③ Q9、Q13、Q14、Q15 定案:LOS `EmployeeInfo` 欄位對應、公司歸屬取自 LOS / BPM、密碼至少 8 碼、LOS / BPM 找得到就可註冊(找不到才審核);新增兼任帳號與同一人多工號(Q16、Q17);④ Q1、Q12、Q16、Q17 定案:**以 IP 存取、Agent 改用獨立 port `:9443`**、LDAP 過渡期沿用 `ldap://`、兼任帳號不可單獨登入、不同工號不歸戶;⑤ 待決事項除 Q6(待壓測)外全數定案 |
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
-| v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md) |
+| v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md);⑤ §14.1 新增「Docker Desktop 下 Nginx 看不到真實來源 IP」風險,新增 Q26;§7.6 Agent `limit_conn` 改以裝置憑證計算 |
 
 ---
 
@@ -214,7 +214,7 @@ sequenceDiagram
   - `grpc_pass grpcs://endpoint_upstream;`(Nginx → Endpoint Server 亦為 TLS)。
   - `grpc_set_header x-client-cert-dn $ssl_client_s_dn;`、`x-client-cert-fp $ssl_client_fingerprint;`、`x-client-verify $ssl_client_verify;`。
   - 長連線:`grpc_read_timeout 1h`、`grpc_send_timeout 1h`、`client_body_timeout 1h`;`keepalive_timeout` 配合 gRPC keepalive(Agent 端 30s ping)。
-  - 單一來源連線數上限(`limit_conn`),避免異常 Agent 重連風暴。
+  - 每張裝置憑證的同時串流數上限(`limit_conn`,以憑證指紋 `$ssl_client_fingerprint` 計算,每張 10 條),避免異常 Agent 重連風暴;不以來源 IP 計算,Docker Desktop 轉送或子公司 NAT 時多台電腦共用來源 IP 也不受影響(§14.1)。
 - **裝置憑證發放**(建議):AD CS 建立「GigaNexus Agent」憑證範本,以 GPO **電腦憑證自動註冊(Autoenrollment)** 發到網域電腦的 `LocalMachine\My`,Agent 以 Windows 憑證存放區讀取,私鑰不可匯出。Subject 使用電腦名稱(`CN=<電腦名稱>`),SAN 帶 AD 電腦物件 GUID。**無網域子公司的電腦無法以 GPO 自動註冊**,需由 IT 另行簽發並安裝(見 §14.1)。
 - Endpoint Server 端的 gRPC API(proto)由 W6 定義;本專案只負責**通道、身分標頭與限流**。Endpoint Server、Go Agent 與 C# 守護程式(Watchdog,同樣經 `:9443`、使用同一張電腦憑證)的開發規範見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
 
@@ -774,6 +774,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | 舊單一入口留存明文密碼 | 依備份原始碼,`LoginData.EName` 可能存有明文「確認密碼」,舊忘記密碼頁會顯示原密碼 | 舊系統不修改(Q22);Gateway 不讀取 `EName`(唯讀 view 排除此欄),遷移時強制設定新密碼;舊系統隨功能轉移逐步關閉 |
 | 並行期間新舊密碼不一致 | 遷移後新系統密碼與舊單一入口各自獨立,使用者可能混淆或在舊入口繼續使用已外洩的舊密碼 | 登入與改密碼頁明示「新入口網密碼與舊單一入口無關」;建議使用者一併更改舊入口密碼;舊入口隨功能轉移逐步關閉 |
 | Windows 主機使用 Docker Desktop | 授權需付費訂閱(大型企業);預設需使用者登入才啟動,主機重開後服務可能未恢復 | 員工數未達 200 人,年營收待確認(Q25);設定開機自動登入 / 啟動、Runner 以服務執行、容器 `restart: unless-stopped`;正式區關閉自動更新([DEPLOYMENT.md](DEPLOYMENT.md) §6) |
+| Docker Desktop 下 Nginx 看不到真實來源 IP | 本機(macOS Docker Desktop)所有連線的來源都是 VM 閘道 `192.168.65.1`:Docker Desktop 的 published port 由主機程序接受連線後再轉進 VM,Windows(WSL2)使用同一套機制,社群也回報看不到真實 IP。主機 2、3 若相同:全站與登入 IP 限流變成全公司共用一份額度(上班時段大量 429)、BFF 登入失敗 IP 計數會鎖住所有人、Webhook 與內網服務 IP 白名單只能全拒或全放(§7.5)、「記住我」內網判定失效(Q4)、稽核無法記錄來源 | **上線前**依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 以一次性容器驗證;確認遺失時改在 Hyper-V Linux VM 或 WSL2(mirrored 模式)內執行 Docker Engine,或以 Linux L4 轉送 + PROXY protocol 帶入來源 IP(Q26)。Docker Desktop 的 host networking、WSL mirrored 模式都無法解決;方案確定前不修改其他 Nginx 設定;Agent `limit_conn` 已改以裝置憑證計算(2026-09-25),不受此影響 |
 | 時程重疊 | W3 與 W5 架構同時進行 | W3-4 先提供 `/api/auth/me` 與 mock 路由,W5 前端可先行 |
 
 ### 14.2 待決事項
@@ -805,6 +806,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q23 | 新入口網的忘記密碼做法 | **已決定**:IT 重設密碼 + 寄送 Email 連結到重設頁面;畫面與細節於入口網(W5)開發時確定 | 提案人 |
 | Q24 | 並行期間新進無網域員工在哪裡註冊 | **已決定**:新舊入口都可以;舊入口註冊者登入新入口網時自動遷移 | 提案人 |
 | Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **員工人數已確認未達 200 人**(門檻 250 人);**尚需確認年營收**:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
+| Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 先依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 驗證;若 Docker Desktop 確實遺失來源 IP,建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。兩者都不需 Docker Desktop 授權,可一併解決 Q25 | 主管 + IT + 網管 |
 
 ---
 
