@@ -100,11 +100,11 @@
 
 ## 6. 整體架構
 
-流量走向、元件關係與關鍵架構決策(D1–D8)詳見 **[ARCHITECTURE.md](ARCHITECTURE.md)**:
+流量走向、元件關係與關鍵架構決策(D1–D9)詳見 **[ARCHITECTURE.md](ARCHITECTURE.md)**:
 
 - 架構總覽圖(用戶端 → Nginx Gateway → BFF → 後端服務 / 資料)
 - 流量類型與走向(T1–T9)
-- 關鍵架構決策(D1–D8)
+- 關鍵架構決策(D1–D9)
 
 ---
 
@@ -807,6 +807,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q24 | 並行期間新進無網域員工在哪裡註冊 | **已決定**:新舊入口都可以;舊入口註冊者登入新入口網時自動遷移 | 提案人 |
 | Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **員工人數已確認未達 200 人**(門檻 250 人);**尚需確認年營收**:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
 | Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 先依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 驗證;若 Docker Desktop 確實遺失來源 IP,建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。兩者都不需 Docker Desktop 授權,可一併解決 Q25 | 主管 + IT + 網管 |
+| Q27 | IT 管理系統(GigaItApp,自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Go Endpoint Server;itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Go 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
 
 ---
 

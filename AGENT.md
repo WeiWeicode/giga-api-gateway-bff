@@ -135,7 +135,7 @@
 | 文件 | 路徑 | 說明 |
 |:---|:---|:---|
 | 產品需求 | `docs/PRD.md` | 功能需求、錯誤代碼總表（§8.1.1）、待決事項 |
-| 整體架構 | `docs/ARCHITECTURE.md` | 流量類型（T1–T9）與關鍵架構決策（D1–D8） |
+| 整體架構 | `docs/ARCHITECTURE.md` | 流量類型（T1–T9）與關鍵架構決策（D1–D9） |
 | 資料庫設計 | `docs/DATABASE.md` | SQL Server 2012 限制、`gw.*` 資料表、Redis 鍵、同步規則、BPM / LOS |
 | 技術棧 | `docs/TECH-STACK.md` | 技術選型、專案結構、ORM 注意事項與 PoC 紀錄 |
 | 實作計畫 | `docs/IMPL-PLAN.md` | 工作項目（W3-x.n）、前置工作、驗收條件、完成定義 |

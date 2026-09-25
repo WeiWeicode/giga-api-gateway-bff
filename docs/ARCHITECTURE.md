@@ -84,6 +84,7 @@ flowchart LR
 | D6 | 路由設定 **SQL Server 為事實來源**,Redis 存「已發佈版本」快照 + Pub/Sub 通知,BFF 實例記憶體內建立路由樹 | 查詢路徑不打 DB;Redis 掛掉時仍可用記憶體與本地快照運作 | 每次請求查 Redis:多一次網路往返 |
 | D7 | **身分與人事資料分開取得**:AD 只負責驗證密碼與提供群組;姓名、部門、職稱、主管等人事資料以 **BPM(SQL Server 2019)為主、LOS `EmployeeInfo`(SQL Server 2012)補充**,由排程同步進 `gw.user`,登入時查無資料才即時補查 | AD 的部門欄位不一定有維護;人事資料已存在 BPM / LOS。排程同步讓登入不受外部資料庫延遲或停機影響 | 每次登入即時查兩台資料庫:資料最即時,但任一台停機就影響登入 |
 | D8 | **一個工號只有一種驗證方式**:有 AD 網域者用 AD;無網域子公司員工以 LOS / BPM 的工號自行註冊**本機帳號**(Argon2id 雜湊);兼任帳號不可單獨登入、不同工號不歸戶;舊單一入口(`PortalSolar.LoginData`)帳號首次登入時比對舊密碼、自動建立本機帳號並強制設定新密碼(PRD §8.2.5) | 子公司不一定有網域;身分仍以 LOS / BPM 工號為準,登入後的 Token 與權限模型與 AD 帳號一致 | 為無網域子公司建立 AD 帳號:需 IT 維護大量帳號與網域信任,短期不可行 |
+| D9 | **IT 管理頁面的端點功能經 BFF**:IT 前端(GigaItApp)呼叫 `/api/endpoint/*`,由 BFF 檢查 `endpoint.*` 權限後轉給 Go Endpoint Server,指令由 Endpoint Server 從 Agent 的串流即時推送;itapp-api(Node.js)只管 IT 應用的選單、Tab、按鈕顯示(PRD Q27、[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 遠端控制使用者電腦是權限最高的功能,必須綁定 AD 身分與 Gateway 的權限、稽核;AD 停用即立即失效 | 經 itapp-api 以服務帳號轉送:只需登入一次,但 Endpoint Server 看不到真正的操作人,itapp 帳號也與 AD 分開管理 |
 
 ## 4. 部署架構
 

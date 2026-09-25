@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 端點管理以 BFF 為準;指令派送設計
+- 內容：決定 IT 管理系統(GigaItApp)的端點管理功能以 **BFF 權限為準**(PRD Q27、ARCHITECTURE D9):IT 前端經 `/api/endpoint/*` → BFF → Go Endpoint Server,itapp-api(Node.js)只負責 IT 應用的選單、Tab、按鈕顯示權限,不轉送端點 API;Go 與 Node.js 兩個後端並行。ENDPOINT-AGENT-GUIDE 新增 §8(v0.2):分工、權限代碼 `endpoint.device.read` / `endpoint.command.basic` / `endpoint.command.admin`(依風險拆路徑,BFF 一條路由只檢查一個權限)、API 草案、指令類型、指令狀態與派送規則(先寫入再推送、有效期限、至少送達一次 + `commandId` 去重、結果先輪詢)、Agent 串流訊息草案、稽核欄位、GigaItApp 前端規則(web-kit、Gateway 登入者與 itapp 登入者同一工號、按鈕顯示取兩邊權限交集);新增待決事項 E6(資料範圍)、E7(指令類型)。原 §8–§10 順延為 §9–§11。
+- 檔案：`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`AGENT.md`
+- 驗證：文件變更,未修改程式;GigaItApp 專案(`../GigaItApp`)的文件與前端尚未依此調整
+
 ## 2026-09-25 Go Endpoint Server 與端點 Agent 開發手冊
 - 工作項目：W3-3(通道);W6 開發規範
 - 內容：新增 `docs/ENDPOINT-AGENT-GUIDE.md`:`:9443` 通道規格(轉送標頭、逾時、串流數上限、被拒時的 gRPC 狀態碼)、裝置憑證(網域電腦自動註冊、非網域電腦 `certreq` 流程、以完整 DN 識別裝置)、Go Endpoint Server 與 Go Agent 規範(應用層心跳、撤銷、訊息大小、proto 相容性)。新增 **C# Watchdog** 通道設計:與 Agent 以具名管道 gRPC 溝通(ACL 限 SYSTEM / Administrators、比對伺服端 PID),並以同一張電腦憑證經 `:9443` 自行上報(`giganexus.watchdog.v1`,Nginx 不需調整);建議的升級流程。列出 Gateway 未完成項目(CRL 更新、來源 IP、壓測)與待決事項 E1–E5。PRD §7.6、ARCHITECTURE T8、BACKEND-GUIDE、AGENT.md、README 加上連結。
