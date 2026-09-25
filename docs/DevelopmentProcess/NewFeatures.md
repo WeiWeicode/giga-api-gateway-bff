@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 多專案工作區規則;端點 API 本機打通
+- 內容：AGENT.md 新增 §10「多專案工作區」:Gateway、GigaItApp、Go Endpoint Server、其他系統的 repo 放在同一層目錄,以 `../<資料夾>/` 相對路徑互相參照;專案登記表、相依關係、**用 BFF 路由表找 API**(lookup CLI / `GET /api/admin/routes/catalog`,不直接讀對方程式碼或連對方主機)、跨 repo 修改規則、新專案 AGENT.md 必備內容;後端樣本 AGENT.md 加上指向 §10。本機環境打通 IT 頁面取得 Agent 基本資料:模擬 Endpoint Server 記錄經 :9443 連線的 Agent 並提供 `GET /v1/devices`,dev 設定新增權限 `endpoint.device.read`(角色 it-endpoint)與路由 `endpoint.device.list`(`GET /api/endpoint/devices`);E2E 新增 2 項。GigaItApp 端的修改見該 repo 的紀錄。
+- 檔案：`AGENT.md`、`samples/node-backend/AGENT.md`、`bff/test/e2e/06-websocket-agent.test.ts`;`tools/mock-upstream/endpoint.js`、`deploy/dev/config/gateway-base.yaml`、`deploy/dev/config/gateway-routes.yaml`(本機環境,不進版控)
+- 驗證：重建 mock-upstream 映像並重跑 gw-setup(發佈);`06-websocket-agent` 22 項通過(S100001 取得 PC-001 且在線、S112009 403);`lookup-cli.js` 可由上一層相對路徑執行;以登入者呼叫 `/api/admin/routes/catalog?q=endpoint` 查得 `endpoint.device.list`(published)
+
 ## 2026-09-25 端點管理以 BFF 為準;指令派送設計
 - 內容：決定 IT 管理系統(GigaItApp)的端點管理功能以 **BFF 權限為準**(PRD Q27、ARCHITECTURE D9):IT 前端經 `/api/endpoint/*` → BFF → Go Endpoint Server,itapp-api(Node.js)只負責 IT 應用的選單、Tab、按鈕顯示權限,不轉送端點 API;Go 與 Node.js 兩個後端並行。ENDPOINT-AGENT-GUIDE 新增 §8(v0.2):分工、權限代碼 `endpoint.device.read` / `endpoint.command.basic` / `endpoint.command.admin`(依風險拆路徑,BFF 一條路由只檢查一個權限)、API 草案、指令類型、指令狀態與派送規則(先寫入再推送、有效期限、至少送達一次 + `commandId` 去重、結果先輪詢)、Agent 串流訊息草案、稽核欄位、GigaItApp 前端規則(web-kit、Gateway 登入者與 itapp 登入者同一工號、按鈕顯示取兩邊權限交集);新增待決事項 E6(資料範圍)、E7(指令類型)。原 §8–§10 順延為 §9–§11。
 - 檔案：`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`AGENT.md`

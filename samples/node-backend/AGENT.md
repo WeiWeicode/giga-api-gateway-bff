@@ -3,6 +3,7 @@
 > 本文件是 AI 程式助手在「以本樣本為基礎的 Node.js 下游後端」中的行為準則。
 > 通用準則(先思考、簡單優先、外科手術式修改、失敗要明確說)同 Gateway 專案根目錄的 `AGENT.md`;本文件只列後端專屬規則。
 > 後端接入規範以 Gateway 專案的 `docs/BACKEND-GUIDE.md` 為準,本文件與之不一致時先指出差異,不要自行決定。
+> 複製成獨立 repo 後,與 Gateway 等專案放在**同一層目錄**;跨專案規則(相對路徑 `../giga-api-gateway-bff/`、用 BFF 路由表找 API、跨 repo 修改)見 Gateway `AGENT.md` §10。
 
 ---
 

@@ -2,6 +2,7 @@
 
 > 本文件是 AI 程式助手（如 Claude、Gemini）在本專案中的行為準則。
 > 所有 AI 協作開發必須遵守以下規範。
+> 本專案與 GigaItApp、Go Endpoint Server 等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
 
 ---
 
@@ -197,3 +198,81 @@ Bug 修改紀錄與新增功能紀錄、前端修改紀錄、後端修改紀錄�
 - 檔案：主要修改的檔案
 - 驗證：執行的指令與結果
 ```
+
+---
+
+## 10. 多專案工作區
+
+GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Server、各系統的前端 / 後端),**各自管理自己的 repo 與 API**,但彼此相依。所有 repo 放在**同一層目錄**,從任一專案往上一層就找得到其他專案。本節是所有專案共用的規則,其他 repo 的 AGENT.md 只寫自己的部分並指向本節。
+
+### 10.1 目錄配置
+
+```
+<工作區>/                          # 例:~/Code;公司環境由各工程師自訂,但所有專案放在同一層
+├─ giga-api-gateway-bff/           # Gateway:Nginx、BFF、路由表、web-kit、Node SDK — 所有專案的上位規範
+├─ GigaItApp/                      # IT 管理系統(/it/)
+├─ <Go Endpoint Server / Agent>/   # W6(repo 名稱待定)
+├─ <C# Watchdog>/                  # (repo 名稱待定)
+└─ <其他系統>/                     # 其他工程師開發的入口網功能:各自的前端 / 後端 repo
+```
+
+- 參照其他專案一律用「**上一層 + 資料夾名稱**」的相對路徑,例如 `../giga-api-gateway-bff/docs/BACKEND-GUIDE.md`、`../GigaItApp/AGENT.md`;不寫絕對路徑,也不假設工作區在哪個磁碟或使用者目錄。
+- clone 時使用 §10.2 登記的**資料夾名稱**,否則相對路徑(文件連結、compose 掛載的憑證、SDK 的 `file:` 相依)會失效。
+- 需要讀的兄弟專案不在工作區時(沒有 clone),**明確說明「未讀取」**,不要猜內容,也不要自行 clone。
+
+### 10.2 專案登記
+
+| 資料夾 | 內容 | 對外 / port | 負責 | AGENT.md |
+| --- | --- | --- | --- | --- |
+| `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
+| `GigaItApp` | IT 管理系統(自有登入;端點管理經 BFF) | `/it/`、`/it/api/*`(51291) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
+| `TestGigaAPP` | 公司文件系統(DMS)測試專案(`dms-backend`、`dms-frontend`) | `/dms/`、`dms-api`(51290) | DMS 負責人 | — |
+| (待定) | Go Endpoint Server + Go Agent | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | 待建立(§10.6) |
+| (待定) | C# Watchdog | 無對外;經 `:9443` 上報 | 待定 | 待建立(§10.6) |
+
+新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
+
+### 10.3 相依關係
+
+| 專案 | 依賴 Gateway 的部分 | 與其他專案 |
+| --- | --- | --- |
+| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(服務帳號);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Go;端點功能經 BFF(PRD Q27) |
+| Go Endpoint Server / Agent | `:9443` 通道、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;與 C# Watchdog 以本機具名管道溝通 |
+| 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
+
+- **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。
+- 介面變更(路由、權限代碼、proto、錯誤代碼、port)**先改 Gateway 的規格**,再改實作的 repo。
+
+### 10.4 用 BFF 路由表找 API
+
+跨專案要用別的系統的功能時,**先查 BFF 路由表**,不要先去讀對方 repo 的程式碼,也不要直接連對方的主機、port 或資料庫。路由表是「現在有哪些 API」的唯一來源,包含路徑、方法、權限、說明、Gherkin 行為規格與狀態(草稿 / 已發佈 / 已棄用)。
+
+| 方式 | 用法 |
+| --- | --- |
+| 指令(任何專案) | 先建置一次 SDK:`cd ../giga-api-gateway-bff/sdk/node && npm ci && npm run build`;之後在自己的專案執行 `node ../giga-api-gateway-bff/sdk/node/dist/lookup-cli.js <關鍵字> [--system <系統代碼>] [--gherkin] [--json]`(環境變數 `GW_BASE_URL`、`GW_API_KEY` 或 `GW_API_KEY_FILE`) |
+| 指令(以 Node 樣本建立的後端) | `npm run -s gw:lookup -- <關鍵字>`(`samples/node-backend/AGENT.md` §1) |
+| API | `GET /api/admin/routes/catalog?q=&system=&status=`(API Key 或登入者,需 `gw.admin.route.read`) |
+
+- **查到了**:經 Gateway 呼叫。前端 `/api/{system}/...`(使用者的 Cookie);後端 `/api/{system}/...` 加 `X-Api-Key`(系統對系統,ARCHITECTURE T9)。不直接呼叫對方的 `host:port`。
+- **查到相近的**:先回報查詢結果並詢問:直接用、請該系統擴充,還是確實需要新增。不要默默重寫一支。
+- **查不到**:回報後由負責人決定;需要新 API 時由該系統的 repo 實作並註冊,不要在自己的 repo 代寫別人的 API。
+- **查詢失敗**(沒有 API Key、連不到 Gateway):明確說明「未查詢」,不可當作「沒有這支 API」。
+- 路由表的說明不足、需要讀對方 repo 時:**只讀不改**,以對方的 OpenAPI 與 `docs/` 為準。
+
+### 10.5 跨 repo 修改
+
+- 只改本次任務所屬的 repo。需要改其他 repo(包含 Gateway)時,先說明要改什麼、為什麼,取得同意後再改;**其他工程師負責的 repo 不直接修改**,改為整理需求交給負責人。
+- 在哪個 repo 改,就在**那個 repo** 的 `docs/DevelopmentProcess/` 留紀錄。
+- 每個 repo 各自 commit、push;commit 訊息註明配合的另一個 repo 與 commit(例:`配合 giga-api-gateway-bff cc13cd0`)。
+- 本機驗證跨專案功能時,以 Gateway 的本機環境(`deploy/dev/up.sh`)為共同基礎;模擬服務(`tools/`)與本機設定(`deploy/dev/`)不進版控,改了要在紀錄中說明。
+
+### 10.6 新專案的 AGENT.md
+
+每個 repo 的 AGENT.md 開頭都要有:
+
+1. **專案定位**:系統代碼、SPA 子路徑、服務代碼與 port(已在 §10.2 登記)、登入方式。
+2. **工作區**:「跨專案規則見 `../giga-api-gateway-bff/AGENT.md` §10」,以及本專案依賴哪些兄弟專案(§10.3)。
+3. **上位規範**:依類型列出 Gateway 文件 — 前端 FRONTEND-GUIDE;後端 BACKEND-GUIDE;端點 ENDPOINT-AGENT-GUIDE。
+
+範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md)。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(TestGigaAPP 的做法:Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
+

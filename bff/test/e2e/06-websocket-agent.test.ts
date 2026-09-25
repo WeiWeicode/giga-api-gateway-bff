@@ -213,3 +213,31 @@ describe('Agent 專用通道 :9443(mTLS + gRPC)', () => {
     expect(requested).toBe(false);
   });
 });
+
+/* ---------------- 端點管理 API(ENDPOINT-AGENT-GUIDE §8;本機以模擬 Endpoint Server 驗證) ---------------- */
+
+describe('端點管理 API:IT 頁面經 BFF 取得 Agent 基本資料', () => {
+  it('IT 管理員(endpoint.device.read)可看到經 :9443 連進來的 Agent,串流開著時為在線', async () => {
+    const stream = openStream('agent-valid');
+    await stream.send('PC-001');
+    const { s } = await login('S100001');
+    const res = await s.get('/api/endpoint/devices');
+    expect(res.status).toBe(200);
+    expect(res.json.items).toContainEqual(
+      expect.objectContaining({
+        computerName: 'PC-001',
+        certDn: 'O=GigaNexus Dev,CN=PC-001',
+        certFingerprint: expect.stringMatching(/^[0-9a-f]{40}$/),
+        online: true,
+      }),
+    );
+    await stream.close();
+  });
+
+  it('沒有 endpoint.device.read → 403 PERMISSION_DENIED', async () => {
+    const { s } = await login('S112009');
+    const res = await s.get('/api/endpoint/devices');
+    expect(res.status).toBe(403);
+    expect(res.json).toMatchObject({ code: 'PERMISSION_DENIED' });
+  });
+});
