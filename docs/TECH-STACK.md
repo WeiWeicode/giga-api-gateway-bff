@@ -45,6 +45,8 @@ api-gateway-bff/
 │  │  └─ server.ts
 │  └─ test/
 ├─ web-kit/                   # 前端共用套件 @giganexus/web-kit(見 FRONTEND-GUIDE.md §6)
+├─ sdk/node/                  # 下游後端共用套件 @giganexus/backend-sdk:部署區設定、Token 驗證、自動註冊、路由查詢(見 BACKEND-GUIDE.md §7.5)
+├─ samples/node-backend/      # Node.js 下游後端樣本(Fastify)與 AI 協作準則 AGENT.md
 ├─ ci-templates/               # 前端 SPA 部署用 GitLab CI 片段(見 FRONTEND-GUIDE.md §9)
 ├─ db/migrations/              # drizzle-kit 產生、人工審查後的 SQL(版本化)
 ├─ db/seed/                    # 內建角色、權限、預設政策(Drizzle seed 腳本)

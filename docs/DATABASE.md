@@ -89,7 +89,7 @@ erDiagram
 | `upstream_id` | INT FK | |
 | `base_url` | VARCHAR(300) | 例如 `http://<mes-host>:51210`;port 必須在 **51200–51300**(管理 API 寫入時檢查,見 [BACKEND-GUIDE.md](BACKEND-GUIDE.md) §3) |
 | `weight` | SMALLINT | 權重,預設 1 |
-| `environment` | VARCHAR(10) | `test` / `prod`;兩區已決定各自一套資料庫(PRD Q3),此欄僅供匯出 / 匯入發佈版本時辨識與防誤植 |
+| `environment` | VARCHAR(10) | `test` / `prod`;兩區各自一套資料庫、設定不互通(PRD Q3),此欄供辨識與防誤植(路由快照只取本區的位址) |
 | `is_enabled` | BIT | |
 | ★共通 | | |
 
@@ -126,7 +126,8 @@ erDiagram
 | `owner` | NVARCHAR(64) | 負責人 |
 | `source` | VARCHAR(20) | `manual` / `openapi` / `excel` |
 | `import_batch_id` | INT FK NULL | 來自哪次匯入 |
-| `description` | NVARCHAR(1000) | |
+| `description` | NVARCHAR(1000) NULL | API 用途說明;匯入時對應 OpenAPI operation 的 `description` |
+| `gherkin` | NVARCHAR(MAX) NULL | 行為規格(Gherkin 場景文字);匯入時對應 OpenAPI operation 的 `x-gherkin`。與 `description` 皆不進路由快照 |
 | ★共通 | | |
 
 - 唯一索引:`(method, public_path)` WHERE `status <> 'disabled'`。

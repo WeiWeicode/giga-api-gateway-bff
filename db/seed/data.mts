@@ -20,6 +20,7 @@ export const ADMIN_PERMISSIONS: readonly AdminPermission[] = [
   { code: 'gw.admin.route.read', name: 'API 路由:檢視' },
   { code: 'gw.admin.route.write', name: 'API 路由、聚合步驟、限流政策:編輯' },
   { code: 'gw.admin.route.import', name: 'API 匯入' },
+  { code: 'gw.admin.route.register', name: 'API 自動註冊(後端服務 API Key 專用)' },
   { code: 'gw.admin.release', name: '發佈 / 回滾' },
   { code: 'gw.admin.rbac.read', name: '權限 / 角色:檢視、反查' },
   { code: 'gw.admin.rbac.write', name: '權限 / 角色:編輯' },

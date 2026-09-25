@@ -144,6 +144,7 @@
 | 部署 | `docs/DEPLOYMENT.md` | CI/CD、各元件部署與回滾、機密 |
 | 上公司環境清單 | `docs/COMPANY-ENV-PLAN.md` | 從本機測試環境部署到測試區 / 正式區需調整的檔案 |
 | 既有專案參考 | `docs/REFERENCES.md` | GeneralBackend、舊單一入口 |
+| 下游後端樣本 | `samples/node-backend/AGENT.md` | Node.js 後端樣本與 SDK(`sdk/node`)的 AI 協作準則:新增 API 前先查既有路由、GW_ENV、自動註冊 |
 | 驗收場景 | `docs/Gherkin/*.feature` | 各功能的驗收行為（標籤對應 IMPL-PLAN 工作項目） |
 
 ---

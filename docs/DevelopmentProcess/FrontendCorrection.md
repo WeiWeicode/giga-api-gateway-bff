@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;範圍 `web-kit/`、`tools/sample-spa/`;格式見 `AGENT.md` §9。
 
+## 2026-09-25 上架演練:每支 API 顯示說明與行為規格
+- 工作項目：W3-5.7a
+- 內容：上架演練新增步驟「2. 查詢既有路由」(呼叫 `GET /api/admin/routes/catalog`,可依關鍵字 / 系統查詢,列出每條路由的說明與可展開的 Gherkin);匯入預覽每列顯示說明與行為規格;FMS 範例規格 4 支 API 與錯誤範例補上 `description` / `x-gherkin`;「改用已上線的 MES 規格」改為從線上路由取得說明與行為規格,只改列表名稱。流程表、發佈說明改為新流程(後端自動註冊、兩區設定不互通、發佈會一併發佈所有草稿)。
+- 檔案：`tools/sample-spa/it/src/pages/Onboarding.vue`、`tools/sample-spa/it/src/sampleSpec.ts`
+- 驗證：`npx vue-tsc --noEmit` 通過;瀏覽器(Vite proxy,`http://localhost:5175/it/onboarding`)以 S100001 操作:步驟 1 流程表為新版;步驟 2 自動列出 20 條路由與說明,查詢「報工」得 1 筆並展開 3 個場景;步驟 4 FMS 預覽 4 列皆有說明與行為規格,MES 規格顯示「不變 1、更新 1(改:name)」;步驟 7 顯示兩區不互通說明。Console 只有登入前的 401 / 404(dev server 無 `/login` 頁)
+
 ## 2026-09-25 IT 管理 demo 改為新員工上手版本
 - 內容：新增架構總覽頁(`Overview.vue`)、上架演練頁(`Onboarding.vue`,範例為新服務 core-fms)、資料表說明資料(`tableDocs.ts`);資料表頁改為依分類列出並在資料上方顯示說明。
 - 檔案：`tools/sample-spa/it/src/`、`tools/sample-spa/shared/style.css`

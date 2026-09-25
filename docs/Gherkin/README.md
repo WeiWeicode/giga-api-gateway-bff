@@ -1,6 +1,6 @@
 # GigaNexus Gateway — Gherkin 行為規格
 
-> 以 Gherkin(繁體中文關鍵字,`# language: zh-TW`)描述 Gateway 的驗收行為,對應 [PRD.md](../PRD.md) **v0.4** 與 [IMPL-PLAN.md](../IMPL-PLAN.md) 的工作項目。
+> 以 Gherkin(繁體中文關鍵字,`# language: zh-TW`)描述 Gateway 的驗收行為,對應 [PRD.md](../PRD.md) **v0.5** 與 [IMPL-PLAN.md](../IMPL-PLAN.md) 的工作項目。
 > 可直接供 `@cucumber/cucumber`(或 `vitest-cucumber`)執行;步驟定義放在 `bff/test/features/steps/`(待實作)。
 
 ## 檔案一覽
@@ -18,7 +18,8 @@
 | `rbac/permission.feature` | 路由 `auth_mode`、權限檢查、角色來源、權限版本 | §8.3 | W3-4.6–4.8 |
 | `router/dynamic-routing.feature` | 代理、路徑改寫、限流、快取、斷路器、聚合 | §8.4.1–§8.4.2 | W3-5.1–5.5 |
 | `router/release-publish.feature` | 草稿 / 發佈 / 回滾、即時生效、Redis 補償 | §8.4.3、DATABASE §7 | W3-5.6–5.7、P2-2 |
-| `router/api-import.feature` | OpenAPI 匯入規則 | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、P2-4 |
+| `router/api-import.feature` | OpenAPI 匯入規則(含說明與行為規格) | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、W3-5.7a、P2-4 |
+| `router/service-registration.feature` | 後端自動註冊(API Key、草稿)、既有路由查詢 | §8.4.4、§8.7、BACKEND-GUIDE §7.5 | W3-5.7a |
 | `employee-sync/employee-sync.feature` | BPM / LOS 人員同步、兼任帳號、安全檢查 | DATABASE §8 | W3-4.6a–6c |
 | `notify/notification.feature` | Email / 站內通知、佇列重試、去重 | §8.5 | W3-5.8–5.9 |
 | `webhook/webhook.feature` | BPM Webhook 驗簽、防重放、去重 | §7.5、§8.6 | W3-5.10 |

@@ -38,14 +38,27 @@ describe('OpenAPI 匯入預覽', () => {
   });
 
   it('既有路由:相同為不變、改名為更新', async () => {
+    // 說明與行為規格取自線上路由,與目前資料相同
+    const live = (await admin.get('/api/admin/routes/catalog?system=mes&q=mes.workorder')).json.items;
+    const doc = (code: string) => {
+      const r = live.find((i: { routeCode: string }) => i.routeCode === code);
+      return { description: r.description ?? undefined, 'x-gherkin': r.gherkin ?? undefined };
+    };
     const spec = {
       'x-gateway': { upstream: 'go-mes', system: 'mes' },
       'x-permissions': [{ code: 'mes.workorder.read', name: '工單查詢' }],
       paths: {
         '/v1/work-orders/{id}': {
-          get: { operationId: 'mes.workorder.get', summary: '查詢工單', 'x-permission': 'mes.workorder.read', 'x-cache-ttl': 30, 'x-cache-scope': 'shared' },
+          get: {
+            operationId: 'mes.workorder.get',
+            summary: '查詢工單',
+            ...doc('mes.workorder.get'),
+            'x-permission': 'mes.workorder.read',
+            'x-cache-ttl': 30,
+            'x-cache-scope': 'shared',
+          },
         },
-        '/v1/work-orders': { get: { operationId: 'mes.workorder.list', summary: '改名', 'x-permission': 'mes.workorder.read' } },
+        '/v1/work-orders': { get: { operationId: 'mes.workorder.list', summary: '改名', ...doc('mes.workorder.list'), 'x-permission': 'mes.workorder.read' } },
       },
     };
     const res = await admin.post('/api/admin/demo/openapi-preview', { spec, target: 'http://mock-mes:51210' });

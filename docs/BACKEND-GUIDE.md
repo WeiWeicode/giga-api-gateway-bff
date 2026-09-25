@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 下游後端接入規範與 API 上架流程
 
 > 適用對象:所有經 GigaNexus Gateway 對外提供 API 的後端服務(Go、Node.js、.NET 等)。
-> 對應 PRD 版本:**v0.4**(2026-09-24)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。
+> 對應 PRD 版本:**v0.5**(2026-09-25)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。
 
 ---
 
@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.1(初稿) |
+| 文件版本 | v0.2(新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本;OpenAPI 新增 `description`、`x-gherkin`) |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -27,7 +27,7 @@ flowchart LR
 ```
 
 - 使用者**永遠不直接連到後端**;所有請求都經過 Nginx 與 BFF。
-- BFF 依**路由表**(`gw.api_route`)決定請求轉給哪個後端、需要什麼權限。後端完成後,要把 API **匯入路由表並發佈**才能被呼叫(§8、§9)。
+- BFF 依**路由表**(`gw.api_route`)決定請求轉給哪個後端、需要什麼權限。後端完成後,要把 API **匯入路由表並發佈**才能被呼叫(§8、§9);測試區、正式區由服務啟動時**自動註冊為草稿**(§7.5)。
 
 ### 2.1 分工
 
@@ -78,6 +78,7 @@ flowchart LR
 
 | Port | 系統 | 服務代碼(`upstream.code`) | 協定 | 負責人 | 狀態 |
 | --- | --- | --- | --- | --- | --- |
+| 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
 | 51241 | Endpoint | `endpoint-grpc`(Agent gRPC,Nginx `:9443` 轉入) | gRPC(TLS) | W6 負責人 | 規劃中 |
@@ -222,6 +223,8 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立 |
 | operation | `operationId` | ✅ | `route_code` | 全域唯一,格式 `{system}.{resource}.{action}`,例 `mes.workorder.get` |
 | operation | `summary` | ✅ | `name` | 中文名稱,顯示於管理介面 |
+| operation | `description` | 建議 | `description` | **API 用途說明**(1000 字內):做什麼、資料範圍、主要錯誤代碼;路由查詢(§7.5)以此比對關鍵字 |
+| operation | `x-gherkin` | 建議 | `gherkin` | **行為規格**:Gherkin 場景文字(zh-TW 關鍵字 `場景`、`假如`、`當`、`那麼`、`而且`),描述可觀察的行為(HTTP 狀態、`code`) |
 | operation | `x-permission` | ✅ | `auth_mode` / `permission_code` | 權限代碼(例 `mes.workorder.read`);或 `authenticated`(登入即可)、`public`(免登入,需 IT 核准) |
 | operation | `tags` | 建議 | `tags` | 功能分類 |
 | operation | `x-gateway-path` | 選用 | `public_path` | 對外路徑與預設規則不同時指定 |
@@ -233,6 +236,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 
 - 權限代碼格式 `{system}.{resource}.{action}`(PRD §8.3);`action` 常用 `read`、`write`、`approve`、`export`。
 - **沒有 `x-permission` 的 operation 匯入時列為錯誤**,不會自動視為公開。
+- `description` 超過 1000 字、`x-gherkin` 不是文字時列為錯誤;兩者不影響路由轉送,只供管理介面與路由查詢使用。以 Node.js 樣本(§7.5)開發時,`npm test` 會檢查兩者必填。
 
 ### 6.2 範例
 
@@ -254,8 +258,15 @@ paths:
     get:
       operationId: mes.workorder.get
       summary: 查詢工單
+      description: 依工單號查詢工單內容與狀態;只能查詢本廠區的工單
       tags: [工單]
       x-permission: mes.workorder.read
+      x-gherkin: |
+        場景: 查詢不存在的工單
+          假如 使用者擁有 mes.workorder.read
+          當 呼叫 GET /api/mes/work-orders/WO-000
+          那麼 回應 404
+          而且 回應的 code 為 "MES_WORK_ORDER_NOT_FOUND"
       x-cache-ttl: 30
       x-cache-scope: shared
       parameters:
@@ -295,16 +306,16 @@ paths:
 
 | 角色 | 負責 |
 | --- | --- |
-| 後端開發者 | 申請 port 與服務代碼;依本規範開發;提供 OpenAPI;部署測試區並確認 `/healthz` |
+| 後端開發者 | 申請 port 與服務代碼;新增 API 前先查既有路由(§7.5);依本規範開發;提供 OpenAPI;部署測試區並確認 `/healthz` 與自動註冊成功 |
 | 系統負責人 | 決定權限代碼的授權對象(哪些角色 / AD 群組 / 公司);驗收 |
-| Gateway 負責人 | 分配 port;MVP 期間代為匯入與發佈;維護上游設定與限流政策 |
+| Gateway 負責人 | 分配 port;為每個服務建立測試區與正式區各自的 API Key(§7.5);MVP 期間代為匯入與發佈;維護上游設定與限流政策 |
 | IT 管理者 | 第二階段起於管理介面自助匯入、授權、發佈、回滾 |
 
 ### 7.3 路由狀態與發佈
 
 ```mermaid
 stateDiagram-v2
-    [*] --> draft: 匯入 / 新增
+    [*] --> draft: 匯入 / 新增 / 自動註冊
     draft --> published: 發佈(≤ 5 秒全部 BFF 生效)
     published --> draft: 修改(產生新草稿,線上不受影響)
     published --> deprecated: 標示棄用(回應加 Deprecation 標頭)
@@ -314,7 +325,8 @@ stateDiagram-v2
 
 - **草稿不影響線上**;發佈前可預覽差異(新增 / 修改 / 停用)。
 - 發佈有問題時,**選擇上一個版本回滾**,同樣 5 秒內生效(PRD §8.4.3)。
-- 測試區與正式區各自一套設定(PRD Q3):在測試區驗證通過的發佈版本,**匯出後匯入正式區**再發佈,正式區發佈需手動核可。
+- 測試區與正式區各自一套資料庫、**設定不互通**(PRD Q3):兩區各自由後端啟動時自動註冊為草稿(§7.5),IT 分別核可發佈;正式區不再由測試區匯出 / 匯入。
+- 發佈會一併發佈**所有**草稿(含其他服務自動註冊的草稿);發佈前務必檢視差異(新增 / 修改 / 停用)。
 
 ### 7.4 各階段的操作方式
 
@@ -323,6 +335,36 @@ stateDiagram-v2
 | ~ 2027-01-29(W3 開發中) | 尚未提供;前端需要時,可在**測試區**建立 `mock` 路由 | Gateway 負責人 |
 | 2027-01-29 ~ 03-12(MVP 上線,管理功能開發中) | **CLI**:由 OpenAPI 檔產生草稿並發佈(IMPL-PLAN W3-5.7) | Gateway 負責人代為執行 |
 | 2027-03-12 起(匯入功能完成,IMPL-PLAN P2-4) | **管理 API / W4 IT 管理介面**:上傳 OpenAPI → 預覽比對 → 設定權限 → 發佈;介面開放時間依 W4 時程 | IT 管理者自助 |
+| 自動註冊上線起(IMPL-PLAN W3-5.7a) | **後端自動註冊**:服務部署到測試區 / 正式區後啟動即寫入草稿(§7.5);發佈仍依上列方式 | 後端(註冊)、Gateway 負責人 / IT(發佈) |
+
+### 7.5 自動註冊與路由查詢(Node.js SDK 與樣本)
+
+後端服務以 **API Key** 呼叫 Gateway 管理端點(PRD §8.7),Node.js 服務使用共用套件 `@giganexus/backend-sdk`(`sdk/node`);可直接複製 **Node.js 後端樣本**(`samples/node-backend`,含 AI 協作準則 `AGENT.md`)開始開發。
+
+| 端點 | 權限 | 用途 |
+| --- | --- | --- |
+| `POST /api/admin/registrations` | `gw.admin.route.register` | 啟動時送出 `{ spec: <OpenAPI>, target: <SERVICE_ADVERTISE_URL> }`,寫入草稿;回應新增 / 修改 / 不變數量與 `pendingPublish` |
+| `GET /api/admin/routes/catalog?q=&system=&status=` | `gw.admin.route.read` | 查詢既有路由(含草稿、說明與 Gherkin),**新增 API 前先查,避免重複開發** |
+
+**部署區(`GW_ENV`)**
+
+| 項目 | `dev`(本機開發) | `test`(測試區) | `prod`(正式區) |
+| --- | --- | --- | --- |
+| 自動註冊 | 不註冊 | 啟動時寫入測試區 Gateway 草稿 | 啟動時寫入正式區 Gateway 草稿 |
+| 生效 | — | IT 發佈後 | IT 核可發佈後 |
+| API Key | `GW_API_KEY` 或 `GW_API_KEY_FILE` | `GW_API_KEY_FILE` | 只接受 `GW_API_KEY_FILE`(Docker secret) |
+
+其他環境變數:`SERVICE_CODE`(服務代碼)、`GW_BASE_URL`(Gateway 位址)、`SERVICE_ADVERTISE_URL`(Gateway 連到本服務的位址,test / prod 必填,port 51200–51300)、`GW_JWKS_URL`(選用,預設 `{GW_BASE_URL}/.well-known/jwks.json`)。
+
+**規則**
+
+- API Key 由 Gateway 負責人以 CLI 建立,**測試區與正式區各一把**,明文只顯示一次,存入該服務的 Docker secret:
+  `npm run gw -- client:create --code <服務代碼> [--ips <CIDR>]`(預設權限 `gw.admin.route.register`、`gw.admin.route.read`;再次執行即換發,舊金鑰立即失效)、停用 `client:disable --code <服務代碼>`。
+- **API Key 代碼必須等於 `x-gateway.upstream`**:只能註冊自己的服務;`route_code` 已屬於其他上游時整批拒絕(`IMPORT_HAS_ERRORS`)。
+- 規則同 §6.1 匯入(有錯誤整批不寫入);同一服務多台主機各自註冊時只**補上**上游位址,不互相覆蓋。
+- **只寫草稿,不自動發佈**;新權限代碼一併建立,但需系統負責人指定授權對象後才有人能呼叫。
+- 註冊失敗(Gateway 無法連線時 SDK 以 1、2、4、8、16 秒重試)不會停止服務,但以 `error` 記錄;已發佈的路由不受影響。
+- 開發者查詢:`npx gw-lookup <關鍵字> [--system mes] [--status published] [--gherkin]`(讀 `GW_BASE_URL`、`GW_API_KEY`)。
 
 ---
 
@@ -343,11 +385,11 @@ flowchart LR
 | --- | --- | --- | --- |
 | **開發前** | 申請 port、服務代碼、系統代碼;規劃權限代碼 | 後端 → Gateway 負責人 | 登記於 §3.3 |
 | 開發中(需要時) | 申請測試區 `mock` 路由供前端先行 | 前端 / 後端 | mock 路由可呼叫 |
-| **D0** | 後端部署測試區;提交 OpenAPI;`/healthz` 回 200 | 後端 | 規格檔通過 §6.1 檢查 |
+| **D0** | 後端部署測試區(自動註冊為草稿,§7.5)或提交 OpenAPI;`/healthz` 回 200 | 後端 | 自動註冊成功 / 規格檔通過 §6.1 檢查 |
 | **D+1** | 測試區匯入 → 預覽比對 → 規格有錯退回修正 | Gateway 負責人 / IT | 無錯誤的匯入批次 |
 | **D+2** | 系統負責人確認權限授權對象;測試區發佈;前後端聯測(含無權限時的 403) | 系統負責人、IT、開發者 | 測試區可正常呼叫 |
 | D+3 ~ D+5 | 使用者驗收(視系統需要) | 系統負責人 | 驗收通過 |
-| **上線日** | 後端部署正式區 → 匯入測試區驗證過的發佈版本 → 手動核可發佈 | 後端、IT | 正式區可正常呼叫 |
+| **上線日** | 後端部署正式區(自動註冊為正式區草稿)→ 設定權限授權對象 → 檢視差異後手動核可發佈 | 後端、IT | 正式區可正常呼叫 |
 
 - **D0 到測試區可呼叫:約 2 個工作天**;上線日依驗收結果與正式區部署排程決定。
 - 規格有錯需退回時,時程順延;為縮短時程,建議開發期間就用 §6.1 自我檢查。
@@ -386,5 +428,7 @@ flowchart LR
 - [ ] 提供 `/healthz`
 - [ ] 日誌記錄 `X-Request-Id`
 - [ ] 不回 `Set-Cookie`、CORS、`Server`、`X-Powered-By` 標頭
-- [ ] OpenAPI 每個 operation 都有 `operationId`、`summary`、`x-permission`;根層有 `x-gateway` 與 `x-permissions`
+- [ ] OpenAPI 每個 operation 都有 `operationId`、`summary`、`x-permission`(建議 `description`、`x-gherkin`);根層有 `x-gateway` 與 `x-permissions`
+- [ ] 新增的 API 已查過既有路由,沒有重複(§7.5)
+- [ ] 測試區、正式區各自的 API Key 已存入 Docker secret,`GW_ENV` 設定正確,啟動日誌顯示自動註冊成功
 - [ ] 敏感 API 設定 `x-audit-level`

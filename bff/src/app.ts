@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppConfig } from './config.js';
 import dbViewer from './modules/admin/db-viewer.js';
 import onboarding from './modules/admin/onboarding.js';
+import registration from './modules/admin/registration.js';
 import authPlugin from './modules/auth/plugin.js';
 import authRoutes from './modules/auth/routes.js';
 import healthRoutes from './modules/health/routes.js';
@@ -45,6 +46,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(authRoutes, { config, routes: app.routeTable });
   await app.register(notifyWs);
   await app.register(healthRoutes);
+  await app.register(registration, { config });
   // 資料庫檢視為 demo 用,正式區不提供
   if (config.gwEnv !== 'prod') {
     await app.register(dbViewer);

@@ -1,0 +1,35 @@
+{
+  "name": "@giganexus/backend-sdk",
+  "version": "0.1.0",
+  "description": "GigaNexus 下游後端共用套件(Node.js):部署區設定、X-Internal-Token 驗證、API 自動註冊、既有路由查詢(BACKEND-GUIDE.md §4、§7.5)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "gw-lookup": "dist/lookup-cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "jose": "6.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "6.0.3"
+  }
+}

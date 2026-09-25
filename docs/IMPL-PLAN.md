@@ -23,7 +23,7 @@
 | SQL Server 2012 **Standard** 版,不升級 | 稽核表以排程分批刪除取代分割;DDL 只用 2012 支援的語法([DATABASE.md](DATABASE.md) §0) |
 | BFF ↔ SQL Server 2012 **內網不加密**(已取得主管與工程師同意,2026-09-24) | 完成防火牆與專屬帳號設定(前置工作 P-03) |
 | **Drizzle ORM**,PoC 未通過改用 **Kysely**,兩者皆不行走**第三條路 Sequelize**(GeneralBackend 已驗證) | W3-1 第一週完成 PoC 並做 Go / No-Go 決定 |
-| 獨立資料庫 **`giganexus_gw`**(schema `gw`);測試區 / 正式區**各自一套**(Q2、Q3) | DBA 需於開工前建立兩區資料庫與登入帳號;發佈版本以匯出 / 匯入推送 |
+| 獨立資料庫 **`giganexus_gw`**(schema `gw`);測試區 / 正式區**各自一套**(Q2、Q3) | DBA 需於開工前建立兩區資料庫與登入帳號;兩區設定不互通,各自由後端自動註冊(W3-5.7a),IT 分別發佈 |
 | 人事資料 **BPM 為主、LOS 補充**,排程同步 + 登入補查(D7);離職只標記不自動停用(Q10) | W3-4 新增人員同步工作(W3-4.6a–c);需唯讀帳號與欄位對應(P-12、P-13) |
 | 登入效期 8 小時,「記住我」7 天僅限內網(Q4);Kerberos 列第三階段(Q5) | W3-4.4 實作記住我與來源 IP 判定 |
 | **LINE 通知暫緩**(Q7) | 通知只做 Email + 站內;不申請 LINE 官方帳號 |
@@ -206,7 +206,8 @@ gantt
 | W3-5.4 | 路由層限流(Redis 滑動視窗)、GET 回應快取 | PRD §8.4.2 | |
 | W3-5.5 | `aggregate`:步驟並行 / 串行、`required`、`_meta.errors`、步驟權限 | PRD §8.4.2 | |
 | W3-5.6 | **同步模組**:發佈(交易 → 快照 → `SET` + `PUBLISH`)、訂閱重載、60 秒版本比對補償、`gw:lock:sync` | [DATABASE.md](DATABASE.md) §7.3 | `db/sync/release.ts` |
-| W3-5.7 | MVP 發佈工具(CLI):由後端提供的 OpenAPI 檔(依 [BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6)產生草稿、檢查必填欄位、發佈(`npm run release:publish`);測試區與正式區匯出 / 匯入發佈版本。完整管理 API 於第二階段 | PRD §13.2、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.4 | CLI 指令 |
+| W3-5.7 | MVP 發佈工具(CLI):由後端提供的 OpenAPI 檔(依 [BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6)產生草稿、檢查必填欄位、發佈(`npm run release:publish`)。測試區與正式區設定不互通(PRD Q3),不做匯出 / 匯入。完整管理 API 於第二階段 | PRD §13.2、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.4 | CLI 指令 |
+| W3-5.7a | **後端自動註冊與路由查詢**:`gw.api_route.gherkin`、OpenAPI `description` / `x-gherkin` 匯入;API Key 驗證(僅供管理端點,路由的 `api_key` 模式仍於 P2-5)與 CLI `client:create` / `client:disable`;`POST /api/admin/registrations`(寫入草稿)、`GET /api/admin/routes/catalog`;Node.js SDK(`sdk/node`)與後端樣本(`samples/node-backend`,含 AGENT.md) | PRD §8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.5 | E2E `10-service-registration`、樣本 `npm test` |
 | W3-5.8 | 通知:`/api/notify/send`、BullMQ 佇列、worker(Email + 站內)、重試與死信、`gw.notify_log` | PRD §8.5 | `workers/notify.worker.ts` |
 | W3-5.8a | **自行註冊**:LOS / BPM 查核、AD 全網域查無、有 Email 寄驗證連結、無 Email 比對到職日並通知主管、查無轉管理員審核;註冊限流 | PRD §8.2.5 | `/register` API |
 | W3-5.8b | **忘記 / 重設密碼**:寄送重設連結(30 分鐘、一次性)、IT 重設、重設後撤銷所有 Refresh Token;API 先行,畫面細節於 W5 入口網開發時確定(PRD Q23) | PRD §8.2.5 | `/reset-password` API |

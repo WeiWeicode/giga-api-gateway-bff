@@ -1,0 +1,1 @@
+ALTER TABLE [gw].[api_route] ADD [gherkin] nvarchar(max);

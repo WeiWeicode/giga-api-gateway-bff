@@ -36,15 +36,22 @@ declare module 'fastify' {
   }
 }
 
-/** 登入前即可呼叫、不檢查 CSRF 的 API(此時尚無 gn_csrf) */
-const CSRF_EXEMPT = new Set(['/api/auth/login', '/api/auth/register', '/api/auth/register/verify', '/api/auth/password/forgot', '/api/auth/password/reset']);
+/** 登入前即可呼叫、不檢查 CSRF 的 API(此時尚無 gn_csrf);後端自動註冊只接受 X-Api-Key(不使用 Cookie),亦不適用 CSRF */
+const CSRF_EXEMPT = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/register/verify',
+  '/api/auth/password/forgot',
+  '/api/auth/password/reset',
+  '/api/admin/registrations',
+]);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export function identityOf(claims: AccessClaims): IdentityClaims {
   return { sub: claims.sub, emp: claims.emp, upn: claims.upn, name: claims.name, dept: claims.dept, cos: claims.cos, amr: claims.amr, roles: claims.roles };
 }
 
-function buildBlockList(cidrs: string): BlockList {
+export function buildBlockList(cidrs: string): BlockList {
   const list = new BlockList();
   for (const c of cidrs
     .split(',')

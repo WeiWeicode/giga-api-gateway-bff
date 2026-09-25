@@ -122,6 +122,7 @@ export const apiRoute = gw.table(
     source: varchar('source', { length: 20 }).notNull().default('manual'),
     importBatchId: int('import_batch_id').references(() => apiImportBatch.batchId),
     description: nvarchar('description', { length: 1000 }),
+    gherkin: nvarchar('gherkin', { length: 'max' }),
     ...auditColumns(),
   },
   (t) => [

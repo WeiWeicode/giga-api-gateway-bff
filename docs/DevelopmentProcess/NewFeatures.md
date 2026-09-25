@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 後端自動註冊、路由查詢、Node.js SDK 與樣本
+- 工作項目：W3-5.7a
+- 內容：`gw.api_route` 新增 `gherkin`(行為規格),`description` 作為 API 用途說明,兩者由 OpenAPI 的 `description`、`x-gherkin` 匯入;後端以 API Key 呼叫 `POST /api/admin/registrations`,在 test / prod 啟動時自動註冊為草稿(不自動發佈,只能註冊自己的服務);`GET /api/admin/routes/catalog` 查詢既有路由避免重複開發;新增 `@giganexus/backend-sdk`(`sdk/node`:`GW_ENV=dev|test|prod` 設定、Token 驗證、自動註冊、`gw-lookup`)與 Node.js 後端樣本(`samples/node-backend`,含專用 AGENT.md)。規格同步修訂:PRD v0.5(Q3 改為兩區設定不互通,取消匯出 / 匯入)、BACKEND-GUIDE §7.5。
+- 檔案：`bff/src/modules/admin/registration.ts`、`bff/src/modules/admin/route-import.ts`、`bff/src/modules/auth/api-key.ts`、`sdk/node/`、`samples/node-backend/`、`docs/`
+- 驗證：BFF `npm test` 62 項、`test:int` 15 項、`test:e2e` 124 項全部通過(新增 10-service-registration 9 項);樣本 `npm test` 9 項通過;本機以 `GW_ENV=test` 啟動樣本 → 自動註冊 4 筆草稿 → `gw-lookup` 查得說明與 Gherkin → CLI 發佈 → 經 Gateway 以 S112009 呼叫 `/api/sample/me` 回 200(內部 Token 驗證成功)、`/api/sample/items` 回 403(未授權)→ 重啟後註冊為「不變」;驗證資料已刪除並重新發佈。無前端畫面變更,未做瀏覽器操作
+
 ## 2026-09-25 IT 管理 demo:新員工上手導覽
 - 內容：`/it/` 改為 IT 新員工上手版本:架構總覽(一個請求怎麼走、資料放在哪裡)、31 張資料表依 5 類說明用途 / 重要欄位 / 誰寫入 / 誰使用並可看實際資料、API 上架演練 7 步驟(流程與分工、登記上游、OpenAPI 匯入預覽、手動新增預覽、權限反查、發佈說明、實際呼叫驗證)。全部為預覽,不寫入資料庫。
 - 檔案：`bff/src/modules/admin/onboarding.ts`、`tools/sample-spa/it/`

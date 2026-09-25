@@ -2,7 +2,8 @@
  * OpenAPI → 路由草稿(PRD §8.4.4、BACKEND-GUIDE.md §6):
  *   根:x-gateway.upstream / x-gateway.system、x-permissions
  *   operation:operationId → route_code、summary → name、x-permission → auth_mode / permission_code、
- *              x-gateway-path、x-timeout-ms、x-cache-ttl / x-cache-scope、x-audit-level、x-rate-limit、tags
+ *              x-gateway-path、x-timeout-ms、x-cache-ttl / x-cache-scope、x-audit-level、x-rate-limit、tags、
+ *              description → description(API 用途說明)、x-gherkin → gherkin(行為規格,Gherkin 場景文字)
  *   沒有 x-permission 的 operation 列為錯誤,不會自動視為公開。
  */
 
@@ -21,6 +22,8 @@ export interface ParsedRoute {
   auditLevel: 'none' | 'meta' | 'body';
   rateLimitPolicy: string | null;
   tags: string | null;
+  description: string | null;
+  gherkin: string | null;
 }
 
 export interface ParsedSpec {
@@ -79,6 +82,10 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
       if (timeout !== undefined && (timeout < 100 || timeout > 60_000)) fail('x-timeout-ms 需介於 100 ~ 60000');
       const audit = (op['x-audit-level'] as string | undefined) ?? 'none';
       if (!['none', 'meta', 'body'].includes(audit)) fail(`x-audit-level 錯誤:${audit}`);
+      const description = op.description as unknown;
+      if (description !== undefined && (typeof description !== 'string' || description.length > 1000)) fail('description 需為 1000 字以內的文字');
+      const gherkin = op['x-gherkin'] as unknown;
+      if (gherkin !== undefined && typeof gherkin !== 'string') fail('x-gherkin 需為文字(Gherkin 場景)');
       if (!operationId || !summary || !perm) continue;
 
       routes.push({
@@ -96,6 +103,8 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
         auditLevel: audit as ParsedRoute['auditLevel'],
         rateLimitPolicy: (op['x-rate-limit'] as string | undefined) ?? null,
         tags: Array.isArray(op.tags) ? (op.tags as string[]).join(',') : null,
+        description: typeof description === 'string' && description.trim() ? description.trim() : null,
+        gherkin: typeof gherkin === 'string' && gherkin.trim() ? gherkin.trim() : null,
       });
     }
   }

@@ -40,6 +40,8 @@ const COMPARED = [
   'cacheScope',
   'timeoutMs',
   'auditLevel',
+  'description',
+  'gherkin',
 ] as const;
 const ROUTE_CODE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+){2,}$/;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', '*'];

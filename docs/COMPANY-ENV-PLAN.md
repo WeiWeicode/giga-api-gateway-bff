@@ -64,6 +64,7 @@
 | `${GW_CONFIG_DIR}/ldap-domains.json` | 三個網域的 `url`(過渡期 `ldap://<DC>:389`,Q12)、`baseDN`、`bindDN`、`netbios`、`upnSuffix`;格式同本機的 `deploy/dev/config/ldap-domains.json` | P-07 |
 | 角色與 AD 群組對應 | 本機以 `deploy/dev/config/gateway-routes.yaml` 套用;公司需依 IT 規劃的 `GN-*` 群組 DN 另寫一份(DN 含逗號須用區塊清單加引號),以 `gw apply` 套用 | P-08 |
 | `deploy/docker-compose.test.yml`、`.prod.yml` | 目前只有 `GW_ENV` 與 log level;依主機需要補充(例如 port 衝突時改 `GW_HTTP_PORT` 等) | P-11 |
+| 下游後端 API Key | 每個後端服務在測試區、正式區各建一把(`gw client:create --code <服務代碼> [--ips <主機網段>]`),明文交給該服務存入 Docker secret(`GW_API_KEY_FILE`);後端的 `GW_BASE_URL` 指向該區 Gateway,且主機網段需列入 `internal-services.conf`(取 JWKS)(BACKEND-GUIDE §7.5) | P-16 |
 | Windows 主機 | `GW_SECRETS_DIR` 等路徑使用 Windows 路徑;確認 80 / 443 / 9443 未被佔用;Docker Desktop 開機自動啟動 | P-11、P-17 |
 
 ---

@@ -27,6 +27,8 @@ export const ERROR_MESSAGES = {
   TOKEN_INVALID: '連結無效',
   TOKEN_EXPIRED: '連結已過期,請重新申請',
   TOKEN_USED: '連結已使用過,請重新申請',
+  UPSTREAM_PORT_OUT_OF_RANGE: '上游位址的 port 不在 51200–51300',
+  IMPORT_HAS_ERRORS: '匯入批次含錯誤項目,未寫入任何路由',
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
@@ -56,6 +58,8 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   TOKEN_INVALID: 400,
   TOKEN_EXPIRED: 400,
   TOKEN_USED: 400,
+  UPSTREAM_PORT_OUT_OF_RANGE: 400,
+  IMPORT_HAS_ERRORS: 400,
 };
 
 export class GwError extends Error {

@@ -22,6 +22,21 @@
     而且 route_code 為 "mes.workorder.get"
     而且 路由狀態為 "draft"
 
+  @W3-5.7a
+  場景: 匯入 API 用途說明與行為規格
+    假如 operation "mes.workorder.get" 的 "description" 為 "依工單號查詢工單內容與狀態"
+    而且 其 "x-gherkin" 為一段以 "場景:" 開頭的 Gherkin 文字
+    當 IT 匯入此規格
+    那麼 路由的 description 為 "依工單號查詢工單內容與狀態"
+    而且 路由的 gherkin 為該段 Gherkin 文字
+    而且 發佈後的路由快照不含 description 與 gherkin
+
+  @W3-5.7a
+  場景: 說明超過 1000 字時列為錯誤
+    假如 operation "mes.workorder.get" 的 "description" 超過 1000 字
+    當 IT 匯入此規格
+    那麼 預覽中 "mes.workorder.get" 為錯誤 "description 需為 1000 字以內的文字"
+
   場景: 以 x-gateway-path 指定對外路徑
     假如 operation "mes.workorder.getV2" 的 path 為 "/v2/work-orders/{id}"
     而且 其 "x-gateway-path" 為 "/api/mes/v2/work-orders/{id}"

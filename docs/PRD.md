@@ -9,13 +9,13 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.4** |
+| 文件版本 | **v0.5** |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / gRPC / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
 | 對應工作流 | NexusPlan **W3. API Gateway + BFF**(2026-11-16 ~ 2027-01-29) |
 | 規劃依據 | `GigaNexusAIPlan/docs/PRD.md`(§8 W3)、`archatlas/src/data/sample-atlas.json`(`nginx-gateway`、`node-bff` 節點與上下游) |
-| 狀態 | 規劃中(v0.4:待決事項 Q6(待壓測)、Q25) |
+| 狀態 | 規劃中(v0.5:待決事項 Q6(待壓測)、Q25) |
 
 ### 1.1 修訂紀錄
 
@@ -25,6 +25,7 @@
 | v0.2 | 2026-09-24 | ① 整體架構、資料庫設計、技術棧拆為獨立文件,新增 [IMPL-PLAN.md](IMPL-PLAN.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md);② 資料庫改為既有 **SQL Server 2012 Standard**,獨立資料庫 `giganexus_gw`,以 **Drizzle ORM** 存取並同步 Redis(PoC 未過改用 Kysely),DB 連線內網不加密;③ 人事資料改由 **BPM(SQL Server 2019)為主、LOS `EmployeeInfo` 補充**,AD 只負責驗證與群組(D7);④ §7.2 SPA 託管改為子路徑登記、symlink 部署與既有系統過渡;⑤ **LINE 通知暫緩**,移至第三階段;⑥ 統一錯誤回應格式;⑦ Q2、Q3、Q4、Q5、Q7、Q8、Q10 定案 |
 | v0.3 | 2026-09-24 | ① 參考既有 GeneralBackend 專案([REFERENCES.md](REFERENCES.md)):ORM 備案增加第三條路 Sequelize、BPM 欄位對應確定、AD 改為多網域(新增 Q11、Q12);② Q11 定案(三個網域全納入),新增**本機帳號與自行註冊**(§8.2.5),供無 AD 網域的子公司使用;③ Q9、Q13、Q14、Q15 定案:LOS `EmployeeInfo` 欄位對應、公司歸屬取自 LOS / BPM、密碼至少 8 碼、LOS / BPM 找得到就可註冊(找不到才審核);新增兼任帳號與同一人多工號(Q16、Q17);④ Q1、Q12、Q16、Q17 定案:**以 IP 存取、Agent 改用獨立 port `:9443`**、LDAP 過渡期沿用 `ldap://`、兼任帳號不可單獨登入、不同工號不歸戶;⑤ 待決事項除 Q6(待壓測)外全數定案 |
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
+| v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md) |
 
 ---
 
@@ -249,7 +250,7 @@ sequenceDiagram
 | code | HTTP | 產生者 | 情境 | 前端處理 |
 | --- | --- | --- | --- | --- |
 | `VALIDATION_FAILED` | 400 | BFF / 後端 | 參數或 JSON Schema 驗證失敗;`details` 列出欄位 | 標示欄位錯誤 |
-| `UNAUTHENTICATED` | 401 | BFF | 未登入、Access Token 過期或已撤銷、權限版本變更需重新換發、只持有限定憑證卻呼叫其他 API | 共用套件自動 Refresh,失敗導向 `/login` |
+| `UNAUTHENTICATED` | 401 | BFF | 未登入、Access Token 過期或已撤銷、權限版本變更需重新換發、只持有限定憑證卻呼叫其他 API;系統對系統呼叫的 API Key 無效、停用或過期 | 共用套件自動 Refresh,失敗導向 `/login` |
 | `PERMISSION_DENIED` | 403 | BFF | 缺少路由所需權限(API 層級) | 顯示無權限頁 |
 | `CSRF_INVALID` | 403 | BFF | 非 GET 請求缺少或不符 `X-CSRF-Token` | 重新載入頁面 |
 | `IP_NOT_ALLOWED` | 403 | Nginx | Webhook 等限定來源的路徑,來源 IP 不在白名單 | — |
@@ -301,7 +302,7 @@ sequenceDiagram
 | `VERSION_CONFLICT` | 409 | 管理 API / 後端 | 資料已被他人修改(`row_ver` 樂觀鎖) |
 | `ROUTE_PATH_CONFLICT` | 409 | 管理 API | 對外路徑與既有路由衝突 |
 | `UPSTREAM_PORT_OUT_OF_RANGE` | 400 | 管理 API | 上游位址的 port 不在 51200–51300 |
-| `IMPORT_HAS_ERRORS` | 400 | 管理 API | 匯入批次含錯誤項目(例如缺少 `x-permission`),不可提交;`details` 列出項目 |
+| `IMPORT_HAS_ERRORS` | 400 | 管理 API | 匯入批次或後端自動註冊含錯誤項目(例如缺少 `x-permission`、路徑衝突、註冊其他服務的路由),不可提交;`details` 列出項目 |
 
 **下游後端自訂代碼**
 
@@ -590,8 +591,11 @@ sequenceDiagram
 | --- | --- |
 | OpenAPI 3.x(JSON / YAML) | 上游服務(Go / Node)自動產出的規格;每個 operation 轉一條路由,`operationId` 作為 `route_code`,`x-permission` 擴充欄位轉 `permission_code` |
 | Excel / CSV 範本 | IT 手動整理的清單,欄位對應 [DATABASE.md §2](DATABASE.md) `gw.api_route` |
+| 後端自動註冊 | 測試區、正式區的後端服務啟動時以 API Key 呼叫 `POST /api/admin/registrations` 送出自己的 OpenAPI(SDK `autoRegister`,[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.5);驗證規則同 OpenAPI 匯入,另限定只能註冊 API Key 所屬的服務 |
 
 - 匯入流程:上傳 → 解析 → 驗證(路徑衝突、上游存在、權限代碼存在)→ **預覽比對**(新增 / 更新 / 不變 / 錯誤)→ 確認寫入為草稿 → 發佈。
+- 後端自動註冊沒有預覽步驟:驗證通過即寫入草稿(有錯誤則整批不寫入),上游位址以「補上」方式登記(同一服務多台主機各自註冊,不互相覆蓋);**不自動發佈**,由 IT 於發佈前檢視差異後核可。
+- operation 的 `description` 存入 `description`(API 用途說明),`x-gherkin` 存入 `gherkin`(行為規格,Gherkin 場景文字);兩者不進路由快照,只供管理介面與路由查詢使用。
 - 匯入批次與逐筆結果記錄於 `gw.api_import_batch` / `gw.api_import_item`。
 - 權限代碼不存在時可選擇「一併建立」。
 
@@ -644,6 +648,8 @@ sequenceDiagram
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
 | 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
 | API Key | `/api/admin/api-clients`(建立時只顯示一次明文) | `gw.admin.client.*` |
+| 後端自動註冊 | `POST /api/admin/registrations`(**僅接受 `X-Api-Key`**,只能註冊 API Key 代碼 = `x-gateway.upstream` 的服務,寫入草稿) | `gw.admin.route.register` |
+| 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明與 Gherkin;API Key 或登入者皆可) | `gw.admin.route.read` |
 | 限流政策 | `/api/admin/rate-limit-policies` | `gw.admin.route.write` |
 | 通知 | `/api/admin/notify/templates`、`/api/admin/notify/logs` | `gw.admin.notify.*` |
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |
@@ -775,7 +781,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | --- | --- | --- | --- |
 | Q1 | 正式網域名稱與 SAN | **已決定**:內部目前沒有 DNS,**先以 IP 存取**;憑證 SAN 帶 Gateway IP;Agent 通道改用獨立 port `:9443`(原本以主機名稱 `agent.xxx` + SNI 區分,IP 無法使用 SNI) | 提案人 + IT |
 | Q2 | gw 資料表放 `heatco_db` schema `gw` 或獨立 DB | **已決定**:獨立 DB `giganexus_gw`(schema `gw`),備份、權限、生命週期獨立 | 提案人 + DBA |
-| Q3 | 測試區 / 正式區是否共用同一 SQL Server gw 設定 | **已決定**:各自一套(`giganexus_gw_test` / `giganexus_gw`),測試區驗證過的發佈版本以「匯出 → 匯入另一區」推送 | 提案人 |
+| Q3 | 測試區 / 正式區是否共用同一 SQL Server gw 設定 | **已決定**:各自一套(`giganexus_gw_test` / `giganexus_gw`),**設定不互通**;兩區各自由後端服務啟動時自動註冊為草稿,由 IT 分別核可發佈(v0.5 修訂,取消「匯出 → 匯入另一區」) | 提案人 |
 | Q4 | Refresh 效期:8 小時(一個工作日)或 7 天 | **已決定**:預設 8 小時;勾選「記住我」延長為 7 天,僅限從公司內網登入時提供(以來源 IP 網段判定) | 主管 |
 | Q5 | 是否需要 Kerberos 免密碼 SSO | **已決定**:第三階段;先以 AD 帳密登入上線 | 主管 |
 | Q6 | MES 高頻報工是否例外直連(不經 BFF) | 先經 BFF,壓測不達標再以 D2 模式(見 [ARCHITECTURE.md](ARCHITECTURE.md))例外處理 | 提案人 + MES 負責人 |
