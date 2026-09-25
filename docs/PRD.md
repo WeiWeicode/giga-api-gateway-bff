@@ -216,7 +216,7 @@ sequenceDiagram
   - 長連線:`grpc_read_timeout 1h`、`grpc_send_timeout 1h`、`client_body_timeout 1h`;`keepalive_timeout` 配合 gRPC keepalive(Agent 端 30s ping)。
   - 單一來源連線數上限(`limit_conn`),避免異常 Agent 重連風暴。
 - **裝置憑證發放**(建議):AD CS 建立「GigaNexus Agent」憑證範本,以 GPO **電腦憑證自動註冊(Autoenrollment)** 發到網域電腦的 `LocalMachine\My`,Agent 以 Windows 憑證存放區讀取,私鑰不可匯出。Subject 使用電腦名稱(`CN=<電腦名稱>`),SAN 帶 AD 電腦物件 GUID。**無網域子公司的電腦無法以 GPO 自動註冊**,需由 IT 另行簽發並安裝(見 §14.1)。
-- Endpoint Server 端的 gRPC API(proto)由 W6 定義;本專案只負責**通道、身分標頭與限流**。
+- Endpoint Server 端的 gRPC API(proto)由 W6 定義;本專案只負責**通道、身分標頭與限流**。Endpoint Server、Go Agent 與 C# 守護程式(Watchdog,同樣經 `:9443`、使用同一張電腦憑證)的開發規範見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
 
 ### 7.7 日誌與監控
 

@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 Go Endpoint Server 與端點 Agent 開發手冊
+- 工作項目：W3-3(通道);W6 開發規範
+- 內容：新增 `docs/ENDPOINT-AGENT-GUIDE.md`:`:9443` 通道規格(轉送標頭、逾時、串流數上限、被拒時的 gRPC 狀態碼)、裝置憑證(網域電腦自動註冊、非網域電腦 `certreq` 流程、以完整 DN 識別裝置)、Go Endpoint Server 與 Go Agent 規範(應用層心跳、撤銷、訊息大小、proto 相容性)。新增 **C# Watchdog** 通道設計:與 Agent 以具名管道 gRPC 溝通(ACL 限 SYSTEM / Administrators、比對伺服端 PID),並以同一張電腦憑證經 `:9443` 自行上報(`giganexus.watchdog.v1`,Nginx 不需調整);建議的升級流程。列出 Gateway 未完成項目(CRL 更新、來源 IP、壓測)與待決事項 E1–E5。PRD §7.6、ARCHITECTURE T8、BACKEND-GUIDE、AGENT.md、README 加上連結。
+- 檔案：`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/PRD.md`、`docs/ARCHITECTURE.md`、`docs/BACKEND-GUIDE.md`、`AGENT.md`、`README.md`
+- 驗證：§5、§6 的 Go 寫法已經本機 Nginx 實測(見後端修改紀錄同日項目);C# 與 Windows 憑證存放區的寫法未實測(本機無 .NET / Windows),文件內已標示
+
 ## 2026-09-25 IT 管理系統(GigaItApp)取代範例 IT 頁面
 - 內容：`/it/` 改由獨立專案 GigaItApp 提供:自有登入(不共用單一入口)、職級 × 部門按鈕權限、儀表板、BFF 服務 / 路由 / 發佈版本與 BFF 角色權限的視覺化與設定(BFF 尚無寫入 API 的部分明確回「尚未開放」)。Gateway 端只新增 Nginx `/it/api/` 轉送與部署設定,細節見後端修改紀錄同日項目與 GigaItApp `README.md`。
 - 檔案：`nginx/`、`deploy/`、`docs/`;GigaItApp `backend/`、`frontend/`、`deploy/`

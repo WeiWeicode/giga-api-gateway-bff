@@ -141,6 +141,7 @@
 | 實作計畫 | `docs/IMPL-PLAN.md` | 工作項目（W3-x.n）、前置工作、驗收條件、完成定義 |
 | 前端規範 | `docs/FRONTEND-GUIDE.md` | SPA 子路徑、web-kit、登入與權限 |
 | 後端規範 | `docs/BACKEND-GUIDE.md` | 下游 port、內部 Token、OpenAPI 上架 |
+| 端點 Agent 通道 | `docs/ENDPOINT-AGENT-GUIDE.md` | Go Endpoint Server、Go Agent、C# Watchdog:`:9443` gRPC 通道、裝置憑證、本機具名管道 |
 | 部署 | `docs/DEPLOYMENT.md` | CI/CD、各元件部署與回滾、機密 |
 | 上公司環境清單 | `docs/COMPANY-ENV-PLAN.md` | 從本機測試環境部署到測試區 / 正式區需調整的檔案 |
 | 既有專案參考 | `docs/REFERENCES.md` | GeneralBackend、舊單一入口 |

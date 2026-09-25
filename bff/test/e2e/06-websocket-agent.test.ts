@@ -68,15 +68,54 @@ describe('WebSocket', () => {
 const def = protoLoader.loadSync(fileURLToPath(new URL('tools/mock-upstream/agent.proto', `file://${REPO}`)), { keepCase: true });
 const AgentService = (grpc.loadPackageDefinition(def) as any).giganexus.agent.v1.AgentService;
 
-function heartbeat(cert?: string): Promise<{ ok: true; reply: any } | { ok: false; code: number; details: string }> {
+function agentClient(cert?: string) {
   const creds = cert ? grpc.credentials.createSsl(CA, readFileSync(`${PKI}/${cert}.key`), readFileSync(`${PKI}/${cert}.crt`)) : grpc.credentials.createSsl(CA);
-  const client = new AgentService('localhost:9443', creds);
+  return new AgentService('localhost:9443', creds);
+}
+
+function heartbeat(cert?: string): Promise<{ ok: true; reply: any } | { ok: false; code: number; details: string }> {
+  const client = agentClient(cert);
   return new Promise((resolve) => {
     client.Heartbeat({ pc: cert ?? 'none' }, { deadline: Date.now() + 5000 }, (err: grpc.ServiceError | null, reply: unknown) => {
       client.close();
       resolve(err ? { ok: false, code: err.code, details: err.details } : { ok: true, reply });
     });
   });
+}
+
+/** 開一條 Stream 雙向串流;send() 送出一則並等到對應回覆才返回(一問一答,確認 Nginx 不會等用戶端送完才一次轉送) */
+function openStream(cert?: string, shared?: ReturnType<typeof agentClient>) {
+  const client = shared ?? agentClient(cert);
+  const call = client.Stream({ deadline: Date.now() + 10_000 });
+  const replies: any[] = [];
+  let failure: grpc.ServiceError | undefined;
+  let wake: (() => void) | undefined;
+  call.on('data', (r: unknown) => {
+    replies.push(r);
+    wake?.();
+  });
+  call.on('error', (e: grpc.ServiceError) => {
+    failure = e;
+    wake?.();
+  });
+  const status = new Promise<grpc.StatusObject>((resolve) => call.on('status', resolve));
+  return {
+    replies,
+    async send(pc: string): Promise<any> {
+      const n = replies.length;
+      const arrived = new Promise<void>((resolve) => (wake = resolve));
+      call.write({ pc });
+      if (!failure) await arrived;
+      if (failure) throw failure;
+      return replies[n];
+    },
+    async close(): Promise<grpc.StatusObject> {
+      call.end();
+      const s = await status;
+      if (!shared) client.close();
+      return s;
+    },
+  };
 }
 
 describe('Agent 專用通道 :9443(mTLS + gRPC)', () => {
@@ -93,6 +132,58 @@ describe('Agent 專用通道 :9443(mTLS + gRPC)', () => {
   it.each(['agent-expired', 'agent-revoked', 'agent-rogue', undefined])('無效憑證(%s)被拒,不會到達 Endpoint Server', async (cert) => {
     const r = await heartbeat(cert);
     expect(r.ok).toBe(false);
+  });
+
+  it('有效憑證可建立雙向串流:連續一問一答,每則回覆都帶正確 DN,用戶端結束後正常關閉', async () => {
+    const s = openStream('agent-valid');
+    for (const pc of ['PC-001#1', 'PC-001#2', 'PC-001#3']) {
+      const reply = await s.send(pc);
+      expect(reply).toMatchObject({ pc, client_cert_dn: 'O=GigaNexus Dev,CN=PC-001' });
+      expect(reply.server_time).toBeTruthy();
+    }
+    expect((await s.close()).code).toBe(grpc.status.OK);
+    expect(s.replies).toHaveLength(3);
+  });
+
+  it('同一連線可同時開多條串流(HTTP/2 多工),互不干擾', async () => {
+    const client = agentClient('agent-valid');
+    const [a, b] = [openStream(undefined, client), openStream(undefined, client)];
+    const [ra, rb] = await Promise.all([a.send('stream-a'), b.send('stream-b')]);
+    expect(ra.pc).toBe('stream-a');
+    expect(rb.pc).toBe('stream-b');
+    expect(await b.send('stream-b#2')).toMatchObject({ pc: 'stream-b#2' });
+    expect((await a.close()).code).toBe(grpc.status.OK);
+    expect((await b.close()).code).toBe(grpc.status.OK);
+    client.close();
+  });
+
+  it('長串流累計上傳超過 10 MB 不會被 Nginx 切斷(client_max_body_size 0)', async () => {
+    const s = openStream('agent-valid');
+    const pad = 'x'.repeat(256 * 1024);
+    for (let i = 0; i < 44; i++) await s.send(pad); // 11 MB
+    expect((await s.close()).code).toBe(grpc.status.OK);
+    expect(s.replies).toHaveLength(44);
+  });
+
+  it('Agent 自行送入的 x-client-cert-* 標頭會被 Nginx 覆寫,上游只看到憑證實際值', async () => {
+    const client = agentClient('agent-valid');
+    const md = new grpc.Metadata();
+    md.set('x-client-cert-dn', 'CN=FORGED');
+    md.set('x-client-cert-fp', '0000');
+    md.set('x-client-verify', 'FORGED');
+    const reply = await new Promise<any>((resolve, reject) =>
+      client.Heartbeat({ pc: 'PC-001' }, md, { deadline: Date.now() + 5000 }, (err: grpc.ServiceError | null, r: unknown) => (err ? reject(err) : resolve(r))),
+    );
+    client.close();
+    expect(reply).toMatchObject({ client_cert_dn: 'O=GigaNexus Dev,CN=PC-001', client_verify: 'SUCCESS' });
+    expect(reply.client_cert_fp).toMatch(/^[0-9a-f]{40}$/);
+  });
+
+  it.each(['agent-expired', 'agent-revoked', 'agent-rogue', undefined])('無效憑證(%s)無法建立串流,收不到任何回覆', async (cert) => {
+    const s = openStream(cert);
+    await expect(s.send('should-not-arrive')).rejects.toMatchObject({ code: expect.any(Number) });
+    expect((await s.close()).code).not.toBe(grpc.status.OK);
+    expect(s.replies).toHaveLength(0);
   });
 
   it('無憑證時 TLS 可握手但 Nginx 立即拒絕(記錄:Nginx ssl_verify_client 在 HTTP 層回 400,而非 TLS 層中斷)', async () => {

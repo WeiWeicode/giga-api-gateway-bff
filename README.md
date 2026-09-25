@@ -1,7 +1,7 @@
 # GigaNexus Gateway
 
 Nginx 反向代理網關 + Node.js BFF(Fastify 5 / TypeScript / Drizzle ORM / SQL Server 2012 / Redis 7)。
-規格見 [docs/](docs/):[PRD](docs/PRD.md)、[ARCHITECTURE](docs/ARCHITECTURE.md)、[DATABASE](docs/DATABASE.md)、[TECH-STACK](docs/TECH-STACK.md)、[IMPL-PLAN](docs/IMPL-PLAN.md)、[FRONTEND-GUIDE](docs/FRONTEND-GUIDE.md)、[BACKEND-GUIDE](docs/BACKEND-GUIDE.md)、[DEPLOYMENT](docs/DEPLOYMENT.md)、[Gherkin](docs/Gherkin/README.md);上公司環境的調整與交接見 [COMPANY-ENV-PLAN](docs/COMPANY-ENV-PLAN.md)。
+規格見 [docs/](docs/):[PRD](docs/PRD.md)、[ARCHITECTURE](docs/ARCHITECTURE.md)、[DATABASE](docs/DATABASE.md)、[TECH-STACK](docs/TECH-STACK.md)、[IMPL-PLAN](docs/IMPL-PLAN.md)、[FRONTEND-GUIDE](docs/FRONTEND-GUIDE.md)、[BACKEND-GUIDE](docs/BACKEND-GUIDE.md)、[ENDPOINT-AGENT-GUIDE](docs/ENDPOINT-AGENT-GUIDE.md)、[DEPLOYMENT](docs/DEPLOYMENT.md)、[Gherkin](docs/Gherkin/README.md);上公司環境的調整與交接見 [COMPANY-ENV-PLAN](docs/COMPANY-ENV-PLAN.md)。
 
 ## 目錄(TECH-STACK.md §2)
 

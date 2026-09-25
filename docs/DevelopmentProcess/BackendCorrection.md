@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-09-25 Agent 通道:長串流累計 10 MB 被切斷;補雙向串流 E2E
+- 工作項目：W3-3
+- 內容：`:9443` 沿用全域 `client_max_body_size 10m`,HTTP/2 串流的 body 是整條串流累計,Agent 長連線上傳滿 10 MB 即被 Nginx 以 RST_STREAM 切斷(error log `client intended to send too large chunked body`,用戶端收到 `INTERNAL`)。`agent.conf` 改為 `client_max_body_size 0`,單則訊息大小改由 Endpoint Server 的 `MaxRecvMsgSize` 限制。E2E 補上雙向串流(一問一答 3 輪、同連線兩條串流、11 MB 累計)、偽造 `x-client-cert-*` 標頭會被覆寫、無效憑證無法建立串流;Gherkin `agent-mtls.feature` 新增對應場景。
+- 檔案：`nginx/conf.d/agent.conf`、`bff/test/e2e/06-websocket-agent.test.ts`、`docs/Gherkin/gateway/agent-mtls.feature`
+- 驗證：修正前以腳本在單一串流送 25 MB,送到 10.1 MB 時被切斷;重建 nginx 映像後同一腳本 25 MB 正常結束。`06-websocket-agent` 20 項通過(新增 8 項),`npm run test:e2e` 共 132 項全部通過;`eslint`、`prettier --check` 通過。另以 Go(grpc-go 1.84)client / server 經本機 Nginx 實測單次呼叫、雙向串流、`WatchdogService` 路徑轉送、無效憑證(`INTERNAL` + HTTP 400)、上游停止(`UNAVAILABLE` + 502);測試後 Nginx 已還原為轉送 mock-endpoint。觀察到本機所有連線來源 IP 皆為 `192.168.65.1`(Docker Desktop),`limit_conn` 以來源 IP 計算,已列入 ENDPOINT-AGENT-GUIDE §9 G4,待 Windows 主機驗證
+
 ## 2026-09-25 /it/ 改由 GigaItApp 提供(自有登入):Nginx /it/api/、port 51291
 - 內容：IT 管理頁面改為獨立專案 GigaItApp(`../GigaItApp`),不共用單一入口登入。Nginx 新增 `/it/api/`(一般)與 `= /it/api/auth/login`(套用 `gw_auth` 登入限流)兩個 location,以變數 `$itapp_api_upstream` 轉給 `itapp-api`(未部署時 Nginx 仍可啟動,請求回 502);`00-env.conf.template` 新增 map,`nginx/Dockerfile` 預設 `ITAPP_API_UPSTREAM=itapp-api:51291` 並把 `ITAPP_` 加入 `NGINX_ENVSUBST_FILTER`(否則變數不會被替換,/it/api 回 500);`deploy/docker-compose.yml` 與 test / prod env 範例加入 `ITAPP_API_UPSTREAM`。本機 `docker-compose.dev.yml` 的 `spa-it` 改以 GigaItApp `frontend/` 建置,取代 `tools/sample-spa/it`(原始碼保留未刪)。BACKEND-GUIDE §3.3 登記 51291、PRD §7.2.1 更新 `/it/` 說明。BFF 程式未修改;GigaItApp 以服務帳號讀取既有 `/api/admin/demo/*`、`/api/admin/db/*`、`/api/admin/routes/catalog`。
 - 檔案：`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/Dockerfile`、`deploy/docker-compose.yml`、`deploy/test.env.example`、`deploy/prod.env.example`、`deploy/docker-compose.dev.yml`(不入版控)、`docs/BACKEND-GUIDE.md`、`docs/PRD.md`、`docs/COMPANY-ENV-PLAN.md`、`README.md`

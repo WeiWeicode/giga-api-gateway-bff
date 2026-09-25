@@ -17,6 +17,30 @@
     而且 Endpoint Server 收到標頭 "x-client-cert-dn" 包含 "CN=PC-001"
     而且 Endpoint Server 收到標頭 "x-client-verify" 為 "SUCCESS"
 
+  場景: 雙向串流可連續收送並正常結束
+    假如 Agent 持有有效憑證 "CN=PC-001"
+    當 Agent 在同一條 Stream 串流上依序送出 3 則訊息,每送一則就等待回覆
+    那麼 每則訊息都在下一則送出前收到回覆
+    而且 每則回覆的 "x-client-cert-dn" 都包含 "CN=PC-001"
+    當 Agent 結束送出
+    那麼 串流以 OK 狀態結束
+
+  場景: 同一條連線可同時開多條串流
+    假如 Agent 以有效憑證建立一條連線
+    當 Agent 在這條連線上同時開啟兩條 Stream 串流
+    那麼 兩條串流各自收到自己的回覆,互不干擾
+
+  場景: 長串流累計上傳超過 10 MB 不會被切斷
+    假如 Agent 以有效憑證建立 Stream 串流
+    當 Agent 在同一條串流上累計送出 11 MB
+    那麼 所有訊息都收到回覆
+    而且 串流以 OK 狀態結束
+
+  場景: Agent 無法偽造身分標頭
+    假如 Agent 持有有效憑證 "CN=PC-001"
+    當 Agent 自行在 metadata 帶入 "x-client-cert-dn" 為 "CN=FORGED"
+    那麼 Endpoint Server 收到的 "x-client-cert-dn" 為憑證實際的 "O=GigaNexus Dev,CN=PC-001"
+
   場景大綱: 無效憑證在 TLS 層即被拒絕
     假如 Agent <憑證狀態>
     當 Agent 連線 "GATEWAY_IP:9443"

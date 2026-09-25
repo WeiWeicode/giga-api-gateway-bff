@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 下游後端接入規範與 API 上架流程
 
 > 適用對象:所有經 GigaNexus Gateway 對外提供 API 的後端服務(Go、Node.js、.NET 等)。
-> 對應 PRD 版本:**v0.5**(2026-09-25)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。
+> 對應 PRD 版本:**v0.5**(2026-09-25)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。端點 Agent 經 `:9443` 的 gRPC 通道另見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
 
 ---
 

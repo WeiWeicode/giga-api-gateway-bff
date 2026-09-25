@@ -11,7 +11,7 @@
 flowchart LR
     subgraph Clients ["用戶端"]
         B["瀏覽器<br/>Portal / MES / HRM / FMS / IT 管理台 / BI"]
-        A["端點 Go Agent<br/>(200 台 Windows)"]
+        A["端點 Go Agent + C# Watchdog<br/>(200 台 Windows)"]
         X["外部回呼<br/>BPM"]
     end
 
@@ -69,7 +69,7 @@ flowchart LR
 | T5 | 通知 WebSocket | `<gateway-ip>/ws/notify` | Nginx → BFF | BFF | Cookie(握手時驗) |
 | T6 | 串流 WebSocket(螢幕串流等大流量) | `<gateway-ip>/ws/endpoint/*` | Nginx(`auth_request` 問 BFF)→ | Go Endpoint Server | Cookie → BFF 驗證後放行 |
 | T7 | Webhook | `<gateway-ip>/webhook/{source}` | Nginx(IP 白名單)→ BFF | BFF 驗簽後分派 | HMAC 簽章 / 來源 IP |
-| T8 | Agent gRPC | `<gateway-ip>:9443`(HTTP/2) | Nginx(mTLS 必要)→ | Go Endpoint Server | 裝置憑證(mTLS) |
+| T8 | Agent gRPC | `<gateway-ip>:9443`(HTTP/2);Go Agent 與 C# Watchdog 共用([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)) | Nginx(mTLS 必要)→ | Go Endpoint Server | 裝置憑證(mTLS) |
 | T9 | 系統對系統 API | `<gateway-ip>/api/{system}/...` | Nginx → BFF | 上游 | API Key(`X-Api-Key`)+ 範圍 |
 
 ## 3. 關鍵架構決策
