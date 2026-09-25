@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-09-25 新增上架演練預覽 API(demo)
+- 內容：`GET /api/admin/demo/catalog`、`POST /api/admin/demo/openapi-preview`(沿用 CLI 的 OpenAPI 解析規則,另檢查路徑衝突、限流政策、上游 port;缺少必填欄位的 operation 列為 error 列)、`POST /api/admin/demo/route-preview`、`GET /api/admin/demo/who-can-access`。只讀不寫,與 db-viewer 相同僅 `GW_ENV` 非 prod 時註冊。
+- 檔案：`bff/src/modules/admin/onboarding.ts`、`bff/src/app.ts`、`bff/test/e2e/09-admin-onboarding.test.ts`
+- 驗證：`npm run typecheck`、`lint`、`format:check` 通過;E2E 6 項通過
+
 ## 2026-09-24 本機測試環境不進版控;新增上公司環境調整清單
 - 內容：`.gitignore` 排除 `tools/`、`deploy/dev/`、`deploy/dev.env`、`deploy/docker-compose.dev.yml`(模擬 AD / 後端、範例網頁、模擬資料庫與開發用憑證),本機檔案、容器與資料庫保留;新增 `docs/COMPANY-ENV-PLAN.md` 列出部署到測試區 / 正式區需調整的檔案。
 - 檔案：`.gitignore`、`docs/COMPANY-ENV-PLAN.md`、`README.md`、`AGENT.md`

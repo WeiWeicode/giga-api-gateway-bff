@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-25 IT 管理 demo:新員工上手導覽
+- 內容：`/it/` 改為 IT 新員工上手版本:架構總覽(一個請求怎麼走、資料放在哪裡)、31 張資料表依 5 類說明用途 / 重要欄位 / 誰寫入 / 誰使用並可看實際資料、API 上架演練 7 步驟(流程與分工、登記上游、OpenAPI 匯入預覽、手動新增預覽、權限反查、發佈說明、實際呼叫驗證)。全部為預覽,不寫入資料庫。
+- 檔案：`bff/src/modules/admin/onboarding.ts`、`tools/sample-spa/it/`
+- 驗證：E2E 189 項通過(新增 09-admin-onboarding 6 項,含「預覽後 gw.api_route、gw.upstream 無新增資料」);瀏覽器操作 7 個步驟皆正常
+
 ## 2026-09-24 IT 管理介面 demo:資料庫檢視
 - 內容：新增 `/it/` 範例 SPA,唯讀瀏覽 `giganexus_gw` 各資料表(左側資料表與筆數、右側分頁資料);後端 `/api/admin/db/*` 依表對應 `gw.admin.*.read` 權限,不回傳密碼 / Token / API Key 雜湊。demo 用途,非 PRD §8.7 正式管理 API,僅 dev / test 註冊。
 - 檔案：`bff/src/modules/admin/db-viewer.ts`、`tools/sample-spa/it/`
