@@ -26,3 +26,25 @@ describe('parseOpenApi:description 與 x-gherkin', () => {
     expect(spec.errors.map((e) => e.message)).toEqual(['description 需為 1000 字以內的文字', 'x-gherkin 需為文字(Gherkin 場景)']);
   });
 });
+
+describe('parseOpenApi:x-gateway.project(開發專案)', () => {
+  const withProject = (project: unknown) => ({ ...doc({}), 'x-gateway': { upstream: 'node-sample', system: 'smp', project } });
+
+  it('x-gateway.project → project', () => {
+    const spec = parseOpenApi(withProject('giga-endpoint'));
+    expect(spec.errors).toEqual([]);
+    expect(spec.project).toBe('giga-endpoint');
+  });
+
+  it('未提供時為 null,不列為錯誤', () => {
+    const spec = parseOpenApi(doc({}));
+    expect(spec.errors).toEqual([]);
+    expect(spec.project).toBeNull();
+  });
+
+  it.each([['../etc'], ['a b'], [''], [123], ['x'.repeat(101)]])('不合法的 project %j 列為錯誤', (project) => {
+    const spec = parseOpenApi(withProject(project));
+    expect(spec.errors.map((e) => e.message)).toEqual(['x-gateway.project 需為 repo 資料夾名稱(英數、. _ -,100 字內)']);
+    expect(spec.project).toBeNull();
+  });
+});

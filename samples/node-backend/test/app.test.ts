@@ -3,17 +3,30 @@
  *   - OpenAPI 符合 BACKEND-GUIDE.md §6.1(上架前自我檢查),且每個 operation 都有 description 與 x-gherkin
  *   - X-Internal-Token 驗證、資料層級權限與錯誤格式(§4.2、§5.3)
  *   - 部署區設定(dev / test / prod)
+ *   - 開發專案:package.json gateway.project → 自動寫入 x-gateway.project(AGENT.md §0)
  */
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { after, before, describe, it } from 'node:test';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import type { FastifyInstance } from 'fastify';
+import { autoRegister, withProject } from '@giganexus/backend-sdk';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 
 const CODE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+){2,}$/;
+
+/** 模擬「複製後已命名」的 repo:只含 package.json 的暫存目錄 */
+function repoDir(pkg: object): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'node-backend-'));
+  writeFileSync(path.join(dir, 'package.json'), JSON.stringify(pkg));
+  return dir;
+}
+const named = repoDir({ gateway: { project: 'GigaSampleApp' } });
 
 let app: FastifyInstance;
 let jwks: http.Server;
@@ -38,7 +51,7 @@ after(async () => {
 describe('OpenAPI(BACKEND-GUIDE.md §6.1)', () => {
   it('根層有 x-gateway 與 x-permissions;每個 operation 都有必填欄位、description 與 x-gherkin', async () => {
     const doc = (await app.inject('/openapi.json')).json();
-    assert.deepEqual(doc['x-gateway'], { upstream: 'node-sample', system: 'sample' });
+    assert.deepEqual(doc['x-gateway'], { upstream: 'node-sample', system: 'sample', project: 'node-backend' });
     const declared = new Set(doc['x-permissions'].map((p: { code: string }) => p.code));
     const ops = Object.values(doc.paths as Record<string, Record<string, Record<string, unknown>>>).flatMap((p) => Object.values(p));
     assert.ok(ops.length > 0);
@@ -104,7 +117,7 @@ describe('部署區設定', () => {
 
   it('test / prod 自動註冊,缺少必要設定時啟動失敗', () => {
     assert.throws(() => loadConfig({ ...base, GW_ENV: 'test' }), /GW_API_KEY_FILE、SERVICE_ADVERTISE_URL/);
-    const c = loadConfig({ ...base, GW_ENV: 'test', GW_API_KEY: 'k', SERVICE_ADVERTISE_URL: 'http://sample-host:51201' });
+    const c = loadConfig({ ...base, GW_ENV: 'test', GW_API_KEY: 'k', SERVICE_ADVERTISE_URL: 'http://sample-host:51201' }, named);
     assert.equal(c.gateway.autoRegister, true);
     assert.throws(() => loadConfig({ ...base, GW_ENV: 'test', GW_API_KEY: 'k', SERVICE_ADVERTISE_URL: 'http://sample-host:8080' }), /51200–51300/);
   });
@@ -115,5 +128,49 @@ describe('部署區設定', () => {
 
   it('GW_ENV 只接受 dev / test / prod', () => {
     assert.throws(() => loadConfig({ ...base, GW_ENV: 'product' }), /dev \/ test \/ prod/);
+  });
+});
+
+describe('開發專案(AGENT.md §0)', () => {
+  const base = { SERVICE_CODE: 'node-sample', GW_BASE_URL: 'https://gw.example' };
+  const deploy = { ...base, GW_ENV: 'test', GW_API_KEY: 'k', SERVICE_ADVERTISE_URL: 'http://sample-host:51201' };
+
+  it('由 package.json 的 gateway.project 讀取,並寫入 /openapi.json 的 x-gateway.project', async () => {
+    assert.equal(loadConfig({ ...base, GW_ENV: 'dev' }).gateway.project, 'node-backend');
+    assert.equal((await app.inject('/openapi.json')).json()['x-gateway'].project, 'node-backend');
+  });
+
+  it('package.json 沒有 gateway.project 或格式錯誤時啟動失敗', () => {
+    assert.throws(() => loadConfig({ ...base, GW_ENV: 'dev' }, repoDir({ name: 'x' })), /gateway.*project/);
+    assert.throws(() => loadConfig({ ...base, GW_ENV: 'dev' }, repoDir({ gateway: { project: '../etc' } })), /gateway.*project/);
+  });
+
+  it('test / prod 仍是樣本預設值 node-backend 時啟動失敗', () => {
+    assert.throws(() => loadConfig(deploy), /樣本預設值/);
+    assert.equal(loadConfig(deploy, named).gateway.project, 'GigaSampleApp');
+  });
+
+  it('自動註冊時 SDK 寫入 x-gateway.project;OpenAPI 手寫不一致時拒絕', async () => {
+    let body: { spec: Record<string, { project?: string }> } | undefined;
+    const gw = http.createServer((req, res) => {
+      let raw = '';
+      req.on('data', (c) => (raw += c));
+      req.on('end', () => {
+        body = JSON.parse(raw);
+        res
+          .setHeader('content-type', 'application/json')
+          .end(JSON.stringify({ upstream: 'node-sample', created: 0, updated: 0, unchanged: 0, pendingPublish: false }));
+      });
+    });
+    await new Promise<void>((r) => gw.listen(0, '127.0.0.1', r));
+    try {
+      const url = `http://127.0.0.1:${(gw.address() as AddressInfo).port}`;
+      const env = loadConfig({ ...deploy, GW_BASE_URL: url }, named).gateway;
+      await autoRegister({ env, spec: { 'x-gateway': { upstream: 'node-sample', system: 'sample' } }, retries: 0 });
+      assert.equal(body?.spec['x-gateway']?.project, 'GigaSampleApp');
+    } finally {
+      gw.close();
+    }
+    assert.throws(() => withProject({ 'x-gateway': { project: 'Other' } }, 'GigaSampleApp'), /不一致/);
   });
 });

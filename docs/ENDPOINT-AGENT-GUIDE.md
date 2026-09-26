@@ -490,7 +490,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 
 ### 8.3 API 草案
 
-以 `endpoint-api`(`:51240`)提供,OpenAPI 自動註冊為草稿後由 IT 發佈([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6、§7.5;目前只有 Node.js SDK,Go 需自行呼叫 `POST /api/admin/registrations`)。路徑中的 `{deviceId}` 由 Endpoint Server 指派(電腦名稱可能重複,§3.2),畫面上顯示電腦名稱。
+以 `endpoint-api`(`:51240`)提供,OpenAPI 自動註冊為草稿後由 IT 發佈([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6、§7.5;目前只有 Node.js SDK,Go 需自行呼叫 `POST /api/admin/registrations`,OpenAPI 根層必須帶 `x-gateway.project: giga-endpoint`,BACKEND-GUIDE §6.1)。路徑中的 `{deviceId}` 由 Endpoint Server 指派(電腦名稱可能重複,§3.2),畫面上顯示電腦名稱。
 
 | 方法 | 對外路徑 | `x-permission` | 說明 |
 | --- | --- | --- | --- |

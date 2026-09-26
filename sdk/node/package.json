@@ -1,6 +1,6 @@
 {
   "name": "@giganexus/backend-sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "GigaNexus 下游後端共用套件(Node.js):部署區設定、X-Internal-Token 驗證、API 自動註冊、既有路由查詢(BACKEND-GUIDE.md §4、§7.5)",
   "type": "module",
   "engines": {

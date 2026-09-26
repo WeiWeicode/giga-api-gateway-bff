@@ -9,7 +9,7 @@
 
   背景:
     假如 Gateway 負責人已為服務 "node-sample" 建立 API Key,權限為 "gw.admin.route.register"、"gw.admin.route.read"
-    而且 服務的 OpenAPI 根層 "x-gateway" 為 upstream "node-sample"、system "sample"
+    而且 服務的 OpenAPI 根層 "x-gateway" 為 upstream "node-sample"、system "sample"、project "GigaSampleApp"
 
   場景大綱: 依部署區決定是否自動註冊
     假如 服務以 GW_ENV "<部署區>" 啟動
@@ -63,7 +63,16 @@
 
   場景: 新增 API 前查詢既有路由
     當 開發者以 API Key 呼叫 GET /api/admin/routes/catalog?q=單一項目
-    那麼 回應包含符合關鍵字的路由,含狀態(含草稿)、說明與 Gherkin
+    那麼 回應包含符合關鍵字的路由,含狀態(含草稿)、說明、Gherkin 與開發專案 "GigaSampleApp"
+
+  場景: 依開發專案查詢路由
+    當 開發者以 API Key 呼叫 GET /api/admin/routes/catalog?q=GigaSampleApp
+    那麼 回應包含該專案註冊的所有路由
+
+  場景: 開發專案格式錯誤時整批不寫入
+    當 服務送出 "x-gateway" project 為 "../etc" 的 OpenAPI
+    那麼 回應 400,code 為 "IMPORT_HAS_ERRORS"
+    而且 不寫入任何路由
 
   場景: 登入者需要路由檢視權限才能查詢
     假如 使用者 "S112009" 沒有 "gw.admin.route.read"

@@ -35,7 +35,7 @@ try {
     for (const i of r.items) {
       console.log(`\n${i.routeCode}  [${i.status}]  ${i.name}`);
       console.log(`  ${i.method} ${i.publicPath}  →  ${i.upstream ?? i.routeType} ${i.upstreamPath ?? ''}`);
-      console.log(`  權限:${i.permissionCode ?? i.authMode}${i.tags ? `  標籤:${i.tags}` : ''}`);
+      console.log(`  權限:${i.permissionCode ?? i.authMode}${i.tags ? `  標籤:${i.tags}` : ''}${i.project ? `  專案:${i.project}` : ''}`);
       if (i.description) console.log(`  說明:${i.description}`);
       if (values.gherkin && i.gherkin) console.log(i.gherkin.replace(/^/gm, '    '));
     }

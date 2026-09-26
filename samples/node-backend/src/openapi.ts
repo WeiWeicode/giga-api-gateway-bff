@@ -26,7 +26,8 @@ export const PERMISSIONS = [
   { code: 'sample.item.write', name: '樣本項目:新增' },
 ];
 
-export function swaggerOptions(serviceCode: string): SwaggerOptions {
-  const extensions = { 'x-gateway': { upstream: serviceCode, system: 'sample' }, 'x-permissions': PERMISSIONS };
+/** project:開發專案(package.json gateway.project,由 SDK loadGatewayEnv 讀取),CLI 匯入 /openapi.json 時也帶得到 */
+export function swaggerOptions(serviceCode: string, project: string): SwaggerOptions {
+  const extensions = { 'x-gateway': { upstream: serviceCode, system: 'sample', project }, 'x-permissions': PERMISSIONS };
   return { openapi: { openapi: '3.0.3', info: { title: 'Node 後端樣本', version: '0.1.0' }, ...extensions } };
 }

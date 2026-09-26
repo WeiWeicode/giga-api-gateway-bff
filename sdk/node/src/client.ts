@@ -39,6 +39,8 @@ export interface CatalogRoute {
   publicPath: string;
   routeType: string;
   upstream: string | null;
+  /** 開發專案:實作此路由上游服務的 repo 資料夾名稱(x-gateway.project);未登記為 null */
+  project: string | null;
   upstreamPath: string | null;
   authMode: string;
   permissionCode: string | null;
@@ -56,7 +58,7 @@ export interface CatalogResult {
 }
 
 export interface LookupQuery {
-  /** 關鍵字:比對 route_code、名稱、對外路徑、權限代碼、標籤、說明 */
+  /** 關鍵字:比對 route_code、名稱、對外路徑、權限代碼、標籤、說明、開發專案 */
   q?: string;
   system?: string;
   /** 逗號分隔:draft,published,deprecated,disabled;預設為停用以外 */

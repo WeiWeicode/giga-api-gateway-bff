@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-09-26 移除測試應用「公司文件系統」(TestGigaAPP / DMS)
+- 內容：TestGigaAPP 為測試用專案,需求方將刪除該 repo。Nginx `portal.conf` 移除 `/dms/` 四個 location(`/dms/` 改落入入口網 SPA,`/api/dms/*` 回 `ROUTE_NOT_FOUND`);取消 BACKEND-GUIDE §3.3 port 51290 `dms-api`、PRD §7.2.1 子路徑 `/dms/` 的登記,AGENT.md §10.2 專案登記表移除 TestGigaAPP。本機環境:CLI `client:disable --code dms-api`;因 CLI 沒有刪除指令,以單一交易(`XACT_ABORT`)刪除 `dms-api` 上游與位址、6 條路由、2 筆匯入批次與逐筆結果、角色 `dms-reader` / `dms-editor`(含權限、AD 群組、公司對應)、權限 `dms.document.read` / `write`,所有使用者 `perm_version + 1`,稽核新增一筆 `config.remove`(既有稽核紀錄保留);發佈 v41(removed 6 條)。Docker:刪除映像 `giganexus/dms-api:dev`、`giganexus/spa-dms:dev`、volume `giganexus-dms_dms_data`、`gw_www` 內的 `/srv/www/dms`(未執行中的容器)。範例文字中的 `TestGigaAPP` 改為 `giga-endpoint`。
+- 檔案：`nginx/conf.d/portal.conf`、`AGENT.md`、`docs/PRD.md`、`docs/BACKEND-GUIDE.md`、`docs/DATABASE.md`、`bff/src/cli/openapi.ts`、`bff/test/unit/openapi.test.ts`
+- 驗證：重建 nginx 映像與容器,`nginx -t` 通過,容器內 `portal.conf` 已無 dms;`https://localhost/dms/` 回入口網頁面、`/api/dms/categories` 回 `ROUTE_NOT_FOUND`,`/`、`/it/` 200。資料庫查詢 dms 上游 / 路由 / 角色 / 權限皆為 0。Redis `gw:pv:*` 原本即無快取。TestGigaAPP repo 本身未刪除(由需求方處理)
+
 ## 2026-09-25 Agent 通道 limit_conn 改以裝置憑證計算
 - 工作項目：W3-3.3
 - 內容：`:9443` 的 `limit_conn_zone` 鍵值由 `$binary_remote_addr` 改為 `$ssl_client_fingerprint`,每張裝置憑證 10 條同時串流(`agent.conf` 的 `limit_conn agent_conn 10` 不變)。原本以來源 IP 計算,Docker Desktop 轉送(所有連線來源皆為閘道 IP)或子公司 NAT 時,多台電腦共用 10 條,其餘收到 429 / gRPC `UNAVAILABLE`。選指紋而非 `$ssl_client_s_dn`:長度固定 40 字元(`limit_conn` 鍵值超過 255 bytes 會不計數),憑證更新後自然換新額度。Agent 與 Watchdog 使用同一張電腦憑證,共用 10 條(ENDPOINT-AGENT-GUIDE 估計每台 1–3 條)。無憑證 / 無效憑證的請求在 HTTP 層即回 400,不會進到 `limit_conn`。PRD §7.6、§14.1,DEPLOYMENT.md §6.1,COMPANY-ENV-PLAN §3,ENDPOINT-AGENT-GUIDE §4 / §9 G4、G5,Gherkin `agent-mtls.feature` 同步更新(新增「共用來源 IP 的不同裝置各自計算」場景)

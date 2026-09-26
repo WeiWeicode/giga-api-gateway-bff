@@ -1,0 +1,1 @@
+ALTER TABLE [gw].[upstream] ADD [project] varchar(100);

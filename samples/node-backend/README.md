@@ -9,6 +9,8 @@
 
 ## 開始
 
+複製成新 repo 後,先由工程師命名專案:`package.json` 的 `"gateway": { "project": "<repo 資料夾名稱>" }`(AGENT.md §0)。SDK 會把它自動寫入 OpenAPI 的 `x-gateway.project`,test / prod 若仍是樣本值 `node-backend` 會啟動失敗。
+
 ```bash
 npm install          # 會一併建置 ../../sdk/node
 cp .env.example .env # 填入 SERVICE_CODE、PORT、GW_BASE_URL、GW_API_KEY

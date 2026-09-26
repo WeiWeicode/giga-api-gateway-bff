@@ -4,6 +4,9 @@
   "private": true,
   "description": "GigaNexus 下游後端樣本(Node.js + Fastify):X-Internal-Token 驗證、OpenAPI(含說明與 Gherkin)、test / prod 啟動時自動註冊 API",
   "type": "module",
+  "gateway": {
+    "project": "node-backend"
+  },
   "engines": {
     "node": ">=22"
   },

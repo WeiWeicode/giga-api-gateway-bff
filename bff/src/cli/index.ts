@@ -112,6 +112,8 @@ interface ApplyFile {
     retryCount?: number;
     circuitFailThreshold?: number;
     healthCheckPath?: string;
+    /** 開發專案(repo 資料夾名稱),同 OpenAPI 的 x-gateway.project */
+    project?: string;
     targets?: Record<string, string[]>;
   }[];
   permissions?: { code: string; name: string }[];

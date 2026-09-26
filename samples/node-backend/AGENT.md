@@ -7,6 +7,28 @@
 
 ---
 
+## 0. 複製樣本後的第一步:請工程師命名專案(AI 必須先問)
+
+複製成新 repo 後,**在做任何修改之前,先詢問工程師以下名稱,不要自行猜測或沿用樣本值**:
+
+| 要問的名稱 | 寫在哪裡 | 規則 |
+| --- | --- | --- |
+| **開發專案名稱**(repo 資料夾名稱) | `package.json` 的 `"gateway": { "project": "..." }`,並同步 `name` | 英數與 `. _ -`,100 字內;與 Gateway `AGENT.md` §10.2 專案登記表的資料夾名稱一致(尚未登記就請工程師向 Gateway 負責人登記) |
+| 服務代碼 | `.env` 的 `SERVICE_CODE` | 向 Gateway 負責人登記(BACKEND-GUIDE.md §3.3) |
+| 系統代碼 | `src/openapi.ts` 的 `x-gateway.system` | 同上 |
+
+- 開發專案名稱**只寫在 `package.json` 一處**:SDK `loadGatewayEnv` 讀取後,`/openapi.json` 與自動註冊都會**自動寫入** `x-gateway.project`,Gateway 管理介面據此顯示「由哪個專案開發」。不要在 OpenAPI 另外手寫(不一致時註冊會失敗)。
+- 缺少 `gateway.project` 時服務無法啟動;仍是樣本預設值 `node-backend` 時,test / prod 無法啟動(`src/config.ts`)。
+- 工程師尚未決定名稱時,**停下來等回覆**,不要先用暫定名稱繼續開發。
+
+```
+❌ 直接沿用 "node-backend",或依資料夾 / 需求自行取名
+✅ 「這個 repo 的專案名稱(資料夾名稱)要叫什麼?會寫進 package.json 的 gateway.project,Gateway 以此顯示 API 由哪個專案開發。
+    另外服務代碼、系統代碼是否已向 Gateway 負責人登記?」
+```
+
+---
+
 ## 1. 新增 API 前先查,避免重複造輪
 
 ### 規則
@@ -61,6 +83,8 @@
 | `x-permission` | 權限代碼(須列在 `src/openapi.ts` 的 `PERMISSIONS`)、`authenticated` 或 `public`(需 IT 核准) |
 | `x-gherkin` | **行為規格**:至少一個 `場景:`,使用 zh-TW 關鍵字 `假如` / `當` / `那麼` / `而且`,描述可觀察的行為(HTTP 狀態、`code`) |
 | `tags` | 建議,功能分類 |
+
+根層 `x-gateway.project`(開發專案)由 SDK 從 `package.json` 的 `gateway.project` 自動寫入,不在 OpenAPI 手寫(§0)。
 
 - 敏感 API(薪資、個資)加 `x-audit-level: meta` 以上。
 - 健康檢查等非業務端點以 `config: { gatewayAuth: false }, schema: { hide: true }` 排除,不出現在 OpenAPI。

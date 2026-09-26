@@ -3,7 +3,7 @@
  *
  *   POST /api/admin/registrations      後端服務啟動時以 API Key 送出 OpenAPI → 寫入草稿(不發佈,由 IT 核可發佈)
  *                                      權限 gw.admin.route.register;只能註冊 API Key 代碼 = x-gateway.upstream 的服務
- *   GET  /api/admin/routes/catalog     查詢既有路由(含說明與 Gherkin),新增 API 前先查,避免重複開發
+ *   GET  /api/admin/routes/catalog     查詢既有路由(含說明、Gherkin 與開發專案),新增 API 前先查,避免重複開發
  *                                      權限 gw.admin.route.read;API Key 或登入者皆可
  *
  * 測試區與正式區各自一套資料庫(PRD Q3),各區由後端各自註冊;上游位址的部署區取自本 BFF 的 GW_ENV(dev 視同 test)。
@@ -96,6 +96,7 @@ const registration: FastifyPluginAsync<{ config: AppConfig }> = async (app, { co
             like(apiRoute.permissionCode, pat),
             like(apiRoute.tags, pat),
             like(apiRoute.description, pat),
+            like(upstream.project, pat),
           ),
         );
       }
@@ -108,6 +109,7 @@ const registration: FastifyPluginAsync<{ config: AppConfig }> = async (app, { co
           publicPath: apiRoute.publicPath,
           routeType: apiRoute.routeType,
           upstream: upstream.code,
+          project: upstream.project,
           upstreamPath: apiRoute.upstreamPath,
           authMode: apiRoute.authMode,
           permissionCode: apiRoute.permissionCode,

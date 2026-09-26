@@ -20,6 +20,8 @@ export const upstream = gw.table(
     tlsVerify: bit('tls_verify').notNull().default(true),
     forwardCookies: bit('forward_cookies').notNull().default(false),
     owner: nvarchar('owner', { length: 64 }),
+    /** 開發專案:實作此服務的 repo 資料夾名稱(AGENT.md §10.2),由 OpenAPI x-gateway.project 帶入 */
+    project: varchar('project', { length: 100 }),
     archatlasNodeId: varchar('archatlas_node_id', { length: 50 }),
     isEnabled: bit('is_enabled').notNull().default(true),
     description: nvarchar('description', { length: 500 }),

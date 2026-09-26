@@ -1,6 +1,6 @@
 /**
  * OpenAPI → 路由草稿(PRD §8.4.4、BACKEND-GUIDE.md §6):
- *   根:x-gateway.upstream / x-gateway.system、x-permissions
+ *   根:x-gateway.upstream / x-gateway.system、x-gateway.project(選用:開發專案 = repo 資料夾名稱)、x-permissions
  *   operation:operationId → route_code、summary → name、x-permission → auth_mode / permission_code、
  *              x-gateway-path、x-timeout-ms、x-cache-ttl / x-cache-scope、x-audit-level、x-rate-limit、tags、
  *              description → description(API 用途說明)、x-gherkin → gherkin(行為規格,Gherkin 場景文字)
@@ -29,6 +29,8 @@ export interface ParsedRoute {
 export interface ParsedSpec {
   upstreamCode: string;
   systemCode: string;
+  /** 開發專案(x-gateway.project);未提供時為 null,匯入時保留上游既有值 */
+  project: string | null;
   permissions: { code: string; name: string }[];
   routes: ParsedRoute[];
   errors: { operation: string; message: string }[];
@@ -37,6 +39,8 @@ export interface ParsedSpec {
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 const CODE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+){2,}$/;
 const SYSTEM = /^[a-z][a-z0-9-]{1,29}$/;
+/** repo 資料夾名稱(AGENT.md §10.2),例 giga-endpoint、GigaItApp */
+const PROJECT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
 /** /v1/work-orders/{id} → /api/mes/work-orders/:id(預設去掉開頭的版本段) */
 export function toPublicPath(system: string, upstreamPath: string): string {
@@ -46,9 +50,11 @@ export function toPublicPath(system: string, upstreamPath: string): string {
 
 export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
   const errors: ParsedSpec['errors'] = [];
-  const xg = (doc['x-gateway'] ?? {}) as { upstream?: string; system?: string };
+  const xg = (doc['x-gateway'] ?? {}) as { upstream?: string; system?: string; project?: unknown };
   if (!xg.upstream) errors.push({ operation: '(root)', message: '缺少 x-gateway.upstream' });
   if (!xg.system || !SYSTEM.test(xg.system)) errors.push({ operation: '(root)', message: '缺少或不合法的 x-gateway.system' });
+  if (xg.project !== undefined && (typeof xg.project !== 'string' || !PROJECT.test(xg.project)))
+    errors.push({ operation: '(root)', message: 'x-gateway.project 需為 repo 資料夾名稱(英數、. _ -,100 字內)' });
   const system = xg.system ?? '';
   const permissions = ((doc['x-permissions'] ?? []) as { code?: string; name?: string }[]).filter((p) => {
     if (!p.code || !CODE.test(p.code) || !p.name) {
@@ -112,7 +118,8 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
   for (const r of routes)
     if (r.permissionCode && !declared.has(r.permissionCode))
       errors.push({ operation: r.routeCode, message: `x-permission ${r.permissionCode} 未列在 x-permissions` });
-  return { upstreamCode: xg.upstream ?? '', systemCode: system, permissions, routes, errors };
+  const project = typeof xg.project === 'string' && PROJECT.test(xg.project) ? xg.project : null;
+  return { upstreamCode: xg.upstream ?? '', systemCode: system, project, permissions, routes, errors };
 }
 
 /** 上游位址的 port 必須在 51200–51300(BACKEND-GUIDE.md §3) */

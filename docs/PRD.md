@@ -26,6 +26,7 @@
 | v0.3 | 2026-09-24 | ① 參考既有 GeneralBackend 專案([REFERENCES.md](REFERENCES.md)):ORM 備案增加第三條路 Sequelize、BPM 欄位對應確定、AD 改為多網域(新增 Q11、Q12);② Q11 定案(三個網域全納入),新增**本機帳號與自行註冊**(§8.2.5),供無 AD 網域的子公司使用;③ Q9、Q13、Q14、Q15 定案:LOS `EmployeeInfo` 欄位對應、公司歸屬取自 LOS / BPM、密碼至少 8 碼、LOS / BPM 找得到就可註冊(找不到才審核);新增兼任帳號與同一人多工號(Q16、Q17);④ Q1、Q12、Q16、Q17 定案:**以 IP 存取、Agent 改用獨立 port `:9443`**、LDAP 過渡期沿用 `ldap://`、兼任帳號不可單獨登入、不同工號不歸戶;⑤ 待決事項除 Q6(待壓測)外全數定案 |
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
 | v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md);⑤ §14.1 新增「Docker Desktop 下 Nginx 看不到真實來源 IP」風險,新增 Q26;§7.6 Agent `limit_conn` 改以裝置憑證計算 |
+| v0.6 | 2026-09-26 | `gw.upstream` 新增 `project`(開發專案:實作該服務的 repo 資料夾名稱),由 OpenAPI 根層 `x-gateway.project`(選用)或 CLI `apply` 帶入;路由查詢回傳並可依此比對關鍵字,讓管理介面與開發者知道每條路由由哪個專案開發(§8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② 移除測試應用「公司文件系統」(TestGigaAPP):§7.2.1 子路徑 `/dms/`、BACKEND-GUIDE §3.3 port 51290 取消登記 |
 
 ---
 
@@ -136,7 +137,6 @@
 | `/hrm/`、`/fms/` | `/srv/www/hrm/current`、`/srv/www/fms/current` | 人事、財務 |
 | `/it/` | `/srv/www/it-admin/current` | IT 管理介面(W4,含 API 管理);由 GigaItApp 發佈,自有登入(不共用單一入口),API `/it/api/*` 由 Nginx 直接轉 `itapp-api`(`ITAPP_API_UPSTREAM`) |
 | `/bi/` | `/srv/www/bi/current` | 報表 / BI |
-| `/dms/` | `/srv/www/dms/current` | 公司文件系統(API `/api/dms/`) |
 
 - **保留路徑**(不可作為 SPA 子路徑):`/api/`、`/ws/`、`/webhook/`、`/_auth/`、`/.well-known/`、`/docs`、`/healthz`、`/readyz`、`/metrics`、`/login`、`/register`、`/reset-password`。
 - **新系統上線前需登記子路徑**:由 Gateway 負責人在 `nginx/conf.d/portal.conf` 新增 location 並經 Pipeline 發佈;子路徑一律小寫英數與 `-`,前後帶 `/`。
@@ -597,6 +597,7 @@ sequenceDiagram
 - 匯入流程:上傳 → 解析 → 驗證(路徑衝突、上游存在、權限代碼存在)→ **預覽比對**(新增 / 更新 / 不變 / 錯誤)→ 確認寫入為草稿 → 發佈。
 - 後端自動註冊沒有預覽步驟:驗證通過即寫入草稿(有錯誤則整批不寫入),上游位址以「補上」方式登記(同一服務多台主機各自註冊,不互相覆蓋);**不自動發佈**,由 IT 於發佈前檢視差異後核可。
 - operation 的 `description` 存入 `description`(API 用途說明),`x-gherkin` 存入 `gherkin`(行為規格,Gherkin 場景文字);兩者不進路由快照,只供管理介面與路由查詢使用。
+- 根層 `x-gateway.project`(選用)存入 `gw.upstream.project`(開發專案 = repo 資料夾名稱,Gateway `AGENT.md` §10.2);未提供時保留既有值,不進路由快照。
 - 匯入批次與逐筆結果記錄於 `gw.api_import_batch` / `gw.api_import_item`。
 - 權限代碼不存在時可選擇「一併建立」。
 
@@ -650,7 +651,7 @@ sequenceDiagram
 | 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
 | API Key | `/api/admin/api-clients`(建立時只顯示一次明文) | `gw.admin.client.*` |
 | 後端自動註冊 | `POST /api/admin/registrations`(**僅接受 `X-Api-Key`**,只能註冊 API Key 代碼 = `x-gateway.upstream` 的服務,寫入草稿) | `gw.admin.route.register` |
-| 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明與 Gherkin;API Key 或登入者皆可) | `gw.admin.route.read` |
+| 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明、Gherkin 與開發專案;API Key 或登入者皆可) | `gw.admin.route.read` |
 | 限流政策 | `/api/admin/rate-limit-policies` | `gw.admin.route.write` |
 | 通知 | `/api/admin/notify/templates`、`/api/admin/notify/logs` | `gw.admin.notify.*` |
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |

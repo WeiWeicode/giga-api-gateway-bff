@@ -8,15 +8,21 @@
  *   GW_API_KEY_FILE        API Key 檔案(Docker secret);dev 可改用 GW_API_KEY。正式區只接受 _FILE
  *   SERVICE_ADVERTISE_URL  Gateway 連到本服務的位址,例 http://mes-host:51210;test、prod 必填,port 需在 51200–51300
  *
+ * 開發專案(不是環境變數,不隨部署區改變):package.json 的 "gateway": { "project": "<repo 資料夾名稱>" }(Gateway AGENT.md §10.2)。
+ * 複製樣本後由工程師命名一次;缺少時啟動失敗,自動註冊時由 SDK 寫入 OpenAPI 的 x-gateway.project。
+ *
  * Gateway 使用開發用自簽憑證時,以 Node.js 內建的 NODE_EXTRA_CA_CERTS 指定根憑證。
  */
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 export type GwEnv = 'dev' | 'test' | 'prod';
 
 export interface GatewayEnv {
   gwEnv: GwEnv;
   serviceCode: string;
+  /** 開發專案:本服務 repo 的資料夾名稱(package.json gateway.project) */
+  project: string;
   gatewayUrl: string | null;
   jwksUrl: string | null;
   apiKey: string | null;
@@ -30,6 +36,25 @@ export class GatewayEnvError extends Error {
 }
 
 const SERVICE_CODE = /^[a-z][a-z0-9-]{1,49}$/;
+/** 同 Gateway 對 x-gateway.project 的檢查(英數與 . _ -,100 字內) */
+const PROJECT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+/** 讀取 package.json 的 gateway.project(開發專案) */
+export function readProject(cwd: string = process.cwd()): string {
+  const file = path.join(cwd, 'package.json');
+  let pkg: { gateway?: { project?: unknown } };
+  try {
+    pkg = JSON.parse(readFileSync(file, 'utf8')) as typeof pkg;
+  } catch (err) {
+    throw new GatewayEnvError(`無法讀取 ${file}:${(err as Error).message}`);
+  }
+  const project = pkg.gateway?.project;
+  if (typeof project !== 'string' || !PROJECT.test(project))
+    throw new GatewayEnvError(
+      `package.json 需設定 "gateway": { "project": "<repo 資料夾名稱>" }(開發專案,英數與 . _ -,Gateway AGENT.md §10.2;複製樣本後請工程師命名):${JSON.stringify(project ?? null)}`,
+    );
+  return project;
+}
 
 /** port 必須在 51200–51300(BACKEND-GUIDE.md §3) */
 export function isGatewayPort(port: number): boolean {
@@ -45,11 +70,13 @@ function url(name: string, v: string | undefined): string | null {
   }
 }
 
-export function loadGatewayEnv(env: NodeJS.ProcessEnv = process.env): GatewayEnv {
+/** cwd:package.json 所在目錄,預設為目前工作目錄(npm run / node 啟動時即服務根目錄) */
+export function loadGatewayEnv(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()): GatewayEnv {
   const gwEnv = (env.GW_ENV ?? 'dev') as GwEnv;
   if (!['dev', 'test', 'prod'].includes(gwEnv)) throw new GatewayEnvError(`GW_ENV 必須是 dev / test / prod:${gwEnv}`);
   const serviceCode = env.SERVICE_CODE ?? '';
   if (!SERVICE_CODE.test(serviceCode)) throw new GatewayEnvError(`SERVICE_CODE 未設定或格式錯誤:${serviceCode}`);
+  const project = readProject(cwd);
 
   const gatewayUrl = url('GW_BASE_URL', env.GW_BASE_URL);
   const jwksUrl = url('GW_JWKS_URL', env.GW_JWKS_URL) ?? (gatewayUrl ? `${gatewayUrl}/.well-known/jwks.json` : null);
@@ -74,5 +101,5 @@ export function loadGatewayEnv(env: NodeJS.ProcessEnv = process.env): GatewayEnv
   }
   if (!jwksUrl) throw new GatewayEnvError('需要設定 GW_BASE_URL 或 GW_JWKS_URL(驗證 X-Internal-Token 用)');
 
-  return { gwEnv, serviceCode, gatewayUrl, jwksUrl, apiKey, advertiseUrl, autoRegister };
+  return { gwEnv, serviceCode, project, gatewayUrl, jwksUrl, apiKey, advertiseUrl, autoRegister };
 }

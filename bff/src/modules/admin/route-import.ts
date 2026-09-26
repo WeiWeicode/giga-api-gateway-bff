@@ -59,6 +59,8 @@ export async function upsertUpstream(
     circuitFailThreshold?: number;
     healthCheckPath?: string;
     forwardCookies?: boolean;
+    /** 開發專案(repo 資料夾名稱);未提供時保留既有值 */
+    project?: string | null;
   },
   actor: string,
 ): Promise<number> {
@@ -71,6 +73,7 @@ export async function upsertUpstream(
     circuitFailThreshold: u.circuitFailThreshold ?? cur?.circuitFailThreshold ?? 10,
     healthCheckPath: u.healthCheckPath ?? cur?.healthCheckPath ?? '/healthz',
     forwardCookies: u.forwardCookies ?? cur?.forwardCookies ?? false,
+    project: u.project ?? cur?.project ?? null,
     updatedBy: actor,
   };
   if (cur) {
@@ -198,7 +201,7 @@ export async function importOpenApiDoc(db: GwDatabase, input: ImportInput): Prom
   }
 
   return db.transaction(async (tx) => {
-    const upstreamId = await upsertUpstream(tx, { code: spec.upstreamCode, systemCode: spec.systemCode }, input.actor);
+    const upstreamId = await upsertUpstream(tx, { code: spec.upstreamCode, systemCode: spec.systemCode, project: spec.project }, input.actor);
     const addedTargets = await setTargets(tx, upstreamId, input.env, [input.target], input.actor, input.targetMode);
     const createdPerms = await ensurePermissions(tx, spec.permissions, input.actor);
     const [batch] = await tx.insert(apiImportBatch).output({ id: apiImportBatch.batchId }).values({

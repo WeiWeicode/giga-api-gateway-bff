@@ -229,7 +229,6 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | --- | --- | --- | --- | --- |
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
 | `GigaItApp` | IT 管理系統(自有登入;端點管理經 BFF) | `/it/`、`/it/api/*`(51291) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
-| `TestGigaAPP` | 公司文件系統(DMS)測試專案(`dms-backend`、`dms-frontend`) | `/dms/`、`dms-api`(51290) | DMS 負責人 | — |
 | (待定) | Go Endpoint Server + Go Agent | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | 待建立(§10.6) |
 | `giga-agent-watchdog` | C# Watchdog:看守 Go Agent 的存活、健康、版本,自己經 `:9443` 上報(規劃中,只有文件) | 無對外;經 `:9443` 上報 | 待定 | `../giga-agent-watchdog/AGENT.md` |
 
@@ -279,7 +278,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 4. **專案地圖路徑**:`docs/PROJECT-MAP.md`,以及「開發新功能後必須更新」(§10.7)。
 5. **核心設計原則的套用方式**:本專案使用的語言對應 §10.7.2 的哪一列、與原則不同之處。
 
-範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md)。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(TestGigaAPP 的做法:Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
+範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md);**複製後 AI 必須先請工程師命名專案**(repo 資料夾名稱,寫入 `package.json` 的 `gateway.project`,SDK 自動註冊時帶入 `x-gateway.project`;樣本 AGENT.md §0),不可沿用樣本值或自行取名。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
 
 ### 10.7 專案地圖與核心設計原則(所有專案共用)
 

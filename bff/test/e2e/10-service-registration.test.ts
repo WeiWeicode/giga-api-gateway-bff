@@ -6,7 +6,7 @@ const GHERKIN = '場景: 查詢存在的項目\n  當 呼叫 GET /api/smp/items/
 const SPEC = {
   openapi: '3.0.3',
   info: { title: 'Sample', version: '1.0.0' },
-  'x-gateway': { upstream: 'node-sample', system: 'smp' },
+  'x-gateway': { upstream: 'node-sample', system: 'smp', project: 'GigaSampleApp' },
   'x-permissions': [{ code: 'smp.item.read', name: '項目查詢' }],
   paths: {
     '/v1/items': { get: { operationId: 'smp.item.list', summary: '項目清單', description: '列出所有項目', 'x-permission': 'smp.item.read' } },
@@ -100,6 +100,12 @@ describe('POST /api/admin/registrations', () => {
     expect(JSON.stringify(res.json.details)).toMatch(/route_code 已屬於其他上游:go-mes/);
   });
 
+  it('x-gateway.project 格式錯誤回 IMPORT_HAS_ERRORS', async () => {
+    const res = await register({ spec: { ...SPEC, 'x-gateway': { ...SPEC['x-gateway'], project: '../etc' } }, target: TARGET });
+    expect(res.json.code).toBe('IMPORT_HAS_ERRORS');
+    expect(JSON.stringify(res.json.details)).toMatch(/x-gateway\.project/);
+  });
+
   it('port 不在 51200–51300 回 IMPORT_HAS_ERRORS', async () => {
     const res = await register({ spec: SPEC, target: 'http://sample-host-1:8080' });
     expect(res.json.code).toBe('IMPORT_HAS_ERRORS');
@@ -113,10 +119,14 @@ describe('POST /api/admin/registrations', () => {
 });
 
 describe('GET /api/admin/routes/catalog', () => {
-  it('以 API Key 查詢:含草稿、說明與 Gherkin', async () => {
+  it('以 API Key 查詢:含草稿、說明、Gherkin 與開發專案', async () => {
     const res = await catalog('q=' + encodeURIComponent('單一項目'));
     expect(res.status).toBe(200);
-    expect(res.json.items).toEqual([expect.objectContaining({ routeCode: 'smp.item.get', status: 'draft', upstream: 'node-sample', gherkin: GHERKIN })]);
+    expect(res.json.items).toEqual([
+      expect.objectContaining({ routeCode: 'smp.item.get', status: 'draft', upstream: 'node-sample', project: 'GigaSampleApp', gherkin: GHERKIN }),
+    ]);
+    const byProject = await catalog('q=GigaSampleApp');
+    expect(byProject.json.items.map((i: { routeCode: string }) => i.routeCode)).toEqual(['smp.item.get', 'smp.item.list']);
     const byStatus = await catalog('system=smp&status=published');
     expect(byStatus.json.items).toEqual([]);
   });

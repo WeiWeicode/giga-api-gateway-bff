@@ -30,7 +30,7 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   });
   const verify = createTokenVerifier({ jwksUrl: config.gateway.jwksUrl!, audience: config.gateway.serviceCode });
 
-  await app.register(swagger, swaggerOptions(config.gateway.serviceCode));
+  await app.register(swagger, swaggerOptions(config.gateway.serviceCode, config.gateway.project));
 
   app.decorateRequest('identity', null);
   app.addHook('onRequest', async (req) => {

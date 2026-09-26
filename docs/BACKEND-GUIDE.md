@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.2(新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本;OpenAPI 新增 `description`、`x-gherkin`) |
+| 文件版本 | v0.3(OpenAPI 根層新增選用的 `x-gateway.project` 開發專案);v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -81,7 +81,6 @@ flowchart LR
 | 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
-| 51290 | 公司文件系統 | `dms-api`(系統代碼 `dms`,SPA `/dms/`) | HTTP | DMS 負責人 | 測試區 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`、API `/it/api/*` 由 Nginx 直接轉入,不經 BFF 路由表) | HTTP | IT 管理系統負責人 | 測試區 |
 | 51241 | Endpoint | `endpoint-grpc`(Agent gRPC,Nginx `:9443` 轉入) | gRPC(TLS) | W6 負責人 | 規劃中 |
 
@@ -222,6 +221,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | --- | --- | --- | --- | --- |
 | 根 | `x-gateway.upstream` | ✅ | `upstream_id` | 服務代碼(§3.3),同時是內部 Token 的 `aud` |
 | 根 | `x-gateway.system` | ✅ | `system_code` | 系統代碼,決定對外前綴 `/api/{system}` |
+| 根 | `x-gateway.project` | 建議 | `gw.upstream.project` | **開發專案**:實作本服務的 repo 資料夾名稱(Gateway `AGENT.md` §10.2,英數與 `. _ -`,100 字內);管理介面與路由查詢據此顯示「由哪個專案開發」。未提供時保留既有值。**Node.js SDK 由 `package.json` 的 `gateway.project` 自動寫入**(§7.5);其他語言自行實作註冊時也必須帶入 |
 | 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立 |
 | operation | `operationId` | ✅ | `route_code` | 全域唯一,格式 `{system}.{resource}.{action}`,例 `mes.workorder.get` |
 | operation | `summary` | ✅ | `name` | 中文名稱,顯示於管理介面 |
@@ -250,6 +250,7 @@ info:
 x-gateway:
   upstream: go-mes
   system: mes
+  project: giga-mes
 x-permissions:
   - code: mes.workorder.read
     name: 工單查詢
@@ -346,7 +347,7 @@ stateDiagram-v2
 | 端點 | 權限 | 用途 |
 | --- | --- | --- |
 | `POST /api/admin/registrations` | `gw.admin.route.register` | 啟動時送出 `{ spec: <OpenAPI>, target: <SERVICE_ADVERTISE_URL> }`,寫入草稿;回應新增 / 修改 / 不變數量與 `pendingPublish` |
-| `GET /api/admin/routes/catalog?q=&system=&status=` | `gw.admin.route.read` | 查詢既有路由(含草稿、說明與 Gherkin),**新增 API 前先查,避免重複開發** |
+| `GET /api/admin/routes/catalog?q=&system=&status=` | `gw.admin.route.read` | 查詢既有路由(含草稿、說明、Gherkin 與開發專案 `project`),**新增 API 前先查,避免重複開發** |
 
 **部署區(`GW_ENV`)**
 
@@ -355,6 +356,8 @@ stateDiagram-v2
 | 自動註冊 | 不註冊 | 啟動時寫入測試區 Gateway 草稿 | 啟動時寫入正式區 Gateway 草稿 |
 | 生效 | — | IT 發佈後 | IT 核可發佈後 |
 | API Key | `GW_API_KEY` 或 `GW_API_KEY_FILE` | `GW_API_KEY_FILE` | 只接受 `GW_API_KEY_FILE`(Docker secret) |
+
+**開發專案**:寫在 `package.json` 的 `"gateway": { "project": "<repo 資料夾名稱>" }`(不是環境變數,不隨部署區改變),複製樣本後由工程師命名一次(樣本 `AGENT.md` §0)。SDK 0.2 起 `loadGatewayEnv` 讀取(缺少或格式錯誤時啟動失敗),`autoRegister` 送出前自動寫入 `x-gateway.project`;OpenAPI 已手寫且不一致時拒絕註冊。
 
 其他環境變數:`SERVICE_CODE`(服務代碼)、`GW_BASE_URL`(Gateway 位址)、`SERVICE_ADVERTISE_URL`(Gateway 連到本服務的位址,test / prod 必填,port 51200–51300)、`GW_JWKS_URL`(選用,預設 `{GW_BASE_URL}/.well-known/jwks.json`)。
 
@@ -430,7 +433,7 @@ flowchart LR
 - [ ] 提供 `/healthz`
 - [ ] 日誌記錄 `X-Request-Id`
 - [ ] 不回 `Set-Cookie`、CORS、`Server`、`X-Powered-By` 標頭
-- [ ] OpenAPI 每個 operation 都有 `operationId`、`summary`、`x-permission`(建議 `description`、`x-gherkin`);根層有 `x-gateway` 與 `x-permissions`
+- [ ] OpenAPI 每個 operation 都有 `operationId`、`summary`、`x-permission`(建議 `description`、`x-gherkin`);根層有 `x-gateway`(建議含 `project`)與 `x-permissions`
 - [ ] 新增的 API 已查過既有路由,沒有重複(§7.5)
 - [ ] 測試區、正式區各自的 API Key 已存入 Docker secret,`GW_ENV` 設定正確,啟動日誌顯示自動註冊成功
 - [ ] 敏感 API 設定 `x-audit-level`
