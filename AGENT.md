@@ -229,8 +229,8 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | 資料夾 | 內容 | 對外 / port | 負責 | AGENT.md |
 | --- | --- | --- | --- | --- |
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
-| `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(規劃中,只有文件) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
-| `GigaItApp` | IT 管理系統:BFF 視覺化、**各應用的應用 / 選單 / Tab / 按鈕權限設定**;端點管理經 BFF。目前自有登入,規劃改用單一入口(PRD v0.7) | `/it/`、`/it/api/*`(51291;規劃改為 `/api/it/*` 經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
+| `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(M1:前端已建立並發佈本機 Nginx;portal-api 規劃中) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
+| `GigaItApp` | IT 管理系統:BFF 視覺化、**各應用的應用 / 選單 / Tab / 按鈕權限設定**;端點管理經 BFF。目前自有登入(頂列已有應用切換),規劃改用單一入口(PRD v0.7) | `/it/`、`/it/api/*`(51291;規劃改為 `/api/it/*` 經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
 | `giga-endpoint` | Go Endpoint Server + Go Agent + 小幫手 | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | `../giga-endpoint/AGENT.md` |
 | `giga-agent-watchdog` | C# Watchdog:看守 Go Agent 的存活、健康、版本,自己經 `:9443` 上報(規劃中,只有文件) | 無對外;經 `:9443` 上報 | 待定 | `../giga-agent-watchdog/AGENT.md` |
 

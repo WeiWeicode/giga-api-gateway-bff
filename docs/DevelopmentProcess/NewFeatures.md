@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-26 專案登記狀態更新:giga-Portal M1、GigaItApp 應用切換(只改文件)
+- 內容:`AGENT.md` §10.2 專案登記對齊兄弟專案現況:giga-Portal 前端已建立並發佈到本機 Nginx `/`(取代範例入口網的 `current`,範例的 `releases/dev` 保留可回滾);GigaItApp 頂列已有應用切換。本 repo 程式與設定皆未修改;入口網的本機權限代碼改存於 `../giga-Portal/deploy/gateway-dev-rbac.yaml`(本 repo `deploy/dev/` 不納入版控)。待 Gateway 決定:應用層守衛導回入口網的提示參數,giga-Portal 提議 `/?denied=<應用代碼>`(見 `../giga-Portal/docs/API.md` §2.1),尚未寫入 FRONTEND-GUIDE §7.4。
+- 檔案:`AGENT.md`
+- 驗證:文件
+
 ## 2026-09-26 規格 v0.7:員工入口網(giga-Portal)、依部門與職位指派角色、應用切換
 - 內容:**只改規格,尚未實作**(工作項目 P2-3a)。需求方決定員工入口網與 GigaItApp 都用單一入口、畫面權限以 BFF 為唯一來源並由 GigaItApp 設定,職位以職級為主、部門含下層。PRD v0.7(文件版本原停在 v0.5,一併更正):§7.2.1 `/` 由 giga-Portal 發佈(含 `/login` 等)、`/it/` 規劃改單一入口與 `/api/it/*` 經 BFF;§8.2.4 `/api/auth/me` 回傳 `apps`;§8.3.1 角色來源新增指派規則(公司 / 部門含下層 / 職級 / 職稱,AND / OR);新增 §8.3.2 權限分類 `kind`(app / menu / tab / button / api,按鈕 = API 權限)、§8.3.3 應用登記與應用切換;§8.7 新增指派規則、部門樹、應用、權限試算 API,GigaItApp 改以使用者身分呼叫;Q28(已決定)、Q29(職級比較方式)。DATABASE §3.2 新增 `gw.role_rule`、`gw.department`、`gw.app`,`gw.permission` 新增 `kind` / `parent_code` / `sort`,人員同步加入部門樹與職級變更遞增 `pv`。BACKEND-GUIDE v0.4:`x-permissions` 擴充、登記 `portal-api` 51271、`itapp-api` 規劃改經 BFF。FRONTEND-GUIDE v0.2:`me.apps`、§7.4 應用切換與應用層守衛、§7.5 選單 / Tab / 按鈕。IMPL-PLAN 新增 P2-3a;Gherkin 新增 `rbac/role-rules.feature`、`auth/apps.feature`(`@wip`)。AGENT.md §10.1–§10.3 登記 `giga-Portal`,Go Endpoint Server 的資料夾更正為 `giga-endpoint`。
 - 檔案:`AGENT.md`、`docs/PRD.md`、`docs/DATABASE.md`、`docs/BACKEND-GUIDE.md`、`docs/FRONTEND-GUIDE.md`、`docs/IMPL-PLAN.md`、`docs/Gherkin/README.md`、`docs/Gherkin/rbac/role-rules.feature`、`docs/Gherkin/auth/apps.feature`
