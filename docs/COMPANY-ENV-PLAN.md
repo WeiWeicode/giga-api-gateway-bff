@@ -3,6 +3,7 @@
 > 目前程式在開發主機以 Docker 模擬環境(模擬 AD、模擬下游後端、SQL Server 2022 容器與模擬資料、範例網頁)開發與測試。
 > 本文件列出部署到公司**測試區(主機 2)/ 正式區(主機 3)**時需要修改或補齊的檔案與設定。
 > 前置工作編號(P-xx)見 [IMPL-PLAN.md](IMPL-PLAN.md) §3;部署流程見 [DEPLOYMENT.md](DEPLOYMENT.md)。
+> **CI / Registry / AD CS 憑證尚未就緒時,測試區依 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 在主機 2 手動架設**(含臨時自簽憑證、主機上建置映像、Gateway → 員工入口網 → IT 管理系統的部署順序)。
 
 ---
 
@@ -19,6 +20,8 @@
 | 公司開發機第一天 | Node.js 22+、Docker;`cd bff && npm ci && npm run lint && npm run typecheck && npm test`(62 項);`cd samples/node-backend && npm install && npm test`(9 項,會一併建置 `sdk/node`);有帶本機環境時 `sh deploy/dev/up.sh` 後 `npm run test:e2e`(家中最後結果 124 項全部通過) |
 | npm 套件來源 | 公司網路若需經 proxy 或內部 npm registry,設定 `.npmrc`(不入版控) |
 
+**2026-09-26 補充**:兄弟專案 `../giga-Portal`(員工入口網,提供 `/`、`/login`、`/register`、`/reset-password`)M1 前端完成,**取代範例入口網,是公司環境唯一的登入頁**,必須在 Gateway 之後部署(TEST-DEPLOY-RUNBOOK 步驟 7),其權限代碼以 `../giga-Portal/deploy/gateway-rbac.yaml` 套用;`../GigaItApp` 頂列已有應用切換。家中最後測試:BFF 單元 69 項、樣本 13 項、GigaItApp 後端 46 項、giga-Portal 前端 29 項、watchdog 20 項皆通過。
+
 交接時的狀態:W3-1 ~ W3-5(不含 §7 未實作項目)與 W3-5.7a(後端自動註冊、路由查詢、Node.js SDK 與樣本)完成;所有資料庫相關驗證只在容器 SQL Server 2022(相容層級 110)執行過,**尚未在 SQL Server 2012 複驗**(§1 M0)。
 
 ---
@@ -31,7 +34,7 @@
 | --- | --- |
 | `tools/mock-ad/` | 模擬 AD 三網域 |
 | `tools/mock-upstream/` | 模擬下游後端(go-mes、core-hrm、bpm-adapter、portal-svc、Endpoint Server);每支 API 已附 `description` 與 `x-gherkin` |
-| `tools/sample-spa/` | 範例網頁:入口網、MES 看板、IT 管理 demo(架構總覽、資料表說明、API 上架演練 8 步驟含「查詢既有路由」) |
+| `tools/sample-spa/` | 範例網頁:入口網、MES 看板、IT 管理 demo(架構總覽、資料表說明、API 上架演練 8 步驟含「查詢既有路由」)。**入口網(含登入頁)已由 `../giga-Portal` 取代**,公司環境不需要範例入口網 |
 | `deploy/dev/` | 模擬資料庫初始化與測試資料(`mssql-init/`)、開發用憑證與密碼(`secrets/`)、本機路由與角色設定(`config/`,聚合 / mock 路由含說明與 Gherkin)、`up.sh` / `down.sh` |
 | `deploy/docker-compose.dev.yml`、`deploy/dev.env` | 本機完整環境 |
 
@@ -68,7 +71,7 @@
 | `los_db_password`、`bpm_db_password`、`portal_db_password` | 唯讀帳號密碼 | P-12、P-15 |
 | `ldap_gsc_password`、`ldap_gsmc_password`、`ldap_ygdmc_password` | 三個 AD 網域的查詢服務帳號密碼 | P-07 |
 | `jwt/<kid>.pem` | ES256(P-256)私鑰,**測試區與正式區各自產生**;檔名即 `kid`,排序最後者為簽章用 | — |
-| `pki/server.crt`、`pki/server.key` | AD CS 簽發,SAN 含 Gateway **IP** | P-05 |
+| `pki/server.crt`、`pki/server.key` | AD CS 簽發,SAN 含 Gateway **IP**;到位前以 `deploy/gen-temp-pki.sh` 產生臨時自簽憑證(含臨時 Agent CA / CRL 讓 Nginx 能啟動) | P-05 |
 | `pki/agent-ca-chain.pem`、`pki/agent.crl` | Agent 專用中繼 CA + 根 CA、CRL(需定期更新,W3-3.4) | P-06 |
 | `pki/ca.crt` | 企業根 CA(Nginx 以 grpcs 連 Endpoint Server 時驗證用) | P-05 |
 
@@ -81,7 +84,7 @@
 | 檔案 | 需要調整 | 依賴 |
 | --- | --- | --- |
 | `deploy/test.env.example`、`deploy/prod.env.example` | 複製到主機受保護目錄並填入:Registry、`GW_SECRETS_DIR`、`GW_CONFIG_DIR`、SQL Server / BPM 主機、`ENDPOINT_*_UPSTREAM`、`INTERNAL_NETWORKS`(公司內網網段,「記住我」用) | P-11 |
-| `${GW_CONFIG_DIR}/ldap-domains.json` | 三個網域的 `url`(過渡期 `ldap://<DC>:389`,Q12)、`baseDN`、`bindDN`、`netbios`、`upnSuffix`;格式同本機的 `deploy/dev/config/ldap-domains.json` | P-07 |
+| `${GW_CONFIG_DIR}/ldap-domains.json` | 三個網域的 `url`(過渡期 `ldap://<DC>:389`,Q12)、`baseDN`、`bindDN`、`netbios`、`upnSuffix`;格式見 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 步驟 3(本機的 `deploy/dev/config/` 不在版控)。列出的每個網域都必須有對應的 `ldap_<代碼>_password`,否則 BFF 啟動失敗 | P-07 |
 | 角色與 AD 群組對應 | 本機以 `deploy/dev/config/gateway-routes.yaml` 套用;公司需依 IT 規劃的 `GN-*` 群組 DN 另寫一份(DN 含逗號須用區塊清單加引號),以 `gw apply` 套用。**測試區與正式區設定不互通(PRD Q3),兩區各自套用**;聚合 / mock 路由可附 `description`、`gherkin`(mock 路由只在 dev / test 生效,PRD §8.4.1) | P-08 |
 | `deploy/docker-compose.test.yml`、`.prod.yml` | 目前只有 `GW_ENV` 與 log level;依主機需要補充(例如 port 衝突時改 `GW_HTTP_PORT` 等) | P-11 |
 | 下游後端 API Key | 每個後端服務在測試區、正式區各建一把(`gw client:create --code <服務代碼> [--ips <主機網段>]`),明文交給該服務存入 Docker secret(`GW_API_KEY_FILE`);後端的 `GW_BASE_URL` 指向該區 Gateway,且主機網段需列入 `internal-services.conf`(取 JWKS)(BACKEND-GUIDE §7.5) | P-16 |
@@ -118,7 +121,7 @@
 
 | 項目 | 說明 |
 | --- | --- |
-| `bff/src/modules/admin/db-viewer.ts`、`onboarding.ts`(IT 管理 demo 的資料庫檢視、上架演練預覽 API) | 目前在 `GW_ENV` 不是 `prod` 時註冊,**測試區也會開啟**;測試區以唯讀帳號讀取正式人事資料(DEPLOYMENT.md §5.1),建議改為只在 `dev` 註冊,或上測試區前移除 |
+| `bff/src/modules/admin/db-viewer.ts`、`onboarding.ts`(IT 管理 demo 的資料庫檢視、上架演練預覽 API) | 在 `GW_ENV` 不是 `prod` 時註冊,測試區也會開啟(測試區以唯讀帳號讀取正式人事資料,DEPLOYMENT.md §5.1)。**2026-09-26 需求方決定:測試區保留(GigaItApp live 讀取需要)、正式區關閉**,維持現行程式 |
 | 自動註冊與發佈 | `POST /api/admin/registrations` 在正式區也開放(PRD v0.5);CLI `publish` 會**一併發佈所有草稿**,含其他服務剛自動註冊的草稿。正式區發佈前務必檢視差異,發佈流程由 IT 確認 |
 | Agent 無效憑證 | Nginx 於 TLS 握手後回 HTTP 400(不會到達 Endpoint Server),與 IMPL-PLAN W3-3 驗收字面「TLS 層被拒」不同,需確認 |
 | 斷路器 | 各 BFF 實例於記憶體維護,未使用 `gw:cb:*` |

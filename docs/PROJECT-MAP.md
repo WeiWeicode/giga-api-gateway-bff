@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-09-26**(建立專案地圖)。
+> **最後更新:2026-09-26**(公司測試區手動架設手冊 TEST-DEPLOY-RUNBOOK、臨時憑證腳本 deploy/gen-temp-pki.sh)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -41,12 +41,13 @@ giga-api-gateway-bff/
 ├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)與 /api/auth/me
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)
-├─ deploy/                    Docker Compose(開發 / 測試 / 正式)、env 範例、健康檢查、煙霧測試
+├─ deploy/                    Docker Compose(開發 / 測試 / 正式)、env 範例、健康檢查、煙霧測試、gen-temp-pki.sh(測試區臨時憑證)
 │  └─ dev/                    ※ 本機環境(up.sh、開發憑證 secrets/pki、mssql-init)— 不進版控
 ├─ tools/                     ※ 本機模擬服務(mock-ad、mock-upstream、sample-spa)— 不進版控
 ├─ ci-templates/              SPA 發佈的 GitLab CI 範本
 ├─ drizzle.config.ts          Drizzle Kit 設定(migration 產生)
-└─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄)
+└─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄);部署:DEPLOYMENT(CI/CD)、
+                             COMPANY-ENV-PLAN(上公司調整清單)、TEST-DEPLOY-RUNBOOK(CI 未就緒時的測試區手動架設)
 ```
 
 ## 2. 分層(AGENT.md §10.7.2 TypeScript 列)

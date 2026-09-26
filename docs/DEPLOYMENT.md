@@ -1,6 +1,6 @@
 # GigaNexus Gateway — 部署與 CI/CD
 
-> 對應 PRD 版本:**v0.5**(2026-09-25)。說明測試區 / 正式區主機、GitLab CI/CD 流程,以及 Gateway 各元件(BFF、worker、Nginx、SPA、資料庫 migration)的部署與回滾方式。
+> 對應 PRD 版本:**v0.7**(2026-09-26;部署流程自 v0.5 起未變)。**公司 GitLab / Registry / AD CS 憑證尚未就緒時,測試區先依 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 手動架設。**說明測試區 / 正式區主機、GitLab CI/CD 流程,以及 Gateway 各元件(BFF、worker、Nginx、SPA、資料庫 migration)的部署與回滾方式。
 > 下游後端與前端 SPA 專案沿用同一套流程(見 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §9)。
 
 ---

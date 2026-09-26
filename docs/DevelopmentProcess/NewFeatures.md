@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-26 公司測試區手動架設手冊與臨時憑證腳本
+- 內容:公司 GitLab / CI / Registry 與 AD CS 憑證尚未就緒,需求方要求先以架設為主。新增 `docs/TEST-DEPLOY-RUNBOOK.md`:在主機 2 以 Git Bash 手動架設 Gateway(主機上 `docker build` 映像、`REGISTRY=giganexus` 本機 tag)→ 員工入口網(`/`、`/login`,沒有它無法登入)→ IT 管理系統,含前置條件、機密檔與 `ldap-domains.json` 格式(原本參照不在版控的 `deploy/dev/config/`)、驗收與常見狀況。新增 `deploy/gen-temp-pki.sh`:產生臨時根 CA、SAN 含主機 IP 的伺服器憑證、臨時 Agent CA 與 CRL(Nginx `:9443` 需要檔案才能啟動)、JWT 金鑰;不覆寫既有檔案。`COMPANY-ENV-PLAN.md` 補 09-26 狀態(giga-Portal 為唯一登入頁、部署順序)、ldap 格式與臨時憑證指向手冊、§6 demo API 決策(測試區保留、正式區關閉);`DEPLOYMENT.md` PRD 版本改 v0.7 並指向手冊。
+- 檔案:`docs/TEST-DEPLOY-RUNBOOK.md`(新增)、`deploy/gen-temp-pki.sh`(新增)、`docs/COMPANY-ENV-PLAN.md`、`docs/DEPLOYMENT.md`、`docs/PROJECT-MAP.md`
+- 驗證:`gen-temp-pki.sh` 以 `alpine:3.20` 執行產生憑證,`openssl verify` 通過、SAN 含指定 IP;以目前 `nginx/` 建置的映像掛載臨時 `pki/` 執行 `nginx -t`(`GW_ENV=test`)通過。`docker compose --env-file <假 test.env> -f docker-compose.yml -f docker-compose.test.yml --profile tools config` 解析正確(`giganexus/gateway/bff:<tag>`)。手冊步驟未在 Windows 主機實際執行(Git Bash 路徑處理 `pwd -W`、`MSYS_NO_PATHCONV` 依 Git for Windows 行為撰寫)。
+
 ## 2026-09-26 專案登記狀態更新:giga-Portal M1、GigaItApp 應用切換(只改文件)
 - 內容:`AGENT.md` §10.2 專案登記對齊兄弟專案現況:giga-Portal 前端已建立並發佈到本機 Nginx `/`(取代範例入口網的 `current`,範例的 `releases/dev` 保留可回滾);GigaItApp 頂列已有應用切換。本 repo 程式與設定皆未修改;入口網的本機權限代碼改存於 `../giga-Portal/deploy/gateway-dev-rbac.yaml`(本 repo `deploy/dev/` 不納入版控)。待 Gateway 決定:應用層守衛導回入口網的提示參數,giga-Portal 提議 `/?denied=<應用代碼>`(見 `../giga-Portal/docs/API.md` §2.1),尚未寫入 FRONTEND-GUIDE §7.4。
 - 檔案:`AGENT.md`
