@@ -213,8 +213,9 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 ```
 <工作區>/                          # 例:~/Code;公司環境由各工程師自訂,但所有專案放在同一層
 ├─ giga-api-gateway-bff/           # Gateway:Nginx、BFF、路由表、web-kit、Node SDK — 所有專案的上位規範
-├─ GigaItApp/                      # IT 管理系統(/it/)
-├─ <Go Endpoint Server / Agent>/   # W6(repo 名稱待定)
+├─ giga-Portal/                    # 員工入口網(/,含 /login;應用切換的起點)
+├─ GigaItApp/                      # IT 管理系統(/it/;設定各應用的選單 / Tab / 按鈕權限)
+├─ giga-endpoint/                  # Go Endpoint Server + Go Agent(W6)
 ├─ giga-agent-watchdog/            # C# Watchdog(端點電腦上看守 Go Agent)
 └─ <其他系統>/                     # 其他工程師開發的入口網功能:各自的前端 / 後端 repo
 ```
@@ -228,8 +229,9 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | 資料夾 | 內容 | 對外 / port | 負責 | AGENT.md |
 | --- | --- | --- | --- | --- |
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
-| `GigaItApp` | IT 管理系統(自有登入;端點管理經 BFF) | `/it/`、`/it/api/*`(51291) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
-| (待定) | Go Endpoint Server + Go Agent | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | 待建立(§10.6) |
+| `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(規劃中,只有文件) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
+| `GigaItApp` | IT 管理系統:BFF 視覺化、**各應用的應用 / 選單 / Tab / 按鈕權限設定**;端點管理經 BFF。目前自有登入,規劃改用單一入口(PRD v0.7) | `/it/`、`/it/api/*`(51291;規劃改為 `/api/it/*` 經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
+| `giga-endpoint` | Go Endpoint Server + Go Agent + 小幫手 | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | `../giga-endpoint/AGENT.md` |
 | `giga-agent-watchdog` | C# Watchdog:看守 Go Agent 的存活、健康、版本,自己經 `:9443` 上報(規劃中,只有文件) | 無對外;經 `:9443` 上報 | 待定 | `../giga-agent-watchdog/AGENT.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
@@ -238,8 +240,9 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 
 | 專案 | 依賴 Gateway 的部分 | 與其他專案 |
 | --- | --- | --- |
-| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(服務帳號);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Go;端點功能經 BFF(PRD Q27) |
-| Go Endpoint Server / Agent | `:9443` 通道、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;與 C# Watchdog 以本機具名管道溝通 |
+| giga-Portal | Nginx `/`(SPA 發佈到 `gw_www/portal`);BFF `/api/auth/*`(登入、`me.apps`)、`/api/portal/*` → `portal-api`(內部 Token、自動註冊);各系統經 BFF 的 API(HRM、BPM…) | 應用切換連到 GigaItApp 等其他應用(整頁導向);權限由 GigaItApp 設定、存在 BFF(PRD §8.3.2) |
+| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Go;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
+| giga-endpoint(Go Endpoint Server / Agent) | `:9443` 通道、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;與 C# Watchdog 以本機具名管道溝通 |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
 - **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。

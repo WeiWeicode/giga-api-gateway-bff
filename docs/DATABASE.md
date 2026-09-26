@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 資料庫設計(SQL Server + Redis)
 
 > 本文件自 [PRD.md](PRD.md) §9 拆出,為該主題的唯一維護來源;PRD 僅保留摘要與連結。
-> 對應 PRD 版本:**v0.6**(2026-09-26)。
+> 對應 PRD 版本:**v0.7**(2026-09-26)。v0.7 新增的 `gw.role_rule`、`gw.department`、`gw.app` 與 `gw.permission` 分類欄位為**規格,尚未實作 migration**(PRD §8.3.1–§8.3.3)。
 
 ---
 
@@ -49,6 +49,10 @@ erDiagram
     gw_company ||--o{ gw_company_ad_domain : uses
     gw_company ||--o{ gw_role_company : grants
     gw_role ||--o{ gw_role_company : mapped_from
+    gw_role ||--o{ gw_role_rule : matched_by
+    gw_department ||--o{ gw_department : parent_of
+    gw_permission ||--o{ gw_permission : parent_of
+    gw_permission ||--o{ gw_app : grants_access
     gw_user ||--o{ gw_notify_message : receives
     gw_config_release ||--o{ gw_api_route : snapshots
     gw_api_import_batch ||--o{ gw_api_import_item : contains
@@ -211,7 +215,7 @@ erDiagram
 | `profile_synced_at` | DATETIME2 NULL | 最近一次成功同步人事資料的時間 |
 | `ad_groups` | NVARCHAR(MAX) NULL | 最近一次登入同步的群組 DN 清單(JSON) |
 | `notify_pref` | NVARCHAR(200) NULL | JSON:通道偏好 |
-| `perm_version` | INT | `pv`;角色 / 狀態 / 部門 / 職稱變更時 +1 |
+| `perm_version` | INT | `pv`;角色 / 狀態 / 公司 / 部門 / 職稱 / 職級變更時 +1(指派規則依這些欄位比對,PRD §8.3.1) |
 | `is_disabled` | BIT | Gateway 層停用(不影響 AD) |
 | `last_login_at` / `last_login_ip` | | |
 | ★共通 | | |
@@ -219,7 +223,7 @@ erDiagram
 | 表 | 欄位 | 說明 |
 | --- | --- | --- |
 | `gw.role` | `role_id`、`code` UQ、`name`、`description`、`is_system`(內建不可刪)、★共通 | 角色 |
-| `gw.permission` | `permission_id`、`code` UQ(`mes.workorder.read`)、`name`、`system_code`、`resource`、`action`、`description`、★共通 | 權限 |
+| `gw.permission` | `permission_id`、`code` UQ(`mes.workorder.read`)、`name`、`system_code`、`resource`、`action`、`description`、**`kind`** VARCHAR(10) NOT NULL 預設 `api`(`app` / `menu` / `tab` / `button` / `api`,v0.7)、**`parent_code`** VARCHAR(100) NULL(上層權限代碼:選單掛應用、Tab 掛選單、按鈕掛選單或 Tab,v0.7)、**`sort`** SMALLINT 預設 0(v0.7)、★共通 | 權限;`kind` / `parent_code` / `sort` 由 OpenAPI `x-permissions` 匯入(PRD §8.3.2) |
 | `gw.role_permission` | `role_id`、`permission_id`(複合 PK)、`created_at/by` | 角色 ↔ 權限 |
 | `gw.role_ad_group` | `role_id`、`ad_group_dn` NVARCHAR(400)、`ad_group_guid`、`created_at/by` | AD 群組 → 角色 |
 | `gw.user_role` | `user_id`、`role_id`、`valid_from`、`valid_to` NULL、`reason`、`created_at/by` | 個別指派(可到期) |
@@ -236,6 +240,19 @@ erDiagram
 | `gw.company_ad_domain` | `company_id`、`domain_code` VARCHAR(30)(`gsc` / `gsmc` / `ygdmc`)、`try_order` SMALLINT;PK(`company_id`, `domain_code`) | 該公司可用的 AD 網域與嘗試順序(例:碩禾 → `gsc` 1、`gsmc` 2),由 IT 在管理介面維護;**無資料 = 無網域,需本機帳號**(例:禾迅) |
 | `gw.user_company` | `user_id`、`company_id`、`via_employee_no` VARCHAR(20)(來自哪個 LOS 工號,如兼任帳號 `GV112001`)、`dept_code`、`department`、`is_virtual` BIT、`is_primary` BIT;PK(`user_id`, `company_id`, `via_employee_no`) | 使用者所屬公司與部門;由同步依本人實體工號與兼任帳號(§8.2)彙整,在職實體工號的公司為主要公司 |
 | `gw.role_company` | `role_id`、`company_id`、`created_at/by`;PK(`role_id`, `company_id`) | 公司 → 角色(本機帳號與 AD 帳號皆適用) |
+
+### 3.2 指派規則、部門樹、應用(v0.7,規格)
+
+> 對應 PRD §8.3.1–§8.3.3(員工入口網 giga-Portal、GigaItApp 設定畫面)。尚未建立 migration;實作時依 §0 的 2012 限制與 §7.4 流程。
+
+| 表 | 欄位 | 說明 |
+| --- | --- | --- |
+| `gw.role_rule` | `rule_id` INT PK、`role_id` FK、`company_id` INT NULL(FK `gw.company`)、`dept_code` VARCHAR(30) NULL、`include_sub_depts` BIT 預設 1、`job_levels` NVARCHAR(200) NULL(職級值 JSON 陣列,如 `["5","6"]`)、`title` NVARCHAR(100) NULL(職稱完全相符,選配)、`description` NVARCHAR(200) NULL、`is_enabled` BIT、★共通 | 依人事欄位指派角色:同一規則內各條件 AND,NULL = 不限;同一角色多條規則 OR;至少要有一個條件(不可空規則)。比對對象為使用者**所有所屬公司與部門**(`gw.user_company`,含兼任),職級、職稱取 `gw.user`。寫入後所有使用者 `perm_version + 1` |
+| `gw.department` | `dept_code` VARCHAR(30) PK、`name` NVARCHAR(100)、`parent_dept_code` VARCHAR(30) NULL、`company_id` INT NULL、`bpm_unit_oid` VARCHAR(50) NULL、`is_enabled` BIT、`synced_at` DATETIME2(3) | 部門樹(BPM `OrganizationUnit` 與上層單位,§8.3 同步);`include_sub_depts` 以此展開下層部門。樹有變更時所有使用者 `perm_version + 1` |
+| `gw.app` | `app_id` INT PK、`code` VARCHAR(30) UQ(`portal`、`it`)、`name` NVARCHAR(50)、`base_path` VARCHAR(100)(`/`、`/it/`,對應 PRD §7.2.1)、`icon` VARCHAR(30)、`sort` SMALLINT、`permission_code` VARCHAR(100) FK → `gw.permission.code`(`kind = app`)、`is_enabled` BIT、★共通 | 應用登記;`/api/auth/me` 的 `apps` 依此與使用者權限過濾;以 CLI `apply` 的 `apps:` 維護 |
+
+- 有效角色 = AD 群組對應 ∪ 公司預設角色 ∪ **符合的指派規則** ∪ 有效的個別指派;有效權限計算結果仍以 `gw:perm:{userId}:{pv}` 快取(§6)。
+- 權限試算(`POST /api/admin/rbac/preview`)與登入時使用同一個計算函式,並回傳每個角色的命中來源。
 
 **`gw.local_credential` — 本機帳號密碼**
 
@@ -399,6 +416,7 @@ sequenceDiagram
 | `display_name` | `Users.userName` | `UserName` | `displayName` |
 | `email` | `Users.mailAddress` | `EMail`(可能為空) | `mail` |
 | `dept_code` / `department` | `OrganizationUnit.id` / `organizationUnitName`(僅 `Functions.isMain = 1`) | `EFDept` / `EFDeptName`(BPM 部門代碼) | — |
+| 部門樹 `gw.department`(v0.7) | `OrganizationUnit` 的上層單位(欄位名稱待 BPM 負責人提供的唯讀 view 確認) | — | — |
 | `org_name` 與公司歸屬 | `Organization.organizationName` | `CompName`(對應 `gw.company`) | — |
 | `title` | `FunctionDefinition.functionDefinitionName` | `JobName` | — |
 | `job_level` | `FunctionLevel.levelValue`(`Functions.approvalLevelOID`) | `JobLevel` | — |
@@ -438,7 +456,8 @@ sequenceDiagram
     end
     W->>W: 以工號合併(BPM > LOS),計算 profile_hash
     W->>W: 安全檢查(筆數異常則中止)
-    W->>S: Drizzle 交易(每批 200 筆):新增 / 更新有變更者<br/>部門、職稱、狀態變更 → perm_version + 1
+    W->>S: Drizzle 交易(每批 200 筆):新增 / 更新有變更者<br/>公司、部門、職稱、職級、狀態變更 → perm_version + 1
+    W->>S: 部門樹(v0.7):新增 / 更新 gw.department,有變更 → 所有使用者 perm_version + 1
     W->>S: 寫入 gw.employee_sync_run
 ```
 

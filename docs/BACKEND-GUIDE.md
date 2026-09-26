@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 下游後端接入規範與 API 上架流程
 
 > 適用對象:所有經 GigaNexus Gateway 對外提供 API 的後端服務(Go、Node.js、.NET 等)。
-> 對應 PRD 版本:**v0.5**(2026-09-25)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。端點 Agent 經 `:9443` 的 gRPC 通道另見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
+> 對應 PRD 版本:**v0.7**(2026-09-26)。相關規格:[PRD.md](PRD.md) §8.2(身分)、§8.3(權限)、§8.4(動態路由與匯入);[DATABASE.md](DATABASE.md) §2(路由資料表)。端點 Agent 經 `:9443` 的 gRPC 通道另見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
 
 ---
 
@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.3(OpenAPI 根層新增選用的 `x-gateway.project` 開發專案);v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -81,8 +81,9 @@ flowchart LR
 | 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
-| 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`、API `/it/api/*` 由 Nginx 直接轉入,不經 BFF 路由表) | HTTP | IT 管理系統負責人 | 測試區 |
+| 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
 | 51241 | Endpoint | `endpoint-grpc`(Agent gRPC,Nginx `:9443` 轉入) | gRPC(TLS) | W6 負責人 | 規劃中 |
+| 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 
 ---
 
@@ -222,7 +223,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | 根 | `x-gateway.upstream` | ✅ | `upstream_id` | 服務代碼(§3.3),同時是內部 Token 的 `aud` |
 | 根 | `x-gateway.system` | ✅ | `system_code` | 系統代碼,決定對外前綴 `/api/{system}` |
 | 根 | `x-gateway.project` | 建議 | `gw.upstream.project` | **開發專案**:實作本服務的 repo 資料夾名稱(Gateway `AGENT.md` §10.2,英數與 `. _ -`,100 字內);管理介面與路由查詢據此顯示「由哪個專案開發」。未提供時保留既有值。**Node.js SDK 由 `package.json` 的 `gateway.project` 自動寫入**(§7.5);其他語言自行實作註冊時也必須帶入 |
-| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立 |
+| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立。**有畫面的應用**另宣告 `kind`(`app` / `menu` / `tab` / `button`,省略 = `api`)、`parent`(上層權限代碼)、`sort`,供 IT 在 GigaItApp 以「應用 → 選單 → Tab → 按鈕」設定(PRD §8.3.2,v0.7 規格);按鈕的代碼必須等於它呼叫的寫入 API 的 `x-permission` |
 | operation | `operationId` | ✅ | `route_code` | 全域唯一,格式 `{system}.{resource}.{action}`,例 `mes.workorder.get` |
 | operation | `summary` | ✅ | `name` | 中文名稱,顯示於管理介面 |
 | operation | `description` | 建議 | `description` | **API 用途說明**(1000 字內):做什麼、資料範圍、主要錯誤代碼;路由查詢(§7.5)以此比對關鍵字 |
@@ -256,6 +257,10 @@ x-permissions:
     name: 工單查詢
   - code: mes.workorder.report
     name: 報工
+# 有畫面的應用(例:員工入口網)另宣告 kind / parent / sort(PRD §8.3.2):
+#  - { code: portal.app.access, name: 員工入口網, kind: app }
+#  - { code: portal.leave.read, name: 我的假期, kind: menu, parent: portal.app.access, sort: 20 }
+#  - { code: portal.leave.apply, name: 請假申請, kind: button, parent: portal.leave.read }
 paths:
   /v1/work-orders/{id}:          # 對外:/api/mes/work-orders/{id}
     get:

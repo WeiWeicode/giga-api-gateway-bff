@@ -1,6 +1,6 @@
 # GigaNexus Gateway — Gherkin 行為規格
 
-> 以 Gherkin(繁體中文關鍵字,`# language: zh-TW`)描述 Gateway 的驗收行為,對應 [PRD.md](../PRD.md) **v0.5** 與 [IMPL-PLAN.md](../IMPL-PLAN.md) 的工作項目。
+> 以 Gherkin(繁體中文關鍵字,`# language: zh-TW`)描述 Gateway 的驗收行為,對應 [PRD.md](../PRD.md) **v0.7** 與 [IMPL-PLAN.md](../IMPL-PLAN.md) 的工作項目。
 > 可直接供 `@cucumber/cucumber`(或 `vitest-cucumber`)執行;步驟定義放在 `bff/test/features/steps/`(待實作)。
 
 ## 檔案一覽
@@ -16,6 +16,8 @@
 | `auth/password-reset.feature` | 忘記密碼、IT 重設、變更密碼 | §8.2.5 | W3-5.8b |
 | `auth/legacy-migration.feature` | 舊單一入口帳號首次登入自動遷移 | §8.2.5、DATABASE §9 | W3-4.16 |
 | `rbac/permission.feature` | 路由 `auth_mode`、權限檢查、角色來源、權限版本 | §8.3 | W3-4.6–4.8 |
+| `rbac/role-rules.feature` | 依部門(含下層)/ 職級 / 職稱指派角色、權限分類與樹、權限試算(`@wip`,規格) | §8.3.1–§8.3.2 | P2-3a |
+| `auth/apps.feature` | 應用登記、`me.apps`、應用切換與應用層守衛(`@wip`,規格) | §8.3.3 | P2-3a |
 | `router/dynamic-routing.feature` | 代理、路徑改寫、限流、快取、斷路器、聚合 | §8.4.1–§8.4.2 | W3-5.1–5.5 |
 | `router/release-publish.feature` | 草稿 / 發佈 / 回滾、即時生效、Redis 補償 | §8.4.3、DATABASE §7 | W3-5.6–5.7、P2-2 |
 | `router/api-import.feature` | OpenAPI 匯入規則(含說明與行為規格) | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、W3-5.7a、P2-4 |

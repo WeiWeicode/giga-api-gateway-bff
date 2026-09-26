@@ -1,7 +1,7 @@
 # GigaNexus Gateway — 前端接入規範
 
 > 適用對象:所有經 GigaNexus Gateway 對外提供的前端專案(**Vue 3 + Vite** SPA)。
-> 對應 PRD 版本:**v0.4**(2026-09-24)。
+> 對應 PRD 版本:**v0.7**(2026-09-26)。
 > 相關規格:[PRD.md](PRD.md) §7.2(SPA 託管)、§8.2(身分認證)、§8.3(RBAC);[ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ---
@@ -10,7 +10,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.1(初稿) |
+| 文件版本 | v0.2(§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供) |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的 Vue 專案(必須遵守);既有專案遷移時比照(見 §10) |
 | 維護者 | Gateway 負責人 |
@@ -30,7 +30,8 @@ flowchart LR
 1. **同一個來源、不同子路徑**:目前以主機 IP 存取(`https://<gateway-ip>/`,PRD Q1),每個系統掛在固定子路徑下(例如 `/mes/`),與 API 同來源,**沒有 CORS 問題**。
 2. **前端不碰 Token**:登入後 BFF 以 httpOnly Cookie 保存身分,瀏覽器自動帶上;前端只需處理 CSRF 標頭與 401 / 403。
 3. **只呼叫 `/api/...`**:前端不知道、也不應知道後端服務的主機與 port,一律經 Gateway。
-4. **統一登入**:各系統不自建登入頁,未登入一律導向入口網 `/login`。
+4. **統一登入**:各系統不自建登入頁,未登入一律導向入口網 `/login`(由員工入口網 `../giga-Portal` 提供)。
+5. **應用切換**:各系統右上角帳號旁提供應用切換,只列出使用者有權限的應用;沒有該應用權限時導回員工入口網(§7.4)。
 
 ---
 
@@ -201,7 +202,7 @@ BFF 統一的錯誤格式(完整代碼見 [PRD.md](PRD.md) §8.1.1 錯誤代碼�
 
 ### 7.1 登入流程
 
-- 各系統**不做登入頁**。未登入時(Refresh 也失敗),導向 `/login?redirect=<目前路徑>`,入口網登入後自動導回。
+- 各系統**不做登入頁**。未登入時(Refresh 也失敗),導向 `/login?redirect=<目前路徑>`,入口網登入後自動導回(`redirect` 只接受同網域相對路徑)。`/login`、`/register`、`/reset-password` 由員工入口網(giga-Portal)實作。
 - 入口網的登入頁同時支援 **AD 帳號與本機帳號**(無網域子公司員工),並提供自行註冊(`/register`)與忘記密碼(`/reset-password`);各系統不需處理這些流程(PRD §8.2.5)。
 - 舊單一入口帳號首次在新入口網登入時,登入 API 回 `PASSWORD_CHANGE_REQUIRED`,由入口網引導設定新密碼後才完成登入;新舊入口並行期間,兩邊密碼各自獨立(PRD §8.2.6)。
 - 登出:呼叫 `POST /api/auth/logout`,完成後導向 `/login`。
@@ -214,11 +215,15 @@ BFF 統一的錯誤格式(完整代碼見 [PRD.md](PRD.md) §8.1.1 錯誤代碼�
 ```jsonc
 // 回應示意(實際欄位以 BFF /docs 為準)
 {
-  "user": { "employeeNo": "S112009", "name": "王小明", "deptCode": "IT01", "department": "資訊部", "authType": "ad" },
+  "user": { "employeeNo": "S112009", "name": "王小明", "deptCode": "IT01", "department": "資訊部", "title": "工程師", "jobLevel": "5", "authType": "ad" },
   "companies": ["碩禾"],   // 含兼任公司
   "roles": ["employee", "mes-operator"],
-  "permissions": ["mes.workorder.read", "mes.workorder.report"],
-  "menus": [ /* 可見選單 */ ]
+  "permissions": ["portal.app.access", "mes.app.access", "mes.workorder.read", "mes.workorder.report"],
+  "apps": [                // v0.7:可使用的應用(PRD §8.3.3),依排序
+    { "code": "portal", "name": "員工入口網", "basePath": "/", "icon": "home" },
+    { "code": "mes", "name": "MES 看板", "basePath": "/mes/", "icon": "factory" }
+  ],
+  "menus": []              // 保留欄位;選單由各系統依 permissions 過濾自己的路由定義
 }
 ```
 
@@ -238,6 +243,23 @@ const { user, can } = useAuth()
 - 不可將任何 Token、密碼存入 `localStorage`、`sessionStorage` 或 Pinia 持久化儲存。
 - 不可自行解析 JWT 取得使用者資訊(前端也讀不到);一律使用 `/api/auth/me`。
 - 不可直接呼叫後端服務的主機與 port(例如 `http://server:5121`)。
+
+### 7.4 應用切換與應用層守衛(PRD §8.3.3,v0.7)
+
+每個 SPA 都要實作(員工入口網、GigaItApp 已規劃,新系統比照):
+
+| 項目 | 規範 |
+| --- | --- |
+| 應用登記 | 上線前向 Gateway 負責人登記應用代碼、名稱、子路徑、圖示與 `app` 權限(`{system}.app.access`),寫入 `gw.app` |
+| 應用切換 | 頂列帳號旁的圖示按鈕 + 下拉,列出 `me.apps`,標示目前所在應用;點選以**整頁導向**該應用 `basePath`;`apps` 只有一個以下時不顯示 |
+| 應用層守衛 | 啟動時取得 `me`:未登入 → `/login?redirect=`;`me.apps` 不含本應用 → 以 `location.replace('/')` 導回員工入口網並帶提示參數(員工入口網本身沒有權限時顯示無權限頁,不可導回自己) |
+| 權限變更 | 換頁或 5 分鐘內重新取得 `me`,應用、選單、按鈕隨之更新;API 權限由 BFF 以 `pv` 立即生效 |
+
+### 7.5 選單、Tab、按鈕權限(PRD §8.3.2,v0.7)
+
+- 兩層選單的功能頁、頁內 Tab、按鈕各自對應一個權限代碼(`kind` 為 `menu` / `tab` / `button`),在後端 OpenAPI `x-permissions` 宣告並掛到上層(BACKEND-GUIDE §6.1),由 IT 在 GigaItApp 依角色、部門、職位設定。
+- 路由 `meta.permission` 用 `menu` / `tab` 代碼;按鈕用 `button` 代碼,且**必須等於**按鈕呼叫的寫入 API 的權限代碼。
+- 無 `menu` 權限的功能不顯示,沒有任何可見功能的選單群組不顯示;直接輸入網址時顯示 403 頁。
 
 ---
 

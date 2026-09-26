@@ -227,6 +227,7 @@ gantt
 | P2-1 | 管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7 | 02/01 ~ 02/12 |
 | P2-2 | 草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3 | 02/08 ~ 02/19 |
 | P2-3 | 權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7 | 02/15 ~ 02/26 |
+| P2-3a | **配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` | 02/15 ~ 03/05 |
 | P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 | 02/22 ~ 03/12 |
 | P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 | 03/01 ~ 03/12 |
 | P2-6 | 「誰能存取」反查、有效權限檢視 | PRD §8.7 | 03/08 ~ 03/19 |

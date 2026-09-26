@@ -9,7 +9,7 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.5** |
+| 文件版本 | **v0.7** |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / gRPC / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
@@ -27,6 +27,7 @@
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
 | v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md);⑤ §14.1 新增「Docker Desktop 下 Nginx 看不到真實來源 IP」風險,新增 Q26;§7.6 Agent `limit_conn` 改以裝置憑證計算 |
 | v0.6 | 2026-09-26 | `gw.upstream` 新增 `project`(開發專案:實作該服務的 repo 資料夾名稱),由 OpenAPI 根層 `x-gateway.project`(選用)或 CLI `apply` 帶入;路由查詢回傳並可依此比對關鍵字,讓管理介面與開發者知道每條路由由哪個專案開發(§8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② 移除測試應用「公司文件系統」(TestGigaAPP):§7.2.1 子路徑 `/dms/`、BACKEND-GUIDE §3.3 port 51290 取消登記 |
+| v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
 
 ---
 
@@ -132,10 +133,10 @@
 
 | 路徑 | 目錄 | 說明 |
 | --- | --- | --- |
-| `/` | `/srv/www/portal/current` | 員工入口網(含統一登入頁 `/login`) |
+| `/` | `/srv/www/portal/current` | 員工入口網(**giga-Portal** 發佈;含統一登入頁 `/login`、註冊 `/register`、忘記密碼 `/reset-password`,這三個保留路徑只由入口網提供);自有 API `/api/portal/*` 經 BFF 轉 `portal-api` |
 | `/mes/` | `/srv/www/mes/current` | MES 看板 |
 | `/hrm/`、`/fms/` | `/srv/www/hrm/current`、`/srv/www/fms/current` | 人事、財務 |
-| `/it/` | `/srv/www/it-admin/current` | IT 管理介面(W4,含 API 管理);由 GigaItApp 發佈,自有登入(不共用單一入口),API `/it/api/*` 由 Nginx 直接轉 `itapp-api`(`ITAPP_API_UPSTREAM`) |
+| `/it/` | `/srv/www/it-admin/current` | IT 管理介面(W4,含 API 管理);由 GigaItApp 發佈。目前自有登入,API `/it/api/*` 由 Nginx 直接轉 `itapp-api`(`ITAPP_API_UPSTREAM`);**v0.7 規劃改用單一入口**:API 改為 `/api/it/*` 經 BFF(`itapp-api` 登記為上游,系統代碼 `it`),Nginx `/it/api/` 直通於切換完成後移除 |
 | `/bi/` | `/srv/www/bi/current` | 報表 / BI |
 
 - **保留路徑**(不可作為 SPA 子路徑):`/api/`、`/ws/`、`/webhook/`、`/_auth/`、`/.well-known/`、`/docs`、`/healthz`、`/readyz`、`/metrics`、`/login`、`/register`、`/reset-password`。
@@ -380,7 +381,7 @@ sequenceDiagram
 | POST | `/api/auth/login` | AD 或本機帳號登入(自動判斷,見 §8.2.5),設定 Cookie,回傳 `me`;舊單一入口帳號首次登入回 `PASSWORD_CHANGE_REQUIRED` |
 | POST | `/api/auth/refresh` | 以 `gn_rt` 換發新 Token |
 | POST | `/api/auth/logout` | 登出並撤銷 |
-| GET | `/api/auth/me` | 目前使用者、角色、權限代碼清單、可見選單(前端控制 UI 用) |
+| GET | `/api/auth/me` | 目前使用者(含部門、職稱、職級)、角色、權限代碼清單、**可使用的應用 `apps`**(§8.3.3);`menus` 保留為空陣列,選單由各應用依 `permissions` 過濾自己的路由定義 |
 | GET | `/_auth/verify` | **僅供 Nginx `auth_request`**(internal location),依 `X-Original-URI` 判斷權限,回 204/401/403 |
 | GET | `/.well-known/jwks.json` | 內部 Token 公鑰(僅內網) |
 | POST | `/api/auth/register` | 本機帳號註冊申請(工號 + 姓名);資格符合時寄送驗證連結或轉 IT 審核 |
@@ -525,6 +526,7 @@ sequenceDiagram
 flowchart LR
     ADG["AD 群組<br/>(GN-MES-Operators …)"] -->|gw.role_ad_group| ROLE["角色 gw.role"]
     CO["公司 gw.company<br/>(工號字首)"] -->|gw.role_company| ROLE
+    RULE["指派規則 gw.role_rule<br/>公司 / 部門(含下層)/ 職級 / 職稱"] -->|"比對 gw.user 人事欄位"| ROLE
     USER["使用者 gw.user"] -->|"gw.user_role(個別指派,可設到期日)"| ROLE
     USER -.->|登入時同步| ADG
     ROLE -->|gw.role_permission| PERM["權限 gw.permission<br/>mes.workorder.read"]
@@ -532,7 +534,8 @@ flowchart LR
 ```
 
 - **權限代碼**命名:`{system}.{resource}.{action}`,例如 `mes.workorder.read`、`hrm.leave.approve`、`gw.admin.route.write`。
-- 角色來源三種:**AD 群組自動對應**(AD 帳號主要來源,人員異動由 AD 自然生效)、**公司預設角色**(依工號字首,本機帳號主要來源)與**個別指派**(例外、可設到期日)。
+- 角色來源四種:**AD 群組自動對應**(AD 帳號主要來源,人員異動由 AD 自然生效)、**公司預設角色**(依工號字首,本機帳號主要來源)、**指派規則**(v0.7,依部門與職位)與**個別指派**(例外、可設到期日)。
+- **指派規則**(`gw.role_rule`,DATABASE §3.2):條件為公司、部門、職級、職稱,**同一規則內 AND、多條規則 OR**,空白 = 不限;部門預設**含下層部門**(部門樹 `gw.department`,由人員同步自 BPM 組織取得);**職位以職級 `job_level` 為主**(規則列出職級值清單),職稱 `title` 為選配;第一版不提供排除規則。人事同步使使用者的公司、部門、職級、職稱變更時遞增其 `perm_version`;規則或部門樹變更時遞增所有使用者的 `perm_version`(Q28)。
 - 每條 API 路由設定 `auth_mode`:
   - `public`:免登入(極少數,如健康檢查、公告)。
   - `authenticated`:登入即可。
@@ -540,6 +543,29 @@ flowchart LR
 - **資料範圍(Data Scope)**:第一階段由 BFF 將 `dept`(來自 BPM 同步的部門代碼)、`roles` 帶入內部 Token,由上游自行過濾;第二階段評估在角色上增加 `data_scope`(本人 / 本部門 / 全部)。
 - 內建角色:`gw-super-admin`(僅限 IT 主管群組)、`gw-it-admin`、`employee`(所有登入者預設)。
 - 權限檢查順序:路由比對 → 取出 `auth_mode` / `permission_code` → 驗證 JWT(黑名單、`pv`)→ 從 Redis 取使用者權限集合 → 比對 → 通過才轉發。
+
+#### 8.3.2 應用、選單、Tab、按鈕權限(v0.7)
+
+各應用(員工入口網、GigaItApp…)的畫面權限與 API 權限**同一套、只存在 BFF**,由 GigaItApp 設定;前端隱藏只是體驗,API 一律由 BFF 檢查。
+
+| `kind` | 意義 | 代碼範例 | 前端 | BFF |
+| --- | --- | --- | --- | --- |
+| `app` | 可使用某應用 | `portal.app.access`、`it.app.access` | 應用切換清單、應用層守衛(§8.3.3) | 該應用自有 API 一併要求 |
+| `menu` | 可見某功能頁 | `portal.leave.read` | 兩層選單、頁面守衛 | 該頁讀取 API 使用同一代碼 |
+| `tab` | 可見頁內某 Tab | `portal.leave-history.read` | Tab 顯示 | 該 Tab 讀取 API 使用同一代碼 |
+| `button` | 可按某按鈕 | `bpm.approval.approve` | `v-can` 隱藏 | **= 對應寫入 API 的 `permission_code`** |
+| `api` | 只有 API(系統對系統、管理 API),不出現在畫面 | `gw.admin.route.read` | — | 檢查 |
+
+- `menu` / `tab` / `button` 以 `parent_code` 掛到上層(應用 → 選單 → Tab → 按鈕),`sort` 決定設定畫面的順序;GigaItApp 以樹狀呈現與設定。
+- 定義來源:各應用在 OpenAPI 根層 `x-permissions` 宣告 `kind`、`parent`、`sort`(BACKEND-GUIDE §6.1),經匯入 / 自動註冊寫入;選單的圖示、路徑、顯示名稱仍在各應用前端(路由 meta),以權限代碼對應。
+- 未宣告 `kind` 的既有權限視為 `api`(相容)。
+
+#### 8.3.3 應用登記與應用切換(v0.7)
+
+- `gw.app`(DATABASE §3.2)登記每個 SPA 應用:代碼、名稱、子路徑(§7.2.1)、圖示、排序、所需的 `app` 權限;由 Gateway 負責人以 CLI `apply` 的 `apps:` 維護。
+- `GET /api/auth/me` 回傳 `apps: [{ code, name, basePath, icon }]`,只含使用者具備其 `app` 權限且啟用中的應用。
+- 各 SPA 右上角帳號旁顯示**應用切換**(只列 `apps`,一個以下不顯示);**應用層守衛**:未登入 → `/login?redirect=`;已登入但不在 `apps` 內 → 導回員工入口網 `/` 並提示(員工入口網本身沒有權限時顯示無權限頁,不可導回自己)。規範見 [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §7.4。
+- 預設:內建角色 `employee` 擁有 `portal.app.access`;`it.app.access` 由 IT 以指派規則或 AD 群組授予。
 
 ### 8.4 API 聚合與動態路由
 
@@ -644,7 +670,11 @@ sequenceDiagram
 | 聚合步驟 | `PUT /api/admin/routes/:id/steps` | `gw.admin.route.write` |
 | 匯入 | `POST /api/admin/imports`(上傳)、`GET /api/admin/imports/:id`(預覽)、`POST /api/admin/imports/:id/commit` | `gw.admin.route.import` |
 | 發佈 / 回滾 | `GET /api/admin/releases`、`POST /api/admin/releases`(發佈草稿)、`POST /api/admin/releases/:id/rollback` | `gw.admin.release` |
-| 權限 / 角色 | `/api/admin/permissions`、`/api/admin/roles`、`/api/admin/roles/:id/permissions`、`/api/admin/roles/:id/ad-groups` | `gw.admin.rbac.*` |
+| 權限 / 角色 | `/api/admin/permissions`(`?tree=1&app=`:依 `kind` / `parent_code` 回傳權限樹)、`/api/admin/roles`、`/api/admin/roles/:id/permissions`、`/api/admin/roles/:id/ad-groups` | `gw.admin.rbac.*` |
+| 指派規則(v0.7) | `GET/POST/PATCH/DELETE /api/admin/roles/:id/rules[/:ruleId]`;寫入後遞增所有使用者 `pv` | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
+| 部門樹(v0.7) | `GET /api/admin/departments`(公司 → 部門樹,含人數) | `gw.admin.rbac.read` |
+| 應用(v0.7) | `GET /api/admin/apps`(維護以 CLI `apply`) | `gw.admin.rbac.read` |
+| 權限試算(v0.7) | `POST /api/admin/rbac/preview`:`{ employeeNo }` 或 `{ company, deptCode, jobLevel, title }` → 角色(含命中來源:AD 群組 / 公司 / 規則 / 個別指派)、權限、`apps`;與實際登入計算一致 | `gw.admin.rbac.read` |
 | 使用者 | `GET /api/admin/users`、`PATCH /api/admin/users/:id`(停用、個別角色)、`POST /api/admin/users/:id/revoke-sessions` | `gw.admin.user.*` |
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
@@ -656,6 +686,8 @@ sequenceDiagram
 | 通知 | `/api/admin/notify/templates`、`/api/admin/notify/logs` | `gw.admin.notify.*` |
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |
 | 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
+
+- **GigaItApp 改用單一入口後(v0.7)**,其前端以**使用者本人的登入**直接呼叫上述管理 API(寫入的稽核記錄實際操作人),不再使用服務帳號;`gw.admin.rbac.write` 只授予 IT 權限管理人員。
 
 ---
 
@@ -735,6 +767,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 - [ ] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾
 - [ ] OpenAPI / Excel 匯入與預覽
 - [ ] 「誰能存取」反查、有效權限檢視
+- [ ] 角色指派規則、部門樹、應用登記與 `/api/auth/me` 的 `apps`、UI 權限分類、權限試算(P2-3a,配合員工入口網與 GigaItApp)
 - [ ] API Key 管理
 - [ ] 通知範本、發送紀錄、稽核、人員同步紀錄查詢
 - [ ] 既有系統遷移(§7.2.4)
@@ -808,7 +841,9 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q24 | 並行期間新進無網域員工在哪裡註冊 | **已決定**:新舊入口都可以;舊入口註冊者登入新入口網時自動遷移 | 提案人 |
 | Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **員工人數已確認未達 200 人**(門檻 250 人);**尚需確認年營收**:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
 | Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 先依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 驗證;若 Docker Desktop 確實遺失來源 IP,建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。兩者都不需 Docker Desktop 授權,可一併解決 Q25 | 主管 + IT + 網管 |
-| Q27 | IT 管理系統(GigaItApp,自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Go Endpoint Server;itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Go 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
+| Q27 | IT 管理系統(GigaItApp,v0.7 前為自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Go Endpoint Server;itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Go 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
+| Q28 | 員工入口網的選單 / Tab / 按鈕權限如何依部門、職位控管 | **已決定(2026-09-26)**:以 BFF 為唯一來源;新增角色指派規則,**職位以職級為主**、職稱選配,**部門含下層**;按鈕權限 = API 權限;GigaItApp 提供設定畫面並改用單一入口(§8.3.1–§8.3.3) | 需求方 |
+| Q29 | 職級值的比較方式:規則列出職級清單,或以數值範圍(「課長以上」)表示 | 第一版列出清單;待 BPM 負責人確認 `FunctionLevel.levelValue` 大小與職位高低的對應後再評估範圍條件 | BPM 負責人 + IT |
 
 ---
 
