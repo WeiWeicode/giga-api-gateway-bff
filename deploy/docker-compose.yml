@@ -41,6 +41,7 @@ x-bff-env: &bff-env
   LDAP_GSMC_BIND_PASSWORD_FILE: /run/secrets/gw/ldap_gsmc_password
   LDAP_YGDMC_BIND_PASSWORD_FILE: /run/secrets/gw/ldap_ygdmc_password
   INTERNAL_NETWORKS: ${INTERNAL_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1/8,::1/128,172.16.0.0/12,192.168.0.0/16}
   SQL2012_GUARD: "off"
 
 x-bff: &bff

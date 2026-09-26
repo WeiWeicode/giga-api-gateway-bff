@@ -29,8 +29,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       const incoming = req.headers['x-request-id'];
       return typeof incoming === 'string' && REQUEST_ID_PATTERN.test(incoming) ? incoming : randomUUID().replaceAll('-', '');
     },
-    // 只信任 Nginx 設定的 X-Forwarded-For(BFF 不直接對外)
-    trustProxy: true,
+    // 只信任 Nginx 設定的 X-Forwarded-For(BFF 不直接對外);限定來源網段,避免直連 BFF 時偽造來源 IP
+    trustProxy: config.trustedProxies,
     bodyLimit: 10 * 1024 * 1024,
   });
 

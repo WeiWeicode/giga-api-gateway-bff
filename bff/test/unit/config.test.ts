@@ -1,6 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { loadConfig, readSecret } from '../../src/config.js';
 
@@ -44,5 +45,16 @@ describe('loadConfig', () => {
     expect(readSecret({ GW_DB_PASSWORD_FILE: file }, 'GW_DB_PASSWORD')).toBe('s3cret');
     const { GW_DB_PASSWORD: _omit, ...rest } = base;
     expect(loadConfig({ ...rest, GW_DB_PASSWORD_FILE: file }).gwDb.password).toBe('s3cret');
+  });
+
+  it('只信任 TRUSTED_PROXIES 網段送來的 X-Forwarded-For', async () => {
+    expect(loadConfig(base).trustedProxies).toEqual(['127.0.0.1/8', '::1/128', '172.16.0.0/12', '192.168.0.0/16']);
+    const app = Fastify({ trustProxy: loadConfig({ ...base, TRUSTED_PROXIES: ' 172.30.0.0/24 , ::1/128 ' }).trustedProxies });
+    app.get('/ip', async (req) => req.ip);
+    const ip = (remoteAddress: string) => app.inject({ url: '/ip', remoteAddress, headers: { 'x-forwarded-for': '10.1.2.3' } }).then((r) => r.body);
+    expect(await ip('172.30.0.5')).toBe('10.1.2.3');
+    expect(await ip('::ffff:172.30.0.5')).toBe('10.1.2.3');
+    // 直連 BFF(不經 Nginx)偽造的 X-Forwarded-For 不採用
+    expect(await ip('10.9.9.9')).toBe('10.9.9.9');
   });
 });

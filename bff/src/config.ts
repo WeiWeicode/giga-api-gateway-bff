@@ -93,6 +93,16 @@ const configSchema = z.object({
   cookieSecure: bool.default(true),
   /** 「記住我」僅限公司內網來源 IP(PRD Q4) */
   internalNetworks: z.string().default('10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'),
+  /** 只接受這些來源(Nginx 所在的 Docker 網段)送來的 X-Forwarded-For;其他來源直接以連線位址為 req.ip */
+  trustedProxies: z
+    .string()
+    .default('127.0.0.1/8,::1/128,172.16.0.0/12,192.168.0.0/16')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
   ldapDomains: z.array(ldapDomainSchema).default([]),
   /** 路由快照本地檔(Redis 與 SQL Server 皆不可用時的最後退路,PRD §8.4.2) */
   routeSnapshotFile: z.string().default('var/routes-snapshot.json'),
@@ -125,6 +135,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     jwtActiveKid: env.JWT_ACTIVE_KID,
     cookieSecure: env.COOKIE_SECURE,
     internalNetworks: env.INTERNAL_NETWORKS,
+    trustedProxies: env.TRUSTED_PROXIES,
     ldapDomains: loadLdapDomains(env),
     routeSnapshotFile: env.ROUTE_SNAPSHOT_FILE,
     syncIntervalMs: env.SYNC_INTERVAL_MS,
