@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-26 專案地圖與核心設計原則
+- 內容：AGENT.md 新增 §10.7(所有專案共用):每個 repo 都要有 `docs/PROJECT-MAP.md`,**開發新功能後在同一個變更內更新**(內容:定位、目錄職責、分層、主要流程、「要改什麼看哪裡」、測試地圖、已知差異);核心設計原則(職責分離、原始碼固定根目錄、集中測試管理)依語言分類落實(TypeScript / Node.js、Vue、Go、C#、Rust、Nginx 與腳本),語言慣例優先(例:Go 不用 `src/`、`_test.go` 與程式同目錄),既有程式不為符合原則大規模搬移。§7 參考文件、§5 慣例、§9 修正紀錄、§10.6 新專案 AGENT.md 必備項目同步加入專案地圖。新增本 repo 的 `docs/PROJECT-MAP.md`。GigaItApp、giga-agent-watchdog、giga-endpoint 的地圖見各 repo 紀錄。
+- 檔案：`AGENT.md`、`docs/PROJECT-MAP.md`
+- 驗證：文件;地圖目錄與 `git ls-files` 對照
+
 ## 2026-09-25 多專案工作區規則;端點 API 本機打通
 - 內容：AGENT.md 新增 §10「多專案工作區」:Gateway、GigaItApp、Go Endpoint Server、其他系統的 repo 放在同一層目錄,以 `../<資料夾>/` 相對路徑互相參照;專案登記表、相依關係、**用 BFF 路由表找 API**(lookup CLI / `GET /api/admin/routes/catalog`,不直接讀對方程式碼或連對方主機)、跨 repo 修改規則、新專案 AGENT.md 必備內容;後端樣本 AGENT.md 加上指向 §10。本機環境打通 IT 頁面取得 Agent 基本資料:模擬 Endpoint Server 記錄經 :9443 連線的 Agent 並提供 `GET /v1/devices`,dev 設定新增權限 `endpoint.device.read`(角色 it-endpoint)與路由 `endpoint.device.list`(`GET /api/endpoint/devices`);E2E 新增 2 項。GigaItApp 端的修改見該 repo 的紀錄。
 - 檔案：`AGENT.md`、`samples/node-backend/AGENT.md`、`bff/test/e2e/06-websocket-agent.test.ts`;`tools/mock-upstream/endpoint.js`、`deploy/dev/config/gateway-base.yaml`、`deploy/dev/config/gateway-routes.yaml`(本機環境,不進版控)

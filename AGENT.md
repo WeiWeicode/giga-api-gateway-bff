@@ -100,6 +100,7 @@
 | 下游後端 port | 51200–51300（`docs/BACKEND-GUIDE.md` §3） |
 | 格式 | Prettier（單引號、`printWidth` 160、尾逗號）+ ESLint；送出前執行 `npm run lint`、`npm run format:check` |
 | 註解語言 | 繁體中文為主，註明對應規格章節（例：`(PRD §8.2.5)`）；同一檔案內統一 |
+| 目錄與分層 | 依 §10.7.2 的 TypeScript / Vue / Nginx 列；各目錄職責見 `docs/PROJECT-MAP.md`，**新功能完成後更新地圖** |
 
 ### 範例
 ```
@@ -135,6 +136,7 @@
 
 | 文件 | 路徑 | 說明 |
 |:---|:---|:---|
+| **專案地圖** | `docs/PROJECT-MAP.md` | 目錄與檔案職責、分層、主要流程、「要改什麼去哪裡」;**開發新功能後必須更新**(§10.7) |
 | 產品需求 | `docs/PRD.md` | 功能需求、錯誤代碼總表（§8.1.1）、待決事項 |
 | 整體架構 | `docs/ARCHITECTURE.md` | 流量類型（T1–T9）與關鍵架構決策（D1–D9） |
 | 資料庫設計 | `docs/DATABASE.md` | SQL Server 2012 限制、`gw.*` 資料表、Redis 鍵、同步規則、BPM / LOS |
@@ -182,6 +184,7 @@ Bug 修改紀錄與新增功能紀錄、前端修改紀錄、後端修改紀錄�
    - 本機環境使用開發用自簽憑證，瀏覽器若無法直接開啟 `https://localhost`，改以 Vite dev server 經 proxy 連 Gateway（FRONTEND-GUIDE.md §8），例如 `cd tools/sample-spa && npx vite -c vite.it.config.ts` 後開啟 `http://localhost:5175/it/`。
    - 測試帳號見 `README.md`（密碼 `Passw0rd!`，皆為虛構資料）；不可在瀏覽器輸入真實帳密。
 2. 每次修正都需留紀錄，新紀錄加在檔案最上方。
+3. **開發新功能後，同一個變更內更新 `docs/PROJECT-MAP.md`**（§10.7），並在紀錄的「檔案」欄列出。
 
 | 文件 | 路徑 | 說明 |
 |:---|:---|:---|
@@ -212,7 +215,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 ├─ giga-api-gateway-bff/           # Gateway:Nginx、BFF、路由表、web-kit、Node SDK — 所有專案的上位規範
 ├─ GigaItApp/                      # IT 管理系統(/it/)
 ├─ <Go Endpoint Server / Agent>/   # W6(repo 名稱待定)
-├─ <C# Watchdog>/                  # (repo 名稱待定)
+├─ giga-agent-watchdog/            # C# Watchdog(端點電腦上看守 Go Agent)
 └─ <其他系統>/                     # 其他工程師開發的入口網功能:各自的前端 / 後端 repo
 ```
 
@@ -228,7 +231,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | `GigaItApp` | IT 管理系統(自有登入;端點管理經 BFF) | `/it/`、`/it/api/*`(51291) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
 | `TestGigaAPP` | 公司文件系統(DMS)測試專案(`dms-backend`、`dms-frontend`) | `/dms/`、`dms-api`(51290) | DMS 負責人 | — |
 | (待定) | Go Endpoint Server + Go Agent | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | 待建立(§10.6) |
-| (待定) | C# Watchdog | 無對外;經 `:9443` 上報 | 待定 | 待建立(§10.6) |
+| `giga-agent-watchdog` | C# Watchdog:看守 Go Agent 的存活、健康、版本,自己經 `:9443` 上報(規劃中,只有文件) | 無對外;經 `:9443` 上報 | 待定 | `../giga-agent-watchdog/AGENT.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
 
@@ -273,6 +276,44 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 1. **專案定位**:系統代碼、SPA 子路徑、服務代碼與 port(已在 §10.2 登記)、登入方式。
 2. **工作區**:「跨專案規則見 `../giga-api-gateway-bff/AGENT.md` §10」,以及本專案依賴哪些兄弟專案(§10.3)。
 3. **上位規範**:依類型列出 Gateway 文件 — 前端 FRONTEND-GUIDE;後端 BACKEND-GUIDE;端點 ENDPOINT-AGENT-GUIDE。
+4. **專案地圖路徑**:`docs/PROJECT-MAP.md`,以及「開發新功能後必須更新」(§10.7)。
+5. **核心設計原則的套用方式**:本專案使用的語言對應 §10.7.2 的哪一列、與原則不同之處。
 
 範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md)。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(TestGigaAPP 的做法:Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
 
+### 10.7 專案地圖與核心設計原則(所有專案共用)
+
+#### 10.7.1 專案地圖(`docs/PROJECT-MAP.md`)
+
+每個 repo 都要有 `docs/PROJECT-MAP.md`,讓人與 AI 不必讀完程式就知道「什麼東西在哪裡、誰負責什麼」。
+
+| 規則 | 說明 |
+| --- | --- |
+| 何時更新 | **開發新功能後一定要更新**;新增 / 刪除 / 搬移目錄或主要檔案、模組職責改變、新增進入點或對外介面時也要更新。與程式放在**同一個變更**(同一個 commit) |
+| 不必更新 | 不影響結構與職責的 bug 修正、文字修改 |
+| 最後更新 | 地圖開頭記錄最後更新日期與對應的功能 |
+| 修正紀錄 | 有更新地圖時,在 `docs/DevelopmentProcess/` 紀錄的「檔案」欄列出 `docs/PROJECT-MAP.md` |
+| 內容 | 1. 一句話定位 2. 目錄樹(每個目錄 / 主要檔案一句話職責)3. 分層:哪些是核心邏輯、介面層、基礎設施、工具 4. 主要流程(請求或資料從哪裡進、經過哪些檔案)5. 「要改 X → 看哪裡」索引 6. 測試地圖 7. 與 §10.7.2 原則不同之處(已知差異) |
+| 寫法 | 只寫結構與職責,不複製程式碼或規格內容;細節連到 `docs/` 對應章節 |
+
+#### 10.7.2 核心設計原則(依程式語言)
+
+三個共同原則,**依各語言的慣例落實**;語言慣例與原則衝突時以語言慣例為準,並在專案地圖註明。
+
+| 原則 | 目的 |
+| --- | --- |
+| **職責分離**(Separation of Concerns) | 商業邏輯(核心)、介面處理(HTTP / gRPC / UI / CLI)、基礎設施(資料庫、外部系統、作業系統)、工具函式分開;核心邏輯不直接依賴框架與 I/O,以介面或參數注入,降低耦合、可單獨測試 |
+| **原始碼放在固定根目錄** | 原始碼集中在語言慣例的根目錄(多數是 `src/`),建置 / 打包只從這裡取檔,避免本機可執行、打包後 import 路徑錯誤;設定、腳本、文件不混在原始碼裡 |
+| **集中測試管理** | 測試與原始碼**平行**、不打包進正式產物;單元 / 整合 / 端到端分開,測試只經公開介面(或語言允許的方式)存取程式 |
+
+| 語言 / 類型 | 原始碼 | 職責分離的目錄慣例 | 測試位置 | 備註 |
+| --- | --- | --- | --- | --- |
+| TypeScript / Node.js 後端(Fastify) | `src/`;建置輸出 `dist/`(不進版控),`tsconfig.build.json` 只編 `src/` | `routes/` 或 `modules/<功能>/routes.ts`(介面:參數驗證、回應);模組內 service / 純函式(核心);`db/`、`store/`、`plugins/`(基礎設施);`src/utils/`(無狀態、無 I/O 的共用函式,**需要時才建**) | `test/`(與 `src/` 平行;`unit/`、`integration/`、`e2e/` 分開) | 以 `npm run build` 後的產物執行與部署,確認不依賴只在開發時存在的路徑 |
+| Vue 3 前端(Vite) | `src/` | `pages/`(畫面組合,不寫共用樣式)、`ui/` 或 `components/`(無業務的共用元件)、`composables/`(狀態與邏輯)、`api/`(HTTP,頁面不直接 `fetch`) | `test/`(與 `src/` 平行,Vitest;元件測試可用 `*.test.ts` 放 `test/` 對應路徑) | 資源路徑用 `import.meta.env.BASE_URL` |
+| Go | **不使用 `src/`**(Go 模組以 `go.mod` 為根,這是 Go 慣例);`cmd/<程式>/`(進入點,只組裝)、`internal/<套件>/`(不可被其他模組 import) | 以套件分責:領域邏輯套件不 import gRPC / HTTP / Windows API;平台相依以 `_windows.go` / build tag 分檔;產生碼放 `gen/` | 單元測試 `_test.go` **與程式同目錄**(Go 工具鏈的規定,才能測試未匯出的函式);跨程式整合 / 端到端放根目錄 `test/` | `go vet`、`GOOS=windows go vet` 都要過 |
+| C# / .NET | `src/<專案>/`(.NET 慣例) | 核心邏輯只依賴介面(DI 注入);外部系統(SCM、具名管道、gRPC、憑證)各自包成 adapter;設定以 Options 綁定並驗證 | `tests/<專案>.Tests/`(與 `src/` 平行,xUnit) | 一個檔案一個主要型別 |
+| Rust(規劃中) | `src/`(cargo 慣例):`lib.rs` 放邏輯、`main.rs` 只組裝 | 以模組分責;平台相依 `#[cfg(windows)]` | 單元測試 `#[cfg(test)] mod tests` 同檔;整合測試 `tests/`(cargo 慣例,只能用公開 API) | — |
+| Nginx / 部署設定 / 腳本 | `nginx/`、`deploy/`、`scripts/` | 依部署區不同的值放 `templates/`、`allowlists/<區域>/` 或 env 檔 | 煙霧測試腳本(例 `deploy/smoke-test.sh`)或 E2E | 不放在 `src/` |
+
+- **新程式碼**必須符合本節。**既有程式**與原則不同時,不要為了符合原則而大規模搬移(§3 外科手術式修改);在專案地圖的「已知差異」列出,另開任務處理。
+- 新增目錄慣例(例如第一次建立 `utils/`)時,同步更新專案地圖。
