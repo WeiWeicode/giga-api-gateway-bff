@@ -47,7 +47,7 @@ giga-api-gateway-bff/
 ├─ ci-templates/              SPA 發佈的 GitLab CI 範本
 ├─ drizzle.config.ts          Drizzle Kit 設定(migration 產生)
 └─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄);部署:DEPLOYMENT(CI/CD)、
-                             COMPANY-ENV-PLAN(上公司調整清單)、TEST-DEPLOY-RUNBOOK(CI 未就緒時的測試區手動架設)
+                             COMPANY-ENV-PLAN(上公司調整清單)、TEST-DEPLOY-RUNBOOK(CI 未就緒時的測試區手動架設)、GITLAB-SETUP(GitLab 與 Runner 架設)
 ```
 
 ## 2. 分層(AGENT.md §10.7.2 TypeScript 列)

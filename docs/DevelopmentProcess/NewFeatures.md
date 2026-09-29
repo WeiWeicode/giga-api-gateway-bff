@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-09-29 GitLab 與 GitLab Runner 架設手冊(只改文件)
+- 內容:需求方開始架設主機 1(Ubuntu,已裝 Docker)與主機 2(Windows)。新增 `docs/GITLAB-SETUP.md`:SSH 金鑰準備、主機 1 以 Docker Compose 安裝 GitLab CE(HTTP、Registry `:5050`、Git SSH `:2222`、資料在 `/srv/gitlab`、備份)、主機 2 以 shell executor + Git Bash 安裝 Runner(`windows-runner`,Windows 服務)、推送專案與第一條 Pipeline 預期調整項目、驗收清單。涉及密碼與 Token 的步驟標示由需求方執行。`COMPANY-ENV-PLAN.md`、`PROJECT-MAP.md` 加上連結。
+- 檔案:`docs/GITLAB-SETUP.md`(新增)、`docs/COMPANY-ENV-PLAN.md`、`docs/PROJECT-MAP.md`
+- 驗證:主機 1(10.10.130.123,Ubuntu 22.04,4 核 / 7.8 GB)已依 §2.1、§2.3 以 `gitlab/gitlab-ce:19.4.1-ce.0` 啟動,約 90 秒後 `/users/sign_in` 回 200(開發機亦可連線)、Registry `/v2/` 回 401(需認證,正常),啟動後記憶體使用約 4.5 GB。之後需求方要求重建(舊資料改名保留為 `/srv/gitlab/*.old-20260929-1439`),重建後預設分支改 `main`、建立 `giganexus` 下 `giga-api-gateway-bff`、`giga-Portal`、`GigaItApp`、`RustIt` 專案,四個 repo 與工作區文件專案 `giganexusai` 以 `S112009`(claude-ops 金鑰,經 `:2222`)推送,`git ls-remote` 與本機 commit 一致(推送加 `-o ci.skip`,尚無 Runner);§2.5 備份:`backup_keep_time` 7 天、crontab 02:00 資料 / 02:30 設定檔,手動執行一次成功。自行註冊依需求方決定維持開啟;§2.2 防火牆未確認。主機 2(10.10.130.124,Windows 10 專業版 19045,VMware VM,2 核 / 12 GB)需求方決定**不用 Docker Desktop**,§3 改為 WSL2 內的 Docker Engine + Linux 版 Runner;目前巢狀虛擬化未開啟、Docker / Git / Node 皆未安裝,§3 尚未執行
+
 ## 2026-09-26 公司測試區手動架設手冊與臨時憑證腳本
 - 內容:公司 GitLab / CI / Registry 與 AD CS 憑證尚未就緒,需求方要求先以架設為主。新增 `docs/TEST-DEPLOY-RUNBOOK.md`:在主機 2 以 Git Bash 手動架設 Gateway(主機上 `docker build` 映像、`REGISTRY=giganexus` 本機 tag)→ 員工入口網(`/`、`/login`,沒有它無法登入)→ IT 管理系統,含前置條件、機密檔與 `ldap-domains.json` 格式(原本參照不在版控的 `deploy/dev/config/`)、驗收與常見狀況。新增 `deploy/gen-temp-pki.sh`:產生臨時根 CA、SAN 含主機 IP 的伺服器憑證、臨時 Agent CA 與 CRL(Nginx `:9443` 需要檔案才能啟動)、JWT 金鑰;不覆寫既有檔案。`COMPANY-ENV-PLAN.md` 補 09-26 狀態(giga-Portal 為唯一登入頁、部署順序)、ldap 格式與臨時憑證指向手冊、§6 demo API 決策(測試區保留、正式區關閉);`DEPLOYMENT.md` PRD 版本改 v0.7 並指向手冊。
 - 檔案:`docs/TEST-DEPLOY-RUNBOOK.md`(新增)、`deploy/gen-temp-pki.sh`(新增)、`docs/COMPANY-ENV-PLAN.md`、`docs/DEPLOYMENT.md`、`docs/PROJECT-MAP.md`

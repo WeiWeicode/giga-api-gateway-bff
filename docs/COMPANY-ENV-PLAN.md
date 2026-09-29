@@ -4,6 +4,7 @@
 > 本文件列出部署到公司**測試區(主機 2)/ 正式區(主機 3)**時需要修改或補齊的檔案與設定。
 > 前置工作編號(P-xx)見 [IMPL-PLAN.md](IMPL-PLAN.md) §3;部署流程見 [DEPLOYMENT.md](DEPLOYMENT.md)。
 > **CI / Registry / AD CS 憑證尚未就緒時,測試區依 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 在主機 2 手動架設**(含臨時自簽憑證、主機上建置映像、Gateway → 員工入口網 → IT 管理系統的部署順序)。
+> **GitLab(主機 1)與 Runner(主機 2)的架設步驟見 [GITLAB-SETUP.md](GITLAB-SETUP.md)。**
 
 ---
 
