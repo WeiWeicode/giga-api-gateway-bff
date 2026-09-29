@@ -22,6 +22,12 @@
 
 **2026-09-26 補充**:兄弟專案 `../giga-Portal`(員工入口網,提供 `/`、`/login`、`/register`、`/reset-password`)M1 前端完成,**取代範例入口網,是公司環境唯一的登入頁**,必須在 Gateway 之後部署(TEST-DEPLOY-RUNBOOK 步驟 7),其權限代碼以 `../giga-Portal/deploy/gateway-rbac.yaml` 套用;`../GigaItApp` 頂列已有應用切換。家中最後測試:BFF 單元 69 項、樣本 13 項、GigaItApp 後端 46 項、giga-Portal 前端 29 項、watchdog 20 項皆通過。
 
+**2026-09-29 公司開發機**:公司端只取得版控內容,本機測試環境(§0)**沒有帶過來**,E2E 與模擬資料無法在公司執行。已調整:`.gitlab-ci.yml` `check:nginx` 改用 `deploy/gen-temp-pki.sh`(§4);`bff/.env.example` 改為直接連公司 SQL Server 2012 測試庫(§1 M0);env 範本、樣本 `.env.example`、CI 範本不再指向 `deploy/dev/`、`tools/`。repo 資料夾名稱必須是 `giga-api-gateway-bff`(AGENT.md §10.1),giga-Portal 建置與 GigaItApp compose 依此路徑取 web-kit 與憑證。
+
+**Windows 電腦注意(2026-09-29)**:家中開發主機不是 Windows,以下兩項在公司才出現,已修正:
+- Git for Windows 預設 `core.autocrlf=true`,檢出的檔案變成 CRLF:`.sh` 掛進 Linux 容器(TEST-DEPLOY-RUNBOOK 步驟 4、CI `check:nginx`)會執行失敗,`npm run format:check` 也全數不符。新增 `.gitattributes`(`* text=auto eol=lf`)一律以 LF 檢出。**giga-Portal、GigaItApp 的 `.sh`(`publish.sh`、`gen-secrets.sh`、`apply-gateway-rbac.sh`)在公司電腦同樣是 CRLF,需各自加上相同設定**(§10.5,由各 repo 處理)。
+- `npm run db:migrate`、`db:seed`、`db:reset-test` 以 `` import.meta.url === `file://${process.argv[1]}` `` 判斷直接執行,Windows 的路徑為 `D:\...` 永遠不相等,指令**不執行就以 0 結束**;已改為 `pathToFileURL(process.argv[1]).href`。Docker 容器內(Linux)不受影響。
+
 交接時的狀態:W3-1 ~ W3-5(不含 §7 未實作項目)與 W3-5.7a(後端自動註冊、路由查詢、Node.js SDK 與樣本)完成;所有資料庫相關驗證只在容器 SQL Server 2022(相容層級 110)執行過,**尚未在 SQL Server 2012 複驗**(§1 M0)。
 
 ---
@@ -43,7 +49,7 @@
 - `bff/test/e2e/` 依賴上述本機環境,只能在開發主機執行;CI 只跑單元測試。
 - `/it/` 已改由 GigaItApp 專案(自有登入,後端 `itapp-api:51291`,Nginx `ITAPP_API_UPSTREAM`)發佈,取代 `tools/sample-spa/it` demo;上測試區 / 正式區時需部署 itapp-api 並設定 `ITAPP_API_UPSTREAM`,其 BFF 串接目前用到 dev / test 才有的 `/api/admin/demo/*`、`/api/admin/db/*`(見 GigaItApp README「目前限制」)。原 IT 管理 demo 在 `tools/sample-spa/`,**不會隨 CI 部署**;若要在測試區提供給 IT 新人使用,需先移入版控並加入 SPA 部署流程(demo API 見 §6)。
 - `samples/node-backend/`、`sdk/node/` **在版控內**,但不屬於 Gateway 部署物;樣本以 `file:../../sdk/node` 連結 SDK(`postinstall` 建置),複製成獨立專案時改用公司 npm registry 的版本(§5)。
-- `.gitlab-ci.yml` 的 `check:nginx` 使用 `deploy/dev/gen-dev-secrets.sh` 產生憑證,**進版控後會找不到檔案**,需改為在 CI 內直接以 openssl 產生一次性自簽憑證(見 §4)。
+- `.gitlab-ci.yml` 的 `check:nginx` 原本使用 `deploy/dev/gen-dev-secrets.sh` 產生憑證(公司端沒有此檔),2026-09-29 已改為 `deploy/gen-temp-pki.sh`(見 §4)。
 - `deploy/dev/mssql-init/01-giganexus_gw.sql`(建立資料庫、登入帳號、`gw_app_role` 權限)是交給 DBA 的腳本草稿;若要提交 DBA,需另外複製到版控內(例如 `db/dba/`)並移除 `$(變數)` 以外的開發預設密碼。
 
 ---
@@ -53,12 +59,12 @@
 | 檔案 / 項目 | 需要調整 | 依賴 |
 | --- | --- | --- |
 | DBA 建立 `giganexus_gw`、`giganexus_gw_test`、schema `gw`、`gw_app` / `gw_migrate` 帳號、`gw_app_role` | 參考 `deploy/dev/mssql-init/01-giganexus_gw.sql`(本機);定序請 DBA 確認(本機假設 `Chinese_Taiwan_Stroke_CI_AS`) | P-01 |
-| **M0:Drizzle × SQL Server 2012 複驗** | `bff/.env` 指向公司 2012 測試庫(`GW_DB_HOST`、`GW_TEST_DB_NAME`)後執行 `npm run test:int`,結果記錄於 [TECH-STACK.md](TECH-STACK.md) §4.1 | P-04 |
+| **M0:Drizzle × SQL Server 2012 複驗** | 複製 `bff/.env.example` 為 `bff/.env`,填入公司 2012 測試庫(`GW_DB_HOST`、密碼、`GW_TEST_DB_NAME`)後執行 `npm run test:int`,結果記錄於 [TECH-STACK.md](TECH-STACK.md) §4.1。**`test:int` 會清空 `GW_TEST_DB_NAME` 的 schema `gw` 再重建**:測試區(主機 2)使用 `giganexus_gw_test`,上線後整合測試必須改用 DBA 另建的專用庫(名稱須含 `_test`),或在測試區上線前完成 M0 | P-04 |
 | migration 套用 | 三個 migration(`20260924114259_init`、`20260925021314_api_route_gherkin`:`gw.api_route.gherkin NVARCHAR(MAX)`、`20260926011642_upstream_project`:`gw.upstream.project VARCHAR(100)`)需在 2012 測試庫以 `npm run db:migrate` 實際套用一次;目前只在容器驗證 | P-04 |
 | `bff/src/db/external/bpm.ts` | 欄位依 BPM 負責人實際提供的唯讀 view 調整(目前依本機模擬 view `dbo.vw_gn_employee`) | P-12 |
 | `bff/src/db/external/los.ts` | 欄位與型別依 DBA 提供的 LOS view 調整;確認日期欄位確實為 `d/M/yyyy` 字串 | P-12 |
 | `bff/src/db/external/portal.ts` | 依 DBA 提供的 `LoginData` 唯讀 view 調整(舊帳號遷移 W3-4.16 尚未實作) | P-15 |
-| `db/seed/data.mts` | `gw-it-admin` 權限範圍、預設限流數值為暫定,需 IT 主管確認;公司與 AD 網域對應(碩禾 → gsc、gsmc;鹽城碩禾 → ygdmc);新權限 `gw.admin.route.register`(後端 API Key 專用)也會給兩個管理員角色,不影響安全(註冊端點只接受 API Key) | P-08 |
+| `db/seed/data.mts` | `gw-it-admin` 權限範圍 IT 主管已確認(2026-09-29,維持不含 `rbac.write`、`company.write`、`client.write`);預設限流數值仍為暫定;公司與 AD 網域對應(碩禾 → gsc、gsmc;鹽城碩禾 → ygdmc)的**公司名稱必須與 LOS `CompName`(無 LOS 資料時為 BPM `Organization`)完全一致**,否則登入時另建無網域的公司、該員工下次登入回 `ACCOUNT_NOT_REGISTERED`,實際值待 DBA 確認;新權限 `gw.admin.route.register`(後端 API Key 專用)也會給兩個管理員角色,不影響安全(註冊端點只接受 API Key) | P-08 |
 | 稽核表保存排程(SQL Agent) | 尚未撰寫(W3-1.6) | — |
 
 ---
@@ -102,7 +108,7 @@
 | `nginx/allowlists/test\|prod/internal-services.conf` | 下游後端與監控主機網段(可取 JWKS、`/readyz`) | P-16 |
 | `nginx/allowlists/test\|prod/agent-issuers.conf` | AD CS「GigaNexus Agent」中繼 CA 的 Subject DN(`openssl x509 -noout -subject -nameopt RFC2253`,RDN 順序須完全一致) | P-06 |
 | `nginx/conf.d/portal.conf` | `stub_status` 的 `allow` 網段改為監控主機;新系統上線時登記 SPA 子路徑 | — |
-| `.gitlab-ci.yml` `check:nginx` | 改為 CI 內以 openssl 產生一次性自簽憑證,不再呼叫 `deploy/dev/gen-dev-secrets.sh` | — |
+| `.gitlab-ci.yml` `check:nginx` | **已改**(2026-09-29):以 `deploy/gen-temp-pki.sh` 產生一次性臨時自簽憑證,不再呼叫 `deploy/dev/gen-dev-secrets.sh`;尚未在實際 Runner 上執行 | — |
 
 ---
 

@@ -14,7 +14,7 @@ export default defineConfig({
         },
       },
       {
-        // 需要 SQL Server 與 Redis:本機以 `npm run dev:env:up` 啟動(deploy/docker-compose.dev.yml)
+        // 需要 SQL Server:公司開發機以 .env 指向 2012 測試庫(.env.example 的 GW_TEST_DB_NAME,會清空重建)
         test: {
           name: 'integration',
           include: ['test/integration/**/*.test.ts'],
@@ -27,7 +27,7 @@ export default defineConfig({
         },
       },
       {
-        // 經 Nginx 的端到端測試(IMPL-PLAN §6「端到端」):需先以 deploy/dev/up.sh 啟動本機完整環境
+        // 經 Nginx 的端到端測試(IMPL-PLAN §6「端到端」):需先以 deploy/dev/up.sh 啟動本機完整環境(不在版控,只在家中開發主機)
         test: {
           name: 'e2e',
           include: ['test/e2e/**/*.test.ts'],

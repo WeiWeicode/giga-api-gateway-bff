@@ -23,7 +23,7 @@
 ## 2. 專案結構(預計)
 
 ```
-api-gateway-bff/
+giga-api-gateway-bff/
 ├─ docs/                 PRD.md、ARCHITECTURE.md、DATABASE.md、TECH-STACK.md、IMPL-PLAN.md、FRONTEND-GUIDE.md、BACKEND-GUIDE.md、DEPLOYMENT.md、REFERENCES.md、Gherkin/*.feature
 ├─ nginx/
 │  ├─ nginx.conf

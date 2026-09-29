@@ -2,6 +2,7 @@
  * 清空整合測試庫(GW_TEST_DB_NAME,預設 giganexus_gw_test)的 schema gw 與 migration 紀錄,再重新套用 migration。
  * 只允許對名稱含 `_test` 的資料庫執行,避免誤刪。
  */
+import { pathToFileURL } from 'node:url';
 import { loadConfig, readSecret } from '../src/config.js';
 import { openPool } from '../src/db/client.js';
 import { runMigrations } from '../src/db/migrate.js';
@@ -45,7 +46,8 @@ export async function resetTestDatabase(): Promise<string> {
   return database;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 以 pathToFileURL 比對:Windows 的 argv[1] 為 D:\...,直接接 file:// 永遠不相等,指令會不執行就結束
+if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   resetTestDatabase()
     .then((db) => console.log(`已重建 ${db}`))
     .catch((err: unknown) => {

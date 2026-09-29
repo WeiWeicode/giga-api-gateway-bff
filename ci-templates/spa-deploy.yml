@@ -8,7 +8,7 @@
 #     SPA_APP: mes            # 已登記的子路徑名稱(/mes/)
 #
 # 專案需提供 Dockerfile:建置 dist/ 後,最終映像檔含 /dist/$SPA_APP 與 publish 腳本
-# (可參考 tools/sample-spa/Dockerfile 與 publish.sh:publish / rollback、symlink 原子切換、保留 5 版)。
+# (可參考 giga-Portal 的 frontend/Dockerfile 與 publish.sh:publish / rollback、symlink 原子切換、保留 5 版)。
 # 注意:本範本尚未在實際 GitLab Runner 上執行過。
 
 stages: [build, deploy-test, deploy-prod]

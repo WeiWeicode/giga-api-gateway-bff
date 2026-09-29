@@ -2,6 +2,7 @@
  * 匯入種子資料(db/seed/data.ts),可重複執行:`npm run db:seed`
  * 部署時由 migrate 容器在 migration 後執行(node dist/bff/src/db/seed.js)。
  */
+import { pathToFileURL } from 'node:url';
 import { and, eq, inArray } from 'drizzle-orm';
 import { loadConfig } from '../config.js';
 import { createGwDb, openPool, type GwDatabase } from './client.js';
@@ -103,7 +104,8 @@ export async function runSeed(db: GwDatabase): Promise<SeedResult> {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 以 pathToFileURL 比對:Windows 的 argv[1] 為 D:\...,直接接 file:// 永遠不相等,指令會不執行就結束
+if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   const config = loadConfig();
   const pool = await openPool(config.gwDb, { appName: 'giganexus-gw-seed', poolMax: 1 });
   try {

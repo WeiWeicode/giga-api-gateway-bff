@@ -40,7 +40,7 @@ export const ADMIN_PERMISSIONS: readonly AdminPermission[] = [
 
 /**
  * 角色 → 權限。
- * gw-it-admin 的範圍為暫定:不含權限 / 角色、公司網域、API Key 的編輯,待 IT 主管確認。
+ * gw-it-admin 的範圍(IT 主管已確認,2026-09-29):不含權限 / 角色、公司網域、API Key 的編輯。
  */
 export const ROLE_PERMISSIONS: Record<(typeof ROLES)[number]['code'], readonly string[]> = {
   'gw-super-admin': ADMIN_PERMISSIONS.map((p) => p.code),
@@ -55,7 +55,10 @@ export const RATE_LIMIT_POLICIES = [
   { code: 'mes-high-freq', limitCount: 1200, windowSec: 60, keyBy: 'user', burst: 200 },
 ] as const;
 
-/** 公司與 AD 網域對應(PRD Q11、Q13)。無網域公司(如禾迅)由人員同步自動建立,不在此設定。 */
+/**
+ * 公司與 AD 網域對應(PRD Q11、Q13)。無網域公司(如禾迅)由人員同步自動建立,不在此設定。
+ * compName 必須與 LOS `CompName`(無 LOS 資料時為 BPM `Organization`)完全一致,否則登入時另建一家無網域的公司,該員工下次登入回 ACCOUNT_NOT_REGISTERED;公司實際值待 DBA 確認。
+ */
 export const COMPANIES = [
   { compName: '碩禾', empPrefix: 'S', domains: ['gsc', 'gsmc'] },
   { compName: '鹽城碩禾', empPrefix: null, domains: ['ygdmc'] },

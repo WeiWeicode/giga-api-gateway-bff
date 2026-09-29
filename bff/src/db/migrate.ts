@@ -5,7 +5,7 @@
  * 使用 migration 專用帳號(GW_MIGRATE_USER / GW_MIGRATE_PASSWORD[_FILE]);未設定時沿用 GW_DB_USER。
  * 可用 GW_DB_NAME 覆寫目標資料庫(例:整合測試庫)。
  */
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-mssql/migrator';
 import { loadConfig, readSecret } from '../config.js';
@@ -29,7 +29,8 @@ export async function runMigrations(opts: { database?: string; migrationsFolder?
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// 以 pathToFileURL 比對:Windows 的 argv[1] 為 D:\...,直接接 file:// 永遠不相等,指令會不執行就結束
+if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   runMigrations()
     .then(() => {
       console.log('migration 完成');
