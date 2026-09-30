@@ -64,7 +64,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | 環境 | 執行位置 | 資料庫 | BFF 帳號 / Migration 帳號 | 設定檔 | 狀態 |
 | --- | --- | --- | --- | --- | --- |
 | 開發 | 開發者電腦 | `giganexus_gw_test` | `gw_app` / `gw_migrate` | `bff/.env`(不入版控) | 已建立 |
-| 測試 | 主機 2 | `giganexus_gw_test`(與開發共用同一庫與帳號) | `gw_app` / `gw_migrate` | 主機 2 `D:\giganexus\deploy\test.env` + `GW_SECRETS_DIR` | 已建立 |
+| 測試 | 主機 2(10.10.130.124,WSL) | `giganexus_gw_test`(與開發共用同一庫與帳號) | `gw_app` / `gw_migrate` | 主機 2 WSL `/srv/giganexus/deploy/test.env` + `secrets/`(見 §1.1) | 已建立 |
 | 正式 | 主機 3 | `giganexus_gw` | `gw_prod_app` / `gw_prod_migrate`(與測試區分開) | 主機 3 `D:\giganexus\deploy\prod.env` + `GW_SECRETS_DIR` | 資料庫與帳號已建立;**主機 3 部署預計 2026-12 動工** |
 
 **唯讀來源帳號(2026-09-30 建立並驗證,腳本 `db/dba/01-los-portal-readers.sql`、`02-bpm-reader.sql`;三環境共用)**
@@ -83,6 +83,24 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
   - 密碼以檔案放 `D:\giganexus\secrets\`:`gw_db_password`(`gw_prod_app`)、`gw_migrate_password`(`gw_prod_migrate`),檔案內容只有密碼一行。
   - `ldap-domains.json` 放 `D:\giganexus\config\`(`GW_CONFIG_DIR`)。
   - migration 於正式區部署時由 migration 容器套用,建庫後不需手動執行。
+
+### 1.1 測試區部署(主機 2,2026-09-30 經 CI 上架)
+
+三個專案皆以 `develop` 分支自動部署(Runner `host2-test`,WSL shell executor):Gateway(`nginx`、`bff ×2`、`redis`、migrate + seed)→ giga-Portal(`/`、`/login`,套用 `gateway-rbac.yaml`)→ GigaItApp(`itapp-api`、`/it/`)。
+
+| 主機 2 WSL 路徑 | 內容 | 建立方式 |
+| --- | --- | --- |
+| `/srv/giganexus/deploy/test.env`、`portal.env`、`itapp.env` | 非機密設定(範本:各 repo `deploy/test.env.example`) | Claude 經 SSH 建立 |
+| `/srv/giganexus/deploy/config/ldap-domains.json` | 只有 `gsmc` | Claude |
+| `/srv/giganexus/deploy/secrets/pki/`、`jwt/test-202609.pem` | 臨時自簽憑證(SAN 含 10.10.130.124,至 2029-01)與 JWT 金鑰;於主機上產生 | Claude(`gen-temp-pki.sh`) |
+| `/srv/giganexus/deploy/secrets/*_password` | `gw_db`、`gw_migrate`、`los_db`、`bpm_db`、`portal_db`、`ldap_gsmc` 密碼 | **本人**:`sudo sh deploy/host2-set-secrets.sh`(隱藏輸入) |
+| `/srv/giganexus/itapp-secrets/` | GigaItApp JWT 密鑰、種子帳號密碼(隨機產生,只在主機 2)、`bff_service_password`(mock 模式佔位) | Claude |
+| `/srv/giganexus/shared/` | Gateway build 複製的 `web-kit/src`、`deploy/`,與已部署映像 tag `gateway-image-tag` | CI |
+
+- Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。來源 IP 經轉發後一律是主機本身(GITLAB-SETUP §3 已知限制,PRD Q26 未解決)。
+- Docker volume `giganexus-gw_gw_www`、網路 `giganexus-gw_default` 預先建立(帶 compose 標籤),GigaItApp / Portal 可先於 Gateway 部署。
+- GigaItApp 目前 `BFF_MODE=mock`:讀 BFF 的服務帳號尚未建立;建立後 `itapp.env` 改 `BFF_MODE=live`、`BFF_SERVICE_USER=<工號>`,密碼寫入 `itapp-secrets/bff_service_password`(uid 1000、400),再重跑 GigaItApp deploy-test。
+- Pipeline 已知事項:`check:nginx` 以 root 容器產生的 `.ci-secrets` 必須改回 Runner 使用者擁有,否則之後所有 job 在 `git clean` 失敗(已修正)。
 
 | 檔案 / 項目 | 需要調整 | 依賴 |
 | --- | --- | --- |
