@@ -38,7 +38,8 @@ check:nginx:
   stage: check
   script:
     # nginx -t 需要憑證與可解析的上游主機:以一次性臨時自簽憑證(deploy/gen-temp-pki.sh)與假 host 檢查設定
-    - docker run --rm -v "$CI_PROJECT_DIR:/repo" -w /repo -e GATEWAY_IPS=127.0.0.1 -e GW_ENV=ci alpine:3.20 sh -c "apk add -q openssl && OUT=/repo/.ci-secrets sh deploy/gen-temp-pki.sh"
+    # 容器以 root 寫入工作目錄:結束前改回 Runner 使用者擁有,否則下一個 job 的 git clean 刪不掉而整條 Pipeline 失敗
+    - docker run --rm -v "$CI_PROJECT_DIR:/repo" -w /repo -e GATEWAY_IPS=127.0.0.1 -e GW_ENV=ci alpine:3.20 sh -c "apk add -q openssl && OUT=/repo/.ci-secrets sh deploy/gen-temp-pki.sh; rc=\$?; chown -R $(id -u):$(id -g) /repo/.ci-secrets; exit \$rc"
     - docker build -t gw-nginx-check:$CI_COMMIT_SHORT_SHA nginx/
     - docker run --rm --add-host bff-1:127.0.0.1 --add-host bff-2:127.0.0.1 -e GW_ENV=test -v "$CI_PROJECT_DIR/.ci-secrets/pki:/etc/nginx/pki:ro" gw-nginx-check:$CI_COMMIT_SHORT_SHA nginx -t
 
