@@ -79,16 +79,18 @@ build:
     - $C pull
     # 1. migration(失敗即中止)
     - $C run --rm migrate
-    # 2. BFF 逐一更新,等待 /readyz
+    # 2. Redis(BFF 以 --no-deps 更新,不會帶起相依服務;第一次部署或 Redis 停止時由此啟動,已在執行則不變)
+    - $C up -d --wait redis
+    # 3. BFF 逐一更新,等待 /readyz
     - $C up -d --no-deps bff-1
     - sh deploy/wait-healthy.sh bff-1
     - $C up -d --no-deps bff-2
     - sh deploy/wait-healthy.sh bff-2
-    # 3. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
+    # 4. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
     - $C up -d --no-deps nginx
-    # 4. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
+    # 5. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
     - echo "$CI_COMMIT_SHA" > "$(dirname "$GW_SHARED_DIR")/gateway-image-tag"
-    # 5. 冒煙測試
+    # 6. 冒煙測試
     - sh deploy/smoke-test.sh "https://127.0.0.1"
 
 deploy-test:
