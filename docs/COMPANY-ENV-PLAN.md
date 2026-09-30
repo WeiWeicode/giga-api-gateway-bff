@@ -100,7 +100,8 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 - Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。來源 IP 經轉發後一律是主機本身(GITLAB-SETUP §3 已知限制,PRD Q26 未解決)。
 - Docker volume `giganexus-gw_gw_www`、網路 `giganexus-gw_default` 預先建立(帶 compose 標籤),GigaItApp / Portal 可先於 Gateway 部署。
 - GigaItApp 目前 `BFF_MODE=mock`:讀 BFF 的服務帳號尚未建立;建立後 `itapp.env` 改 `BFF_MODE=live`、`BFF_SERVICE_USER=<工號>`,密碼寫入 `itapp-secrets/bff_service_password`(uid 1000、400),再重跑 GigaItApp deploy-test。
-- Pipeline 已知事項:`check:nginx` 以 root 容器產生的 `.ci-secrets` 必須改回 Runner 使用者擁有,否則之後所有 job 在 `git clean` 失敗(已修正)。
+- Pipeline 已知事項:`check:nginx` 以 root 容器產生的 `.ci-secrets` 必須改回 Runner 使用者擁有,否則之後所有 job 在 `git clean` 失敗(已修正);BFF 以 `up --no-deps` 更新,部署需先 `up -d --wait redis`(已修正)。
+- **WSL DNS**:2026-09-30 13:39 WSL 重新產生 `/etc/resolv.conf`(→ `/mnt/wsl/resolv.conf`)後,內建 DNS 轉發 `172.30.128.1` 不再回應,拉映像 / npm 全部失敗。暫時改為 `nameserver 10.10.130.3`(公司 DNS,Windows 端同一台)+ 原轉發備用,原檔備份 `/root/resolv.conf.wsl-generated.bak`;**WSL 重啟後會還原為自動產生**。若再發生,永久做法為 `/etc/wsl.conf` 加 `[network] generateResolvConf = false` 並固定 `/etc/resolv.conf`(需 IT 同意)。
 
 | 檔案 / 項目 | 需要調整 | 依賴 |
 | --- | --- | --- |
