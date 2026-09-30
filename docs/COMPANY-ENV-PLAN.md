@@ -57,11 +57,38 @@
 
 ## 1. 資料庫(SQL Server 2012 / BPM 2019)
 
+### 1.0 環境與資料庫帳號(2026-09-30 建立)
+
+SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開發平台」),以 sa 建立下列資料庫、schema(`gw`、`drizzle`)、登入帳號與 `gw_app_role`。密碼不記錄於版控。
+
+| 環境 | 執行位置 | 資料庫 | BFF 帳號 / Migration 帳號 | 設定檔 | 狀態 |
+| --- | --- | --- | --- | --- | --- |
+| 開發 | 開發者電腦 | `giganexus_gw_test` | `gw_app` / `gw_migrate` | `bff/.env`(不入版控) | 已建立 |
+| 測試 | 主機 2 | `giganexus_gw_test`(與開發共用同一庫與帳號) | `gw_app` / `gw_migrate` | 主機 2 `D:\giganexus\deploy\test.env` + `GW_SECRETS_DIR` | 已建立 |
+| 正式 | 主機 3 | `giganexus_gw` | `gw_prod_app` / `gw_prod_migrate`(與測試區分開) | 主機 3 `D:\giganexus\deploy\prod.env` + `GW_SECRETS_DIR` | 資料庫與帳號已建立;**主機 3 部署預計 2026-12 動工** |
+
+**唯讀來源帳號(2026-09-30 建立並驗證,腳本 `db/dba/01-los-portal-readers.sql`、`02-bpm-reader.sql`;三環境共用)**
+
+| 來源 | 主機 / 資料庫 | 帳號 | 只授權 SELECT | 驗證結果 |
+| --- | --- | --- | --- | --- |
+| LOS | `10.10.130.220` / `LOS`(2012,不加密) | `los_reader` | `dbo.vw_gn_employee` | 8,431 筆(兼任 2,003);`JobDate` / `LeaveDate` 實際為 `date`,view 以 `CONVERT(varchar(10), …, 103)` 轉字串後 BFF 解析全數成功 |
+| BPM | `10.10.130.190` / `NaNa`(2019,加密;自簽憑證需 `BPM_DB_TRUST_SERVER_CERT=true`) | `bpm_reader` | `dbo.vw_gn_employee` | 7,259 筆(在職 1,133),無一人多筆 `isMain`;在職者 33 人查無主管,待 BPM 負責人確認 |
+| 舊單一入口 | `10.10.130.220` / `PortalSolar`(2012,不加密) | `portal_reader` | `dbo.vw_gn_login_data` | 1,522 筆 |
+
+三個帳號皆無法讀取基底資料表;以 BFF `lookupEmployee` / `mergeProfile` 實測 LOS 在職與離職各一人,`profile_source = bpm+los`、在職狀態判定正確。
+
+- 開發與測試共用 `giganexus_gw_test`:開發機 `db:migrate` / `db:seed` 寫入的資料測試區看得到;`npm run test:int` 不可指向此庫(會清空 schema `gw`),需另建含 `_test` 的專用庫。
+- 正式區(2026-12 動工時):
+  - 主機 3 設定檔**檔名必須是 `prod.env`**(CI 以 `--env-file $GW_DEPLOY_DIR/$GW_ENV.env` 讀取),建議放 `D:\giganexus\deploy\prod.env`,GitLab 變數 `GW_DEPLOY_DIR` 指向該目錄;內容自 `deploy/prod.env.example` 複製,須設定 `GW_DB_USER=gw_prod_app`、`GW_MIGRATE_USER=gw_prod_migrate`(未設定時 compose 預設用測試區的 `gw_app` / `gw_migrate`)。
+  - 密碼以檔案放 `D:\giganexus\secrets\`:`gw_db_password`(`gw_prod_app`)、`gw_migrate_password`(`gw_prod_migrate`),檔案內容只有密碼一行。
+  - `ldap-domains.json` 放 `D:\giganexus\config\`(`GW_CONFIG_DIR`)。
+  - migration 於正式區部署時由 migration 容器套用,建庫後不需手動執行。
+
 | 檔案 / 項目 | 需要調整 | 依賴 |
 | --- | --- | --- |
-| DBA 建立 `giganexus_gw`、`giganexus_gw_test`、schema `gw`、`gw_app` / `gw_migrate` 帳號、`gw_app_role` | 參考 `deploy/dev/mssql-init/01-giganexus_gw.sql`(本機);定序請 DBA 確認(本機假設 `Chinese_Taiwan_Stroke_CI_AS`) | P-01 |
+| ~~DBA 建立 `giganexus_gw`、`giganexus_gw_test`、schema `gw`、`gw_app` / `gw_migrate` 帳號、`gw_app_role`~~ **已完成(2026-09-30,見 §1.0)** | 參考 `deploy/dev/mssql-init/01-giganexus_gw.sql`(本機);定序請 DBA 確認(本機假設 `Chinese_Taiwan_Stroke_CI_AS`) | P-01 |
 | **M0:Drizzle × SQL Server 2012 複驗** | 複製 `bff/.env.example` 為 `bff/.env`,填入公司 2012 測試庫(`GW_DB_HOST`、密碼、`GW_TEST_DB_NAME`)後執行 `npm run test:int`,結果記錄於 [TECH-STACK.md](TECH-STACK.md) §4.1。**`test:int` 會清空 `GW_TEST_DB_NAME` 的 schema `gw` 再重建**:測試區(主機 2)使用 `giganexus_gw_test`,上線後整合測試必須改用 DBA 另建的專用庫(名稱須含 `_test`),或在測試區上線前完成 M0 | P-04 |
-| migration 套用 | 三個 migration(`20260924114259_init`、`20260925021314_api_route_gherkin`:`gw.api_route.gherkin NVARCHAR(MAX)`、`20260926011642_upstream_project`:`gw.upstream.project VARCHAR(100)`)需在 2012 測試庫以 `npm run db:migrate` 實際套用一次;目前只在容器驗證 | P-04 |
+| migration 套用 | 三個 migration(`20260924114259_init`、`20260925021314_api_route_gherkin`:`gw.api_route.gherkin NVARCHAR(MAX)`、`20260926011642_upstream_project`:`gw.upstream.project VARCHAR(100)`)需在 2012 測試庫以 `npm run db:migrate` 實際套用一次。**已完成(2026-09-30)**:以 `gw_migrate` 套用至 `10.10.130.220` `giganexus_gw_test`,schema `gw` 共 31 張表,`drizzle.__drizzle_migrations` 3 筆;`gw_app` 對 `audit_log` / `auth_log` / `api_access_log` 僅有 SELECT、INSERT(DENY 生效) | P-04 |
 | `bff/src/db/external/bpm.ts` | 欄位依 BPM 負責人實際提供的唯讀 view 調整(目前依本機模擬 view `dbo.vw_gn_employee`) | P-12 |
 | `bff/src/db/external/los.ts` | 欄位與型別依 DBA 提供的 LOS view 調整;確認日期欄位確實為 `d/M/yyyy` 字串 | P-12 |
 | `bff/src/db/external/portal.ts` | 依 DBA 提供的 `LoginData` 唯讀 view 調整(舊帳號遷移 W3-4.16 尚未實作) | P-15 |
