@@ -4,8 +4,9 @@
 #   deploy-test  develop 自動部署測試區(主機 2,windows-runner)
 #   deploy-prod  main 手動核可部署正式區(主機 3,prod-deploy,Protected);拉取與測試區相同 SHA 的映像檔
 #
-# 注意:本檔尚未在實際 GitLab Runner 上執行過;假設 Runner 可執行 sh 與 docker(docker executor 或 Git Bash)。
-# 測試區 / 正式區主機上需有:${GW_DEPLOY_DIR}/<區域>.env、${GW_SECRETS_DIR}、${GW_CONFIG_DIR}/ldap-domains.json(DEPLOYMENT.md §5)
+# Runner:主機 2 WSL(Ubuntu)內的 Linux shell executor(GITLAB-SETUP.md §3),tag windows-runner。
+# 測試區 / 正式區主機上需有:${GW_DEPLOY_DIR}/<區域>.env、${GW_SECRETS_DIR}、${GW_CONFIG_DIR}/ldap-domains.json(DEPLOYMENT.md §5)。
+# build 另將 web-kit 與 deploy/ 複製到 ${GW_SHARED_DIR}(同一台主機上 giga-Portal 建置、套用權限時使用)。
 
 stages: [check, build, deploy-test, deploy-prod]
 
@@ -13,6 +14,8 @@ variables:
   BFF_IMAGE: $CI_REGISTRY_IMAGE/gateway/bff
   NGINX_IMAGE: $CI_REGISTRY_IMAGE/gateway/nginx
   COMPOSE: docker compose -f deploy/docker-compose.yml
+  # 主機上的共用目錄(主機 2:/srv/giganexus/shared,擁有者 gitlab-runner)
+  GW_SHARED_DIR: /srv/giganexus/shared/giga-api-gateway-bff
 
 .windows-runner: &windows-runner
   tags: [windows-runner]
@@ -45,10 +48,19 @@ build:
   rules:
     - if: $CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"
   script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    # giga-Portal 建置需要 web-kit 原始碼、套用權限需要 deploy/:放到同主機共用目錄(先寫暫存目錄再替換)
+    - |
+      if [ -d "$(dirname "$GW_SHARED_DIR")" ]; then
+        rm -rf "$GW_SHARED_DIR.new" && mkdir -p "$GW_SHARED_DIR.new/web-kit"
+        cp -r web-kit/src "$GW_SHARED_DIR.new/web-kit/src" && cp -r deploy "$GW_SHARED_DIR.new/deploy"
+        rm -rf "$GW_SHARED_DIR" && mv "$GW_SHARED_DIR.new" "$GW_SHARED_DIR"
+      else
+        echo "警告:$(dirname "$GW_SHARED_DIR") 不存在,略過共用目錄"
+      fi
     # main 以 fast-forward 合併時,映像檔已由 develop 建置,直接沿用
     - |
-      if docker manifest inspect "$BFF_IMAGE:$CI_COMMIT_SHA" >/dev/null 2>&1; then
+      if docker manifest inspect --insecure "$BFF_IMAGE:$CI_COMMIT_SHA" >/dev/null 2>&1; then
         echo "映像檔已存在,略過建置"; exit 0
       fi
     - docker build -f bff/Dockerfile -t "$BFF_IMAGE:$CI_COMMIT_SHA" .
@@ -58,9 +70,11 @@ build:
 
 .deploy: &deploy
   script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - export IMAGE_TAG=$CI_COMMIT_SHA REGISTRY=$CI_REGISTRY_IMAGE
-    - C="$COMPOSE -f deploy/docker-compose.$GW_ENV.yml --env-file $GW_DEPLOY_DIR/$GW_ENV.env"
+    - test -f "$GW_DEPLOY_DIR/$GW_ENV.env" || { echo "缺少 $GW_DEPLOY_DIR/$GW_ENV.env" >&2; exit 1; }
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    # shell 環境變數優先於 env 檔:Pipeline 以此覆寫 REGISTRY / IMAGE_TAG;COMPOSE_ENV_FILES 讓 wait-healthy.sh 的 compose 指令也讀到 env 檔
+    - export IMAGE_TAG=$CI_COMMIT_SHA REGISTRY=$CI_REGISTRY_IMAGE COMPOSE_ENV_FILES="$GW_DEPLOY_DIR/$GW_ENV.env"
+    - C="$COMPOSE -f deploy/docker-compose.$GW_ENV.yml"
     - $C pull
     # 1. migration(失敗即中止)
     - $C run --rm migrate
@@ -71,7 +85,9 @@ build:
     - sh deploy/wait-healthy.sh bff-2
     # 3. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
     - $C up -d --no-deps nginx
-    # 4. 冒煙測試
+    # 4. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
+    - echo "$CI_COMMIT_SHA" > "$(dirname "$GW_SHARED_DIR")/gateway-image-tag"
+    # 5. 冒煙測試
     - sh deploy/smoke-test.sh "https://127.0.0.1"
 
 deploy-test:
@@ -80,6 +96,7 @@ deploy-test:
   tags: [windows-runner]
   variables:
     GW_ENV: test
+    GW_DEPLOY_DIR: /srv/giganexus/deploy
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
   environment: { name: test }

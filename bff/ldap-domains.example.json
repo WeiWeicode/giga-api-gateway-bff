@@ -1,0 +1,11 @@
+[
+  {
+    "code": "gsmc",
+    "name": "碩禾_新",
+    "netbios": "GSMC",
+    "upnSuffix": "gsmc.com.tw",
+    "url": "ldap://10.10.130.3:389",
+    "baseDN": "DC=gsmc,DC=com,DC=tw",
+    "bindDN": "sasmgr@gsmc.com.tw"
+  }
+]

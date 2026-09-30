@@ -58,8 +58,6 @@ export const RATE_LIMIT_POLICIES = [
 /**
  * 公司與 AD 網域對應(PRD Q11、Q13)。無網域公司(如禾迅)由人員同步自動建立,不在此設定。
  * compName 必須與 LOS `CompName`(無 LOS 資料時為 BPM `Organization`)完全一致,否則登入時另建一家無網域的公司,該員工下次登入回 ACCOUNT_NOT_REGISTERED;公司實際值待 DBA 確認。
+ * 2026-09-30 需求方決定:只使用 gsmc(碩禾_新);gsc(舊網域)與 ygdmc(鹽城碩禾)不再使用,鹽城碩禾改為無網域(本機帳號)。
  */
-export const COMPANIES = [
-  { compName: '碩禾', empPrefix: 'S', domains: ['gsc', 'gsmc'] },
-  { compName: '鹽城碩禾', empPrefix: null, domains: ['ygdmc'] },
-] as const;
+export const COMPANIES = [{ compName: '碩禾', empPrefix: 'S', domains: ['gsmc'] }] as const;
