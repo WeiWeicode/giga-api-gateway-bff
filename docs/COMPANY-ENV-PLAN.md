@@ -97,7 +97,9 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `/srv/giganexus/itapp-secrets/` | GigaItApp JWT 密鑰、種子帳號密碼(隨機產生,只在主機 2)、`bff_service_password`(mock 模式佔位) | Claude |
 | `/srv/giganexus/shared/` | Gateway build 複製的 `web-kit/src`、`deploy/`,與已部署映像 tag `gateway-image-tag` | CI |
 
-- Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。來源 IP 經轉發後一律是主機本身(GITLAB-SETUP §3 已知限制,PRD Q26 未解決)。
+- Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。
+- **來源 IP 實測(2026-09-30)**:自 10.10.112.13 連入,Nginx log 的 `remote_addr` 一律為 `172.19.0.1`(Docker 閘道),真實 IP 遺失(PRD Q26、DEPLOYMENT §6.1)。影響:登入限流 `GW_AUTH_RATE`(每分鐘 5 次)全體共用、IP 限流 / 白名單 / 「記住我」內網判定失效。**開放給一般使用者前必須處理**;少數人測試時連續登入可能遇到 429。
+- **上架結果(2026-09-30)**:三個專案 `develop` Pipeline 全部通過(Gateway `dd79914`、giga-Portal `f3ca9d2`、GigaItApp `83087c8`);自使用者網段驗證 `/`、`/login`、`/it/` 200,`/api/auth/me`、`/it/api/auth/me` 401,HTTP 301 轉 HTTPS。
 - Docker volume `giganexus-gw_gw_www`、網路 `giganexus-gw_default` 預先建立(帶 compose 標籤),GigaItApp / Portal 可先於 Gateway 部署。
 - GigaItApp 目前 `BFF_MODE=mock`:讀 BFF 的服務帳號尚未建立;建立後 `itapp.env` 改 `BFF_MODE=live`、`BFF_SERVICE_USER=<工號>`,密碼寫入 `itapp-secrets/bff_service_password`(uid 1000、400),再重跑 GigaItApp deploy-test。
 - Pipeline 已知事項:`check:nginx` 以 root 容器產生的 `.ci-secrets` 必須改回 Runner 使用者擁有,否則之後所有 job 在 `git clean` 失敗(已修正);BFF 以 `up --no-deps` 更新,部署需先 `up -d --wait redis`(已修正)。
