@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-01 路由設定管理 API(P2-1)與發佈 / 預覽 / 回滾 API(P2-2)
+- 工作項目:P2-1、P2-2
+- 內容:① `modules/admin/routing.ts`:上游(清單含本區位址與路由數、新增 / 修改 / 停用、健康檢查)、路由(清單篩選分頁、明細含步驟、新增草稿、修改、停用)、聚合步驟整組取代、限流政策 CRUD;修改 / 刪除需帶 `rowVer`(DELETE 用 `?rowVer=`),不符回 409 `VERSION_CONFLICT`;同方法同路徑回 409 `ROUTE_PATH_CONFLICT`;上游 port 不在 51200–51300 回 `UPSTREAM_PORT_OUT_OF_RANGE`。只寫資料庫,變更都在下次發佈生效;修改已發佈路由改為草稿;停用上游前檢查仍使用的路由 / 步驟;政策仍被參照時不可刪除;mock 路由正式區不可建立;`auth`、`admin` 系統代碼保留給 BFF。每筆寫入與 `gw.audit_log` 同一交易(含 before / after、IP、requestId)。欄位關聯檢查抽成純函式 `routing-rules.ts`。② `modules/admin/releases.ts`:版本清單、版本明細、發佈預覽(`buildSnapshotContent` 新增 `includeDrafts`,草稿視同已發佈計算差異)、發佈、回滾,共用 `db/sync/release.ts`。③ `admin/authorize.ts`:API Key 或登入者的授權(新模組使用;`rbac.ts` 未改)。④ `errors.ts` 補上 PRD §8.1.1 已定義的 `VERSION_CONFLICT`、`ROUTE_PATH_CONFLICT`。⑤ 未做:`POST /api/admin/routes/:id/test`(試打,PRD §8.7 已註記)。⑥ Gherkin 新增 `router/route-admin.feature`;PRD §8.7 補充路由設定 API 的行為;E2E 清理加上聚合步驟與 `e2e-*` 限流政策
+- 檔案:`bff/src/modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`(新增)、`bff/src/modules/router/snapshot.ts`、`bff/src/errors.ts`、`bff/src/app.ts`、`bff/test/unit/routing-rules.test.ts`(新增)、`bff/test/e2e/07-routing-admin.test.ts`(新增)、`bff/test/e2e/gw.ts`、`docs/Gherkin/router/route-admin.feature`(新增)、`docs/Gherkin/README.md`、`docs/PRD.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md`、`README.md`
+- 驗證:`typecheck`、`lint`、`format:check` 通過;單元測試 121 項通過(新增 `routing-rules` 10 項);部署 `2085b7e` 至測試區後 E2E `07-routing-admin` 14 項通過(上游新增 / 樂觀鎖 409 / 健康檢查、路由檢查與 `ROUTE_PATH_CONFLICT`、停用上游與政策的參照檢查、預覽 → 發佈 → mock 路由生效、修改後線上維持舊版至再次發佈、回滾產生新版本且路由移除、稽核操作人為 API Key);結束後測試區 e2e 路由 / 上游 / 政策 / API Key / 草稿皆 0,最新版本 8 為測試移除後的發佈
+
 ## 2026-10-01 BPM 不送 Webhook:移除 bpm 端點,Webhook 模組保留為通用
 - 工作項目:W3-5.10
 - 內容:需求方決定 BPM 不做通知(不送 Webhook),BPM 簽核通知先不做;Webhook 模組保留給日後的外部系統。① 測試區刪除 `gw.webhook_endpoint` 的 `bpm`(連同 28 筆測試產生的 `gw.webhook_log`,寫入 `gw.audit_log` `webhook.remove`),刪除主機 2 `secrets/webhook/bpm` 與開發機的密鑰。② Nginx 白名單改通用名稱:`allowlists/<區域>/webhook-bpm.conf` → `webhook-sources.conf`、`$webhook_bpm_allowed` → `$webhook_allowed`(維持空白 = 全部拒絕)。③ E2E `05` 改為測試時建立臨時來源 `e2etest`(主機 2 密鑰檔與端點,結束後刪除);`01` 改打 `/webhook/e2etest`。④ Gherkin `webhook.feature` 改為通用來源 `partner`,刪除「BPM 簽核完成後通知申請人」;PRD §7.5 / §8.6 / 使用者情境、BACKEND-GUIDE §7.6、DATABASE、DEPLOYMENT、COMPANY-ENV-PLAN、IMPL-PLAN、PROJECT-MAP、README、AGENT.md 範例同步
