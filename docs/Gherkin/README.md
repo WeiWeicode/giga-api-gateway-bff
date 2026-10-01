@@ -16,8 +16,8 @@
 | `auth/password-reset.feature` | 忘記密碼、IT 重設、變更密碼 | §8.2.5 | W3-5.8b |
 | `auth/legacy-migration.feature` | 舊單一入口帳號首次登入自動遷移 | §8.2.5、DATABASE §9 | W3-4.16 |
 | `rbac/permission.feature` | 路由 `auth_mode`、權限檢查、角色來源、權限版本 | §8.3 | W3-4.6–4.8 |
-| `rbac/role-rules.feature` | 依部門(含下層)/ 職級 / 職稱指派角色、權限分類與樹、權限試算(`@wip`,規格) | §8.3.1–§8.3.2 | P2-3a |
-| `auth/apps.feature` | 應用登記、`me.apps`、應用切換與應用層守衛(`@wip`,規格) | §8.3.3 | P2-3a |
+| `rbac/role-rules.feature` | 依部門(含下層)/ 職級 / 職稱指派角色、權限分類與樹、權限試算(2026-10-01 已實作;規則比對有單元測試 `test/unit/rbac-rules.test.ts`) | §8.3.1–§8.3.2 | P2-3a |
+| `auth/apps.feature` | 應用登記、`me.apps`(已實作);應用切換與應用層守衛(`@e2e`)由各 SPA 實作 | §8.3.3 | P2-3a |
 | `router/dynamic-routing.feature` | 代理、路徑改寫、限流、快取、斷路器、聚合 | §8.4.1–§8.4.2 | W3-5.1–5.5 |
 | `router/release-publish.feature` | 草稿 / 發佈 / 回滾、即時生效、Redis 補償 | §8.4.3、DATABASE §7 | W3-5.6–5.7、P2-2 |
 | `router/api-import.feature` | OpenAPI 匯入規則(含說明與行為規格) | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、W3-5.7a、P2-4 |

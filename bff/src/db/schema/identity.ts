@@ -66,6 +66,11 @@ export const permission = gw.table(
     resource: varchar('resource', { length: 50 }).notNull(),
     action: varchar('action', { length: 30 }).notNull(),
     description: nvarchar('description', { length: 500 }),
+    /** 權限分類(PRD §8.3.2,v0.7):app / menu / tab / button / api;未宣告 = api */
+    kind: varchar('kind', { length: 10 }).notNull().default('api'),
+    /** 上層權限代碼(應用 → 選單 → Tab → 按鈕) */
+    parentCode: varchar('parent_code', { length: 100 }),
+    sort: smallint('sort'),
     ...auditColumns(),
   },
   (t) => [uniqueIndex('uq_permission_code').on(t.code)],
@@ -248,4 +253,59 @@ export const localAccountToken = gw.table(
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex('uq_local_account_token_hash').on(t.tokenHash), index('ix_local_account_token_user_purpose').on(t.userId, t.purpose)],
+);
+
+/* ---------- §3.2 指派規則、部門樹、應用(v0.7) ---------- */
+
+/** 部門樹(BPM OrganizationUnit,部門同步寫入) */
+export const department = gw.table(
+  'department',
+  {
+    deptCode: varchar('dept_code', { length: 30 }).primaryKey(),
+    name: nvarchar('name', { length: 100 }).notNull(),
+    parentDeptCode: varchar('parent_dept_code', { length: 30 }),
+    companyId: int('company_id').references(() => company.companyId),
+    bpmUnitOid: varchar('bpm_unit_oid', { length: 50 }),
+    isEnabled: bit('is_enabled').notNull().default(true),
+    syncedAt: datetime2('synced_at', { precision: 3 }).notNull(),
+  },
+  (t) => [index('ix_department_parent').on(t.parentDeptCode)],
+);
+
+/** 角色指派規則:同一規則內 AND、NULL = 不限;同一角色多條規則 OR */
+export const roleRule = gw.table(
+  'role_rule',
+  {
+    ruleId: int('rule_id').identity().primaryKey(),
+    roleId: int('role_id')
+      .notNull()
+      .references(() => role.roleId),
+    companyId: int('company_id').references(() => company.companyId),
+    deptCode: varchar('dept_code', { length: 30 }),
+    includeSubDepts: bit('include_sub_depts').notNull().default(true),
+    /** 職級值 JSON 陣列,例 ["5","6"] */
+    jobLevels: nvarchar('job_levels', { length: 200 }),
+    title: nvarchar('title', { length: 100 }),
+    description: nvarchar('description', { length: 200 }),
+    isEnabled: bit('is_enabled').notNull().default(true),
+    ...auditColumns(),
+  },
+  (t) => [index('ix_role_rule_role').on(t.roleId)],
+);
+
+/** 應用登記(PRD §8.3.3):/api/auth/me 的 apps */
+export const app = gw.table(
+  'app',
+  {
+    appId: int('app_id').identity().primaryKey(),
+    code: varchar('code', { length: 30 }).notNull(),
+    name: nvarchar('name', { length: 50 }).notNull(),
+    basePath: varchar('base_path', { length: 100 }).notNull(),
+    icon: varchar('icon', { length: 30 }),
+    sort: smallint('sort').notNull().default(0),
+    permissionCode: varchar('permission_code', { length: 100 }).notNull(),
+    isEnabled: bit('is_enabled').notNull().default(true),
+    ...auditColumns(),
+  },
+  (t) => [uniqueIndex('uq_app_code').on(t.code)],
 );

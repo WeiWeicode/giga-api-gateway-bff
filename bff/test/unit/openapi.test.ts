@@ -48,3 +48,29 @@ describe('parseOpenApi:x-gateway.project(開發專案)', () => {
     expect(spec.project).toBeNull();
   });
 });
+
+describe('parseOpenApi:x-permissions 的 kind / parent / sort(PRD §8.3.2)', () => {
+  const withPerms = (perms: unknown[]) => ({ ...doc({}), 'x-permissions': [{ code: 'smp.item.read', name: '項目查詢' }, ...perms] });
+
+  it('宣告 kind / parent / sort', () => {
+    const spec = parseOpenApi(
+      withPerms([
+        { code: 'smp.app.access', name: '樣本應用', kind: 'app' },
+        { code: 'smp.item.write', name: '新增項目', kind: 'button', parent: 'smp.item.read', sort: 10 },
+      ]),
+    );
+    expect(spec.errors).toEqual([]);
+    expect(spec.permissions[2]).toEqual({ code: 'smp.item.write', name: '新增項目', kind: 'button', parent: 'smp.item.read', sort: 10 });
+  });
+
+  it.each([
+    [{ kind: 'page' }, 'kind 需為 app / menu / tab / button / api'],
+    [{ parent: 'smp.x.write' }, 'parent 需為其他權限代碼'],
+    [{ parent: 'bad' }, 'parent 需為其他權限代碼'],
+    [{ sort: 1.5 }, 'sort 需為 0–32767 的整數'],
+    [{ sort: -1 }, 'sort 需為 0–32767 的整數'],
+  ])('不合法 %j', (extra, message) => {
+    const spec = parseOpenApi(withPerms([{ code: 'smp.x.write', name: '寫入', ...extra }]));
+    expect(spec.errors.map((e) => e.message.split(':')[0])).toEqual([message]);
+  });
+});

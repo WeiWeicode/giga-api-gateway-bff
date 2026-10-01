@@ -26,12 +26,24 @@ export interface ParsedRoute {
   gherkin: string | null;
 }
 
+/** x-permissions 一筆;kind / parent / sort 供應用畫面權限樹(PRD §8.3.2,v0.7) */
+export interface PermissionDecl {
+  code: string;
+  name: string;
+  kind?: PermissionKind;
+  parent?: string;
+  sort?: number;
+}
+
+export const PERMISSION_KINDS = ['app', 'menu', 'tab', 'button', 'api'] as const;
+export type PermissionKind = (typeof PERMISSION_KINDS)[number];
+
 export interface ParsedSpec {
   upstreamCode: string;
   systemCode: string;
   /** 開發專案(x-gateway.project);未提供時為 null,匯入時保留上游既有值 */
   project: string | null;
-  permissions: { code: string; name: string }[];
+  permissions: PermissionDecl[];
   routes: ParsedRoute[];
   errors: { operation: string; message: string }[];
 }
@@ -41,6 +53,15 @@ const CODE = /^[a-z][a-z0-9-]*(\.[a-z0-9-]+){2,}$/;
 const SYSTEM = /^[a-z][a-z0-9-]{1,29}$/;
 /** repo 資料夾名稱(AGENT.md §10.2),例 giga-endpoint、GigaItApp */
 const PROJECT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
+
+/** x-permissions 一筆的格式檢查;正確回傳 null(CLI apply 的 permissions: 共用) */
+export function permissionDeclError(p: Record<string, unknown>): string | null {
+  if (typeof p.code !== 'string' || !CODE.test(p.code) || typeof p.name !== 'string' || !p.name) return '權限代碼格式錯誤';
+  if (p.kind !== undefined && !(PERMISSION_KINDS as readonly unknown[]).includes(p.kind)) return `kind 需為 ${PERMISSION_KINDS.join(' / ')}`;
+  if (p.parent !== undefined && (typeof p.parent !== 'string' || !CODE.test(p.parent) || p.parent === p.code)) return 'parent 需為其他權限代碼';
+  if (p.sort !== undefined && (!Number.isInteger(p.sort) || (p.sort as number) < 0 || (p.sort as number) > 32767)) return 'sort 需為 0–32767 的整數';
+  return null;
+}
 
 /** /v1/work-orders/{id} → /api/mes/work-orders/:id(預設去掉開頭的版本段) */
 export function toPublicPath(system: string, upstreamPath: string): string {
@@ -56,13 +77,11 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
   if (xg.project !== undefined && (typeof xg.project !== 'string' || !PROJECT.test(xg.project)))
     errors.push({ operation: '(root)', message: 'x-gateway.project 需為 repo 資料夾名稱(英數、. _ -,100 字內)' });
   const system = xg.system ?? '';
-  const permissions = ((doc['x-permissions'] ?? []) as { code?: string; name?: string }[]).filter((p) => {
-    if (!p.code || !CODE.test(p.code) || !p.name) {
-      errors.push({ operation: '(x-permissions)', message: `權限代碼格式錯誤:${JSON.stringify(p)}` });
-      return false;
-    }
-    return true;
-  }) as { code: string; name: string }[];
+  const permissions = ((doc['x-permissions'] ?? []) as Record<string, unknown>[]).filter((p) => {
+    const msg = permissionDeclError(p);
+    if (msg) errors.push({ operation: '(x-permissions)', message: `${msg}:${JSON.stringify(p)}` });
+    return !msg;
+  }) as unknown as PermissionDecl[];
   if (!Array.isArray(doc['x-permissions'])) errors.push({ operation: '(root)', message: '缺少 x-permissions' });
 
   const routes: ParsedRoute[] = [];

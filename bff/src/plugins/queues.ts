@@ -6,6 +6,8 @@ import type { AppConfig } from '../config.js';
 /** BullMQ 佇列名稱(Redis 鍵 bull:<名稱>:*,DATABASE.md §6) */
 export const QUEUE_WEBHOOK = 'webhook';
 export const QUEUE_NOTIFY = 'notify';
+/** 人事同步排程(DATABASE.md §6 bull:employee-sync:*):目前有部門樹(departments) */
+export const QUEUE_EMPLOYEE_SYNC = 'employee-sync';
 
 export interface WebhookJob {
   logId: number;

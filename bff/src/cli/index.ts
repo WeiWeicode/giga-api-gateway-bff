@@ -2,7 +2,7 @@
  * Gateway 管理 CLI(IMPL-PLAN W3-5.7、W3-4.15):第二階段管理 API 完成前,由 Gateway 負責人以此維護設定。
  *
  *   npm run gw -- import-openapi --file <路徑或 URL> --target <http://host:512xx> [--env test|prod]
- *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)、Webhook 端點、通知範本
+ *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)、Webhook 端點、通知範本、應用登記
  *   npm run gw -- publish [--note 說明]              發佈所有草稿(≤ 5 秒全部 BFF 生效)
  *   npm run gw -- rollback --to <版本>               以歷史版本產生新版本
  *   npm run gw -- releases                           列出最近 20 個發佈版本
@@ -14,6 +14,7 @@
  *   npm run gw -- client:create --code <服務代碼> [--name 名稱] [--perm 權限代碼 ...] [--ips CIDR,...] [--expires-days 天數]
  *                                                    建立或換發 API Key(明文只顯示一次);預設權限為自動註冊與路由查詢
  *   npm run gw -- client:disable --code <服務代碼>
+ *   npm run gw -- dept:sync [--force]               由 BPM 同步部門樹(gw.department);worker 每小時自動執行
  *
  * 容器內:node dist/bff/src/cli/index.js <指令> ...
  * 所有寫入皆記錄 gw.audit_log(actor = --actor 或 cli:<OS 使用者>)。
@@ -30,6 +31,7 @@ import { createGwDb, openPool, type GwDatabase } from '../db/client.js';
 import { createExternalDb } from '../db/external/index.js';
 import {
   aggregateStep,
+  app as appTable,
   apiClient,
   apiClientPermission,
   apiRoute,
@@ -52,10 +54,13 @@ import { publishRelease, rollbackRelease } from '../db/sync/release.js';
 import { clientKey, generateApiKey } from '../modules/auth/api-key.js';
 import { AdDirectory } from '../modules/auth/ldap.js';
 import { isChannel } from '../modules/notify/template.js';
+import { permissionDeclError, type PermissionDecl } from './openapi.js';
 import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo } from '../modules/auth/profile.js';
 import { hashPassword, pushHistory } from '../modules/auth/password.js';
+import { DepartmentSyncAborted, syncDepartments } from '../modules/rbac/department-sync.js';
+import { bumpAllPermVersions } from '../modules/rbac/permission.js';
 import { revokeUserSessions } from '../modules/auth/session.js';
-import { audit, ensurePermissions, ImportError, importOpenApiDoc, setTargets, upsertUpstream, type Tx } from '../modules/admin/route-import.js';
+import { audit, ensurePermissions, ImportError, importOpenApiDoc, setTargets, upsertUpstream } from '../modules/admin/route-import.js';
 
 interface Ctx {
   config: AppConfig;
@@ -82,14 +87,6 @@ async function readSource(file: string): Promise<string> {
     return res.text();
   }
   return readFile(file, 'utf8');
-}
-
-/** 角色、權限對應變更後:遞增受影響使用者的權限版本(CLI 以全體使用者為範圍,下一次請求即重新計算) */
-async function bumpAllPermVersions(tx: Tx, actor: string): Promise<void> {
-  await tx
-    .update(user)
-    .set({ permVersion: sql`${user.permVersion} + 1`, updatedBy: actor })
-    .where(sql`1 = 1`);
 }
 
 async function invalidatePvCache(redis: Redis): Promise<void> {
@@ -123,7 +120,8 @@ interface ApplyFile {
     project?: string;
     targets?: Record<string, string[]>;
   }[];
-  permissions?: { code: string; name: string }[];
+  /** 同 OpenAPI x-permissions(含 kind / parent / sort) */
+  permissions?: PermissionDecl[];
   roles?: { code: string; name: string; description?: string; permissions?: string[]; adGroups?: string[]; companies?: string[] }[];
   companies?: { compName: string; domains?: string[] }[];
   routes?: {
@@ -165,6 +163,8 @@ interface ApplyFile {
     dispatchTarget: string;
     enabled?: boolean;
   }[];
+  /** 應用登記(PRD §8.3.3):/api/auth/me 的 apps;permissionCode 為該應用的 app 權限 */
+  apps?: { code: string; name: string; basePath: string; icon?: string; sort?: number; permissionCode: string; enabled?: boolean }[];
   /** 通知範本(PRD §8.5);變數 {{name}},emailBody 為 HTML(變數值自動跳脫) */
   notifyTemplates?: {
     code: string;
@@ -180,7 +180,7 @@ interface ApplyFile {
 async function applyConfig(ctx: Ctx, file: string) {
   const cfg = parseYaml(await readSource(file)) as ApplyFile;
   const result = await ctx.db.transaction(async (tx) => {
-    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, webhooks: 0, notifyTemplates: 0, pvBumped: false };
+    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, webhooks: 0, notifyTemplates: 0, apps: 0, pvBumped: false };
     for (const p of cfg.policies ?? []) {
       const [cur] = await tx.select().from(rateLimitPolicy).where(eq(rateLimitPolicy.code, p.code));
       const v = { limitCount: p.limitCount, windowSec: p.windowSec, keyBy: p.keyBy, burst: p.burst ?? null, updatedBy: ctx.actor };
@@ -194,6 +194,10 @@ async function applyConfig(ctx: Ctx, file: string) {
       upIds.set(u.code, id);
       for (const [env, urls] of Object.entries(u.targets ?? {})) await setTargets(tx, id, env, urls, ctx.actor);
       r.upstreams++;
+    }
+    for (const p of cfg.permissions ?? []) {
+      const msg = permissionDeclError(p as unknown as Record<string, unknown>);
+      if (msg) throw new CliError(`${msg}:${JSON.stringify(p)}`);
     }
     r.permissions = await ensurePermissions(tx, cfg.permissions ?? [], ctx.actor);
 
@@ -322,6 +326,34 @@ async function applyConfig(ctx: Ctx, file: string) {
       else await tx.insert(webhookEndpoint).values({ sourceCode: w.source, ...v, createdBy: ctx.actor });
       await audit(tx, ctx.actor, 'webhook.apply', 'webhook_endpoint', w.source, v);
       r.webhooks++;
+    }
+    for (const a of cfg.apps ?? []) {
+      if (!/^[a-z][a-z0-9-]{0,29}$/.test(a.code)) throw new CliError(`應用代碼格式錯誤:${a.code}`);
+      if (!a.basePath.startsWith('/') || !a.basePath.endsWith('/')) throw new CliError(`應用 ${a.code} 的 basePath 需以 / 開頭與結尾`);
+      const [perm] = await tx.select({ id: permission.permissionId, kind: permission.kind }).from(permission).where(eq(permission.code, a.permissionCode));
+      if (!perm) throw new CliError(`應用 ${a.code} 的權限不存在:${a.permissionCode}`);
+      // 應用的進入權限分類為 app(PRD §8.3.2)
+      if (perm.kind !== 'app')
+        await tx.update(permission).set({ kind: 'app', parentCode: null, updatedBy: ctx.actor }).where(eq(permission.permissionId, perm.id));
+      const v = {
+        name: a.name,
+        basePath: a.basePath,
+        icon: a.icon ?? null,
+        sort: a.sort ?? 0,
+        permissionCode: a.permissionCode,
+        isEnabled: a.enabled ?? true,
+        updatedBy: ctx.actor,
+      };
+      const [cur] = await tx.select({ id: appTable.appId }).from(appTable).where(eq(appTable.code, a.code));
+      if (cur) await tx.update(appTable).set(v).where(eq(appTable.appId, cur.id));
+      else await tx.insert(appTable).values({ code: a.code, ...v, createdBy: ctx.actor });
+      await audit(tx, ctx.actor, 'app.apply', 'app', a.code, v);
+      r.apps++;
+    }
+    if (r.apps && !r.pvBumped) {
+      // me.apps 依應用登記計算:清除權限版本,下一次請求即重新換發
+      await bumpAllPermVersions(tx, ctx.actor);
+      r.pvBumped = true;
     }
     for (const t of cfg.notifyTemplates ?? []) {
       const bad = t.channels.filter((c) => !isChannel(c));
@@ -477,6 +509,24 @@ async function resetLocalPassword(ctx: Ctx, empArg: string) {
   out({ employeeNo: emp, temporaryPassword: temp, mustChangePassword: true, revokedSessions: revoked, message: '臨時密碼只顯示這一次,請以安全管道交給本人' });
 }
 
+/** 部門樹同步(PRD §8.3.1);樹結構變更時已遞增全體 perm_version,這裡清除 pv 快取 */
+async function syncDepartmentTree(ctx: Ctx, force: boolean) {
+  if (!ctx.config.bpmDb) throw new CliError('未設定 BPM_DB_HOST');
+  const pool = await openPool(ctx.config.bpmDb, { appName: 'giganexus-cli-bpm', poolMax: 1 });
+  try {
+    const r = await syncDepartments(ctx.db, createExternalDb(pool), ctx.actor, { force });
+    if (r.treeChanged) await invalidatePvCache(ctx.redis);
+    await ctx.db.transaction((tx) => audit(tx, ctx.actor, 'department.sync', 'department', 'bpm', r));
+    out(r);
+  } catch (err) {
+    if (err instanceof DepartmentSyncAborted) throw new CliError(err.message);
+    if (/vw_gn_department/.test((err as Error).message)) throw new CliError('BPM 尚未建立 vw_gn_department,請 DBA 執行 db/dba/03-bpm-department.sql');
+    throw err;
+  } finally {
+    await pool.close();
+  }
+}
+
 async function setUserDisabled(ctx: Ctx, empArg: string, disabled: boolean) {
   const emp = normalizeEmpNo(empArg);
   const [u] = await ctx.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
@@ -580,6 +630,7 @@ async function main() {
       perm: { type: 'string', multiple: true },
       ips: { type: 'string' },
       'expires-days': { type: 'string' },
+      force: { type: 'boolean' },
     },
   });
   if (!command || command === 'help') {
@@ -660,6 +711,9 @@ async function main() {
         break;
       case 'client:disable':
         await disableApiClient(ctx, need(values.code, 'code'));
+        break;
+      case 'dept:sync':
+        await syncDepartmentTree(ctx, values.force === true);
         break;
       default:
         throw new CliError(`未知的指令:${command}`);

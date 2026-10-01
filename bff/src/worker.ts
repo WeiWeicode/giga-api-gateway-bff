@@ -1,13 +1,16 @@
 /**
  * Worker 進入點(DEPLOYMENT.md §3.1:與 BFF 共用映像檔,以 `node dist/bff/src/worker.js` 啟動)。
- * 處理 BullMQ 佇列:webhook(W3-5.10)、notify(W3-5.8)。BullMQ 確保多個 worker 不會重複處理同一個工作。
+ * 處理 BullMQ 佇列:webhook(W3-5.10)、notify(W3-5.8)、employee-sync(部門樹每小時,P2-3a)。BullMQ 確保多個 worker 不會重複處理同一個工作。
  */
-import { Worker } from 'bullmq';
+import { Queue, Worker } from 'bullmq';
 import { Redis } from 'ioredis';
 import { pino } from 'pino';
 import { loadConfig } from './config.js';
 import { createGwDb, openPool } from './db/client.js';
-import { QUEUE_NOTIFY, QUEUE_WEBHOOK, type NotifyJob, type WebhookJob } from './plugins/queues.js';
+import { createExternalDb } from './db/external/index.js';
+import { DepartmentSyncAborted, syncDepartments } from './modules/rbac/department-sync.js';
+import { PermissionService } from './modules/rbac/permission.js';
+import { QUEUE_EMPLOYEE_SYNC, QUEUE_NOTIFY, QUEUE_WEBHOOK, type NotifyJob, type WebhookJob } from './plugins/queues.js';
 import { createMailer, createNotifyProcessor, recordNotifyFailure } from './workers/notify.worker.js';
 import { createWebhookProcessor, recordWebhookFailure } from './workers/webhook.worker.js';
 
@@ -52,9 +55,39 @@ notify.on('failed', (job, err) => {
   void recordNotifyFailure(db, notifyLog, job, err).catch((e: Error) => log.error({ err: e.message }, '寫入通知失敗紀錄失敗'));
 });
 notify.on('error', (err) => log.error({ err: err.message }, '通知 worker 錯誤'));
+
+// 部門樹同步(每小時;BPM 未設定時不排程)
+const syncLog = log.child({ queue: QUEUE_EMPLOYEE_SYNC });
+const syncQueue = new Queue(QUEUE_EMPLOYEE_SYNC, { connection });
+const perms = new PermissionService(db, pub, syncLog);
+let bpmPool: Awaited<ReturnType<typeof openPool>> | null = null;
+const employeeSync = new Worker(
+  QUEUE_EMPLOYEE_SYNC,
+  async (job) => {
+    if (job.name !== 'departments' || !config.bpmDb) return;
+    bpmPool ??= await openPool(config.bpmDb, { appName: 'giganexus-worker-bpm', poolMax: 2, connectTimeoutMs: 5_000, requestTimeoutMs: 30_000 });
+    try {
+      const r = await syncDepartments(db, createExternalDb(bpmPool), 'system:dept-sync');
+      if (r.treeChanged) await perms.invalidatePv('all');
+      syncLog.info(r, '部門樹同步完成');
+      return r;
+    } catch (err) {
+      // 安全檢查中止:發出告警;下一次排程再比對
+      if (err instanceof DepartmentSyncAborted) syncLog.error({ alert: true, err: err.message }, '部門樹同步中止');
+      throw err;
+    }
+  },
+  { connection, concurrency: 1 },
+);
+employeeSync.on('failed', (job, err) => syncLog.error({ jobId: job?.id, err: err.message }, '人事同步失敗'));
+employeeSync.on('error', (err) => syncLog.error({ err: err.message }, '人事同步 worker 錯誤'));
+if (config.bpmDb)
+  await syncQueue.upsertJobScheduler('departments', { every: 60 * 60 * 1000 }, { name: 'departments', opts: { removeOnComplete: 24, removeOnFail: 50 } });
+else syncLog.warn('未設定 BPM_DB_HOST,不排程部門樹同步');
+
 log.info(
   {
-    queues: [QUEUE_WEBHOOK, QUEUE_NOTIFY],
+    queues: [QUEUE_WEBHOOK, QUEUE_NOTIFY, QUEUE_EMPLOYEE_SYNC],
     mail: config.mail.host ? `${config.mail.host}:${config.mail.port}` : null,
     redirectTo: config.mail.redirectTo ?? null,
   },
@@ -64,7 +97,8 @@ log.info(
 const shutdown = async (signal: string) => {
   log.info({ signal }, '收到結束訊號,等待執行中的工作完成');
   try {
-    await Promise.all([webhook.close(), notify.close()]);
+    await Promise.all([webhook.close(), notify.close(), employeeSync.close(), syncQueue.close()]);
+    await bpmPool?.close();
     mailer?.close();
     pub.disconnect();
     connection.disconnect();

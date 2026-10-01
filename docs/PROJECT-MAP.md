@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-01**(W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
+> **最後更新:2026-10-01**(P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -28,9 +28,9 @@ giga-api-gateway-bff/
 │  │  ├─ plugins/             基礎設施:db(外部唯讀來源)、redis、queues(BullMQ 入列)、errors(統一錯誤回應)
 │  │  ├─ modules/             功能模組(Fastify plugin)
 │  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*;local-account(自行註冊、忘記 / 重設密碼)
-│  │  │  ├─ rbac/             權限計算與快取
+│  │  │  ├─ rbac/             權限計算與快取(permission.ts:角色來源含指派規則、me.apps)、規則比對(rules.ts,純函式)、部門樹同步(department-sync.ts)
 │  │  │  ├─ router/           動態路由:路由樹、快照、同步、限流 / 快取、上游呼叫
-│  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、demo(DB 檢視、上手導覽)
+│  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、權限設定(rbac.ts:權限樹、角色權限、指派規則、部門樹、應用、試算)、demo(DB 檢視、上手導覽)
 │  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify
 │  │  │  ├─ webhook/          /webhook/{source}:驗簽(signature.ts 純函式)、時間戳、去重、gw.webhook_log、入列
 │  │  │  └─ health/           /healthz、/readyz
@@ -40,7 +40,7 @@ giga-api-gateway-bff/
 │  │  └─ cli/                 管理 CLI(`npm run gw`)、OpenAPI 轉路由草稿
 │  ├─ scripts/                開發工具:SQL 2012 語法檢查、重設整合測試庫
 │  └─ test/                   測試(與 src 平行):unit/、integration/、e2e/
-├─ db/                        migrations/(Drizzle 產生、人工審查,不可修改已套用的)、seed/
+├─ db/                        migrations/(Drizzle 產生、人工審查,不可修改已套用的)、seed/、dba/(交 DBA 以 sa 執行:唯讀帳號與 BPM view)
 ├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)與 /api/auth/me
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)
@@ -72,6 +72,8 @@ giga-api-gateway-bff/
 | 路由發佈 | CLI / 管理 API → `db/sync/release.ts`(SQL Server → Redis)→ 各 BFF `modules/router/sync.ts` 載入快照、原子替換路由樹 |
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
 | 通知 | 其他系統 `X-Api-Key` → `modules/notify/routes.ts` → `send.ts`(範本、收件人 × 通道、`gw.notify_log`)→ BullMQ `notify` → `workers/notify.worker.ts`(nodemailer / `gw.notify_message` + Redis `gw:notify:user:*` → `notify/ws.ts` 推播) |
+| 權限計算 | 登入 / Refresh / `me` / 權限試算 → `rbac/permission.ts`(`loadUserFacts` → `resolveRoles`:employee、AD 群組、公司、`rules.ts` 指派規則 + `gw.department` 樹、個別指派 → `permissionsOf` → `appsOf`) |
+| 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `vw_gn_department` → `gw.department`,樹變更遞增全體 pv) |
 | 自行註冊 / 忘記密碼 | `modules/auth/routes.ts` → `local-account.ts`(AD 查詢、`profile.ts` 查 LOS / BPM、`gw.local_credential` / `local_account_token`)→ `app.notifier` 寄連結 |
 | Webhook | Nginx `portal.conf` `/webhook/`(IP 白名單)→ `modules/webhook/routes.ts`(驗簽 → 時間戳 → 去重 → `gw.webhook_log` → BullMQ `webhook`)→ `worker.ts` → `workers/webhook.worker.ts`(依 `dispatch_target` 處理) |
 | 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt`,Rust + Axum);BFF 不經手 |
@@ -86,6 +88,7 @@ giga-api-gateway-bff/
 | 資料表變更 | `bff/src/db/schema/*.ts` → `npm run db:generate` → 審查 `db/migrations/` → `npm run db:check-2012` |
 | Redis 鍵 | `docs/DATABASE.md` §6 先登記 |
 | 通知範本 / 系統範本 | CLI `apply` 的 `notifyTemplates:`;註冊與重設密碼的系統範本在 `db/seed/data.mts` `NOTIFY_TEMPLATES`(seed 只新增) |
+| 權限設定 API(GigaItApp) | `bff/src/modules/admin/rbac.ts`;規則比對 `modules/rbac/rules.ts`;應用登記以 CLI `apply` 的 `apps:` |
 | 本機帳號審核 / IT 重設 | CLI `local:approve`、`local:reset`、`local:unlock`(`bff/src/cli/index.ts`) |
 | Webhook 來源 / 事件處理 | 端點以 CLI `apply` 的 `webhooks:`;處理程序登記在 `bff/src/workers/webhook.worker.ts`;簽章規格 `docs/BACKEND-GUIDE.md` §7.6 |
 | Nginx 路徑 / 標頭 | `nginx/conf.d/`、`nginx/snippets/`;依部署區的值放 `templates/`、`allowlists/` |

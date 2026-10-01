@@ -223,7 +223,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | 根 | `x-gateway.upstream` | ✅ | `upstream_id` | 服務代碼(§3.3),同時是內部 Token 的 `aud` |
 | 根 | `x-gateway.system` | ✅ | `system_code` | 系統代碼,決定對外前綴 `/api/{system}` |
 | 根 | `x-gateway.project` | 建議 | `gw.upstream.project` | **開發專案**:實作本服務的 repo 資料夾名稱(Gateway `AGENT.md` §10.2,英數與 `. _ -`,100 字內);管理介面與路由查詢據此顯示「由哪個專案開發」。未提供時保留既有值。**Node.js SDK 由 `package.json` 的 `gateway.project` 自動寫入**(§7.5);其他語言自行實作註冊時也必須帶入 |
-| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立。**有畫面的應用**另宣告 `kind`(`app` / `menu` / `tab` / `button`,省略 = `api`)、`parent`(上層權限代碼)、`sort`,供 IT 在 GigaItApp 以「應用 → 選單 → Tab → 按鈕」設定(PRD §8.3.2,v0.7 規格);按鈕的代碼必須等於它呼叫的寫入 API 的 `x-permission` |
+| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立。**有畫面的應用**另宣告 `kind`(`app` / `menu` / `tab` / `button`,省略 = `api`)、`parent`(上層權限代碼)、`sort`,供 IT 在 GigaItApp 以「應用 → 選單 → Tab → 按鈕」設定(PRD §8.3.2;2026-10-01 已實作:格式錯誤列為 `IMPORT_HAS_ERRORS`,既有權限只更新有宣告的 `kind` / `parent` / `sort`,名稱不覆寫);按鈕的代碼必須等於它呼叫的寫入 API 的 `x-permission` |
 | operation | `operationId` | ✅ | `route_code` | 全域唯一,格式 `{system}.{resource}.{action}`,例 `mes.workorder.get` |
 | operation | `summary` | ✅ | `name` | 中文名稱,顯示於管理介面 |
 | operation | `description` | 建議 | `description` | **API 用途說明**(1000 字內):做什麼、資料範圍、主要錯誤代碼;路由查詢(§7.5)以此比對關鍵字 |

@@ -17,3 +17,15 @@ export const bpmEmployee = mssqlView('vw_gn_employee', {
   managerEmployeeNo: nvarchar('manager_employee_no', { length: 50 }),
   leaveDate: datetime('leave_date'),
 }).existing();
+
+/**
+ * 部門樹(BPM OrganizationUnit 與上層單位)— gw.department 的來源(PRD §8.3.1、DATABASE.md §3.2)。
+ * view 由 db/dba/03-bpm-department.sql 建立(需 BPM 負責人同意)。
+ */
+export const bpmDepartment = mssqlView('vw_gn_department', {
+  deptCode: nvarchar('dept_code', { length: 50 }).notNull(),
+  name: nvarchar('dept_name', { length: 100 }),
+  parentDeptCode: nvarchar('parent_dept_code', { length: 50 }),
+  orgName: nvarchar('org_name', { length: 100 }),
+  unitOid: nvarchar('unit_oid', { length: 50 }),
+}).existing();

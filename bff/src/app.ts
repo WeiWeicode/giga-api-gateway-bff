@@ -3,6 +3,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppConfig } from './config.js';
 import dbViewer from './modules/admin/db-viewer.js';
 import onboarding from './modules/admin/onboarding.js';
+import rbacAdmin from './modules/admin/rbac.js';
 import registration from './modules/admin/registration.js';
 import authPlugin from './modules/auth/plugin.js';
 import authRoutes from './modules/auth/routes.js';
@@ -54,6 +55,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(notifyRoutes);
   await app.register(healthRoutes);
   await app.register(registration, { config });
+  await app.register(rbacAdmin);
   await app.register(webhookRoutes, { config });
   // 資料庫檢視為 demo 用,正式區不提供
   if (config.gwEnv !== 'prod') {

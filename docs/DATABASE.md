@@ -243,13 +243,13 @@ erDiagram
 
 ### 3.2 指派規則、部門樹、應用(v0.7,規格)
 
-> 對應 PRD §8.3.1–§8.3.3(員工入口網 giga-Portal、GigaItApp 設定畫面)。尚未建立 migration;實作時依 §0 的 2012 限制與 §7.4 流程。
+> 對應 PRD §8.3.1–§8.3.3(員工入口網 giga-Portal、GigaItApp 設定畫面)。migration `20261001043228_rbac_rules_apps`(2026-10-01 已套用至 SQL Server 2012 `giganexus_gw_test`)。
 
 | 表 | 欄位 | 說明 |
 | --- | --- | --- |
 | `gw.role_rule` | `rule_id` INT PK、`role_id` FK、`company_id` INT NULL(FK `gw.company`)、`dept_code` VARCHAR(30) NULL、`include_sub_depts` BIT 預設 1、`job_levels` NVARCHAR(200) NULL(職級值 JSON 陣列,如 `["5","6"]`)、`title` NVARCHAR(100) NULL(職稱完全相符,選配)、`description` NVARCHAR(200) NULL、`is_enabled` BIT、★共通 | 依人事欄位指派角色:同一規則內各條件 AND,NULL = 不限;同一角色多條規則 OR;至少要有一個條件(不可空規則)。比對對象為使用者**所有所屬公司與部門**(`gw.user_company`,含兼任),職級、職稱取 `gw.user`。寫入後所有使用者 `perm_version + 1` |
-| `gw.department` | `dept_code` VARCHAR(30) PK、`name` NVARCHAR(100)、`parent_dept_code` VARCHAR(30) NULL、`company_id` INT NULL、`bpm_unit_oid` VARCHAR(50) NULL、`is_enabled` BIT、`synced_at` DATETIME2(3) | 部門樹(BPM `OrganizationUnit` 與上層單位,§8.3 同步);`include_sub_depts` 以此展開下層部門。樹有變更時所有使用者 `perm_version + 1` |
-| `gw.app` | `app_id` INT PK、`code` VARCHAR(30) UQ(`portal`、`it`)、`name` NVARCHAR(50)、`base_path` VARCHAR(100)(`/`、`/it/`,對應 PRD §7.2.1)、`icon` VARCHAR(30)、`sort` SMALLINT、`permission_code` VARCHAR(100) FK → `gw.permission.code`(`kind = app`)、`is_enabled` BIT、★共通 | 應用登記;`/api/auth/me` 的 `apps` 依此與使用者權限過濾;以 CLI `apply` 的 `apps:` 維護 |
+| `gw.department` | `dept_code` VARCHAR(30) PK、`name` NVARCHAR(100)、`parent_dept_code` VARCHAR(30) NULL、`company_id` INT NULL、`bpm_unit_oid` VARCHAR(50) NULL、`is_enabled` BIT、`synced_at` DATETIME2(3) | 部門樹:worker 每小時(BullMQ `employee-sync` 工作 `departments`)或 CLI `dept:sync` 自 BPM 唯讀 view `vw_gn_department`(`db/dba/03-bpm-department.sql`)同步;BPM 已無的部門改 `is_enabled = 0`,BPM 組織名稱等於 `gw.company.comp_name` 時填 `company_id`。`include_sub_depts` 以此展開下層部門。樹結構變更(新增、改上層、停用 / 啟用)時所有使用者 `perm_version + 1`,只改名稱不遞增。安全檢查:BPM 回傳 0 筆,或一次停用超過 10%(且多於 5 個)時中止 |
+| `gw.app` | `app_id` INT PK、`code` VARCHAR(30) UQ(`portal`、`it`)、`name` NVARCHAR(50)、`base_path` VARCHAR(100)(`/`、`/it/`,對應 PRD §7.2.1)、`icon` VARCHAR(30)、`sort` SMALLINT、`permission_code` VARCHAR(100)(→ `gw.permission.code`,`kind = app`;不建 FK,CLI `apply` 檢查存在並把該權限改為 `app`)、`is_enabled` BIT、★共通 | 應用登記;`/api/auth/me` 的 `apps` 依此與使用者權限過濾;以 CLI `apply` 的 `apps:` 維護 |
 
 - 有效角色 = AD 群組對應 ∪ 公司預設角色 ∪ **符合的指派規則** ∪ 有效的個別指派;有效權限計算結果仍以 `gw:perm:{userId}:{pv}` 快取(§6)。
 - 權限試算(`POST /api/admin/rbac/preview`)與登入時使用同一個計算函式,並回傳每個角色的命中來源。
@@ -330,7 +330,7 @@ erDiagram
 | `gw:idem:webhook:{source}:{key}` / `gw:idem:notify:{key}` | String | 24h | Webhook / 通知去重(值為第一次請求的 requestId) |
 | `bull:webhook:*` | BullMQ | — | Webhook 事件佇列(worker 處理,完成的工作保留 24 小時,失敗的保留供查) |
 | `bull:notify:*` | BullMQ | — | 通知佇列 |
-| `bull:employee-sync:*` | BullMQ(可重複工作) | — | 人員同步排程;BullMQ 確保多個實例下同一時間只執行一次 |
+| `bull:employee-sync:*` | BullMQ(可重複工作) | — | 人事同步排程:目前為部門樹(`departments`,每小時);人員同步(W3-4.6b)日後加入。BullMQ 確保多個實例下同一時間只執行一次 |
 | `gw:lock:sync` | String(`SET NX PX`) | 30 秒 | 補償同步時的分散式鎖,避免多個 BFF 實例同時重推快照 |
 | `gw:pwchg:{tokenHash}` | String | 10 分 | 限定變更密碼憑證(舊入口遷移或 IT 重設後首次登入;只能呼叫變更密碼) |
 | `gw:reg:ip:{ip}` / `gw:reg:emp:{employeeNo}` | Counter | 1 小時 | 註冊與忘記密碼請求限流(例如每 IP 每小時 10 次、每工號每小時 3 次) |

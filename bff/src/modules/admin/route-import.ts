@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, ne } from 'drizzle-orm';
-import { checkUpstreamPort, parseOpenApi, type ParsedSpec } from '../../cli/openapi.js';
+import { checkUpstreamPort, parseOpenApi, type ParsedSpec, type PermissionDecl } from '../../cli/openapi.js';
 import type { GwDatabase } from '../../db/client.js';
 import { apiImportBatch, apiImportItem, apiRoute, auditLog, permission, rateLimitPolicy, upstream, upstreamTarget } from '../../db/schema/index.js';
 
@@ -28,12 +28,16 @@ function permParts(code: string) {
   return { systemCode: system.slice(0, 30), resource: resource.slice(0, 50), action: (rest.join('.') || 'use').slice(0, 30) };
 }
 
-export async function ensurePermissions(tx: Tx, perms: { code: string; name: string }[], actor: string): Promise<number> {
+/**
+ * 建立不存在的權限;已存在者只在宣告了 kind / parent / sort 且與現值不同時更新(名稱不覆寫,IT 可能已調整)。
+ * 回傳新建數量。
+ */
+export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: string): Promise<number> {
   if (!perms.length) return 0;
-  const existing = new Set(
+  const existing = new Map(
     (
       await tx
-        .select({ code: permission.code })
+        .select({ id: permission.permissionId, code: permission.code, kind: permission.kind, parentCode: permission.parentCode, sort: permission.sort })
         .from(permission)
         .where(
           inArray(
@@ -41,11 +45,26 @@ export async function ensurePermissions(tx: Tx, perms: { code: string; name: str
             perms.map((p) => p.code),
           ),
         )
-    ).map((p) => p.code),
+    ).map((p) => [p.code, p]),
   );
-  const missing = perms.filter((p) => !existing.has(p.code));
-  for (const p of missing) await tx.insert(permission).values({ code: p.code, name: p.name, ...permParts(p.code), createdBy: actor, updatedBy: actor });
-  return missing.length;
+  let created = 0;
+  for (const p of perms) {
+    const meta = { kind: p.kind ?? 'api', parentCode: p.parent ?? null, sort: p.sort ?? null };
+    const cur = existing.get(p.code);
+    if (!cur) {
+      await tx.insert(permission).values({ code: p.code, name: p.name, ...permParts(p.code), ...meta, createdBy: actor, updatedBy: actor });
+      created++;
+    } else if (
+      (p.kind !== undefined || p.parent !== undefined || p.sort !== undefined) &&
+      (cur.kind !== meta.kind || cur.parentCode !== meta.parentCode || cur.sort !== meta.sort)
+    ) {
+      await tx
+        .update(permission)
+        .set({ ...meta, updatedBy: actor })
+        .where(eq(permission.permissionId, cur.id));
+    }
+  }
+  return created;
 }
 
 export async function upsertUpstream(

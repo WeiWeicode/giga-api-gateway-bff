@@ -1,5 +1,5 @@
 # language: zh-TW
-@phase2 @P2-3a @wip
+@phase2 @P2-3a
 功能: 依部門與職位指派角色,並以應用 / 選單 / Tab / 按鈕分類權限
   為了讓人事異動後權限自動跟著調整,並在一處管理所有應用的畫面權限
   身為 IT 權限管理人員
@@ -36,7 +36,7 @@
     而且 下一次請求即具備 "it.app.access"
 
   場景: 指派規則變更立即生效
-    當 IT 以 PUT /api/admin/roles/it-engineer/rules 移除部門 "IT" 的規則
+    當 IT 以 DELETE /api/admin/roles/it-engineer/rules/<規則 id> 移除部門 "IT" 的規則
     那麼 所有使用者的 perm_version 遞增
     而且 稽核紀錄新增一筆,actor 為實際操作的使用者
 

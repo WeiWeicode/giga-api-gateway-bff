@@ -679,10 +679,10 @@ sequenceDiagram
 | 匯入 | `POST /api/admin/imports`(上傳)、`GET /api/admin/imports/:id`(預覽)、`POST /api/admin/imports/:id/commit` | `gw.admin.route.import` |
 | 發佈 / 回滾 | `GET /api/admin/releases`、`POST /api/admin/releases`(發佈草稿)、`POST /api/admin/releases/:id/rollback` | `gw.admin.release` |
 | 權限 / 角色 | `/api/admin/permissions`(`?tree=1&app=`:依 `kind` / `parent_code` 回傳權限樹)、`/api/admin/roles`、`/api/admin/roles/:id/permissions`、`/api/admin/roles/:id/ad-groups` | `gw.admin.rbac.*` |
-| 指派規則(v0.7) | `GET/POST/PATCH/DELETE /api/admin/roles/:id/rules[/:ruleId]`;寫入後遞增所有使用者 `pv` | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
+| 指派規則(v0.7) | `GET/POST/PATCH/DELETE /api/admin/roles/:id/rules[/:ruleId]`(`:id` 可為角色 id 或代碼);body `{ companyId, deptCode, includeSubDepts, jobLevels[], title, description, isEnabled }`,至少一個條件、部門代碼須存在於部門樹或人事資料;寫入後遞增所有使用者 `pv`。`PUT /api/admin/roles/:id/permissions` 取代角色權限(`gw-super-admin` 不開放修改) | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
 | 部門樹(v0.7) | `GET /api/admin/departments`(公司 → 部門樹,含人數) | `gw.admin.rbac.read` |
 | 應用(v0.7) | `GET /api/admin/apps`(維護以 CLI `apply`) | `gw.admin.rbac.read` |
-| 權限試算(v0.7) | `POST /api/admin/rbac/preview`:`{ employeeNo }` 或 `{ company, deptCode, jobLevel, title }` → 角色(含命中來源:AD 群組 / 公司 / 規則 / 個別指派)、權限、`apps`;與實際登入計算一致 | `gw.admin.rbac.read` |
+| 權限試算(v0.7) | `POST /api/admin/rbac/preview`:`{ employeeNo }` 或 `{ company, deptCode, jobLevel, title }` → 角色(`sources`:`default` / `ad_group` / `company` / `rule` / `user`,`ruleIds`)、權限、`apps`;與實際登入計算為同一函式(假設條件不含 AD 群組與個別指派) | `gw.admin.rbac.read` |
 | 使用者 | `GET /api/admin/users`、`PATCH /api/admin/users/:id`(停用、個別角色)、`POST /api/admin/users/:id/revoke-sessions` | `gw.admin.user.*` |
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
