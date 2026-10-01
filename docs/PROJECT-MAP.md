@@ -45,8 +45,6 @@ giga-api-gateway-bff/
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)
 ├─ deploy/                    Docker Compose(開發 / 測試 / 正式)、env 範例、健康檢查、煙霧測試、gen-temp-pki.sh(測試區臨時憑證)
-│  └─ dev/                    ※ 本機環境(up.sh、開發憑證 secrets/pki、mssql-init)— 不進版控
-├─ tools/                     ※ 本機模擬服務(mock-ad、mock-upstream、sample-spa)— 不進版控
 ├─ ci-templates/              SPA 發佈的 GitLab CI 範本
 ├─ drizzle.config.ts          Drizzle Kit 設定(migration 產生)
 └─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄);部署:DEPLOYMENT(CI/CD)、
@@ -101,7 +99,7 @@ giga-api-gateway-bff/
 | --- | --- | --- |
 | 單元 | `bff/test/unit/` | `npm test` |
 | 整合(需 SQL Server) | `bff/test/integration/` | `npm run test:int` |
-| 端到端(需 `sh deploy/dev/up.sh`) | `bff/test/e2e/`(編號即執行順序) | `npm run test:e2e` |
+| 端到端(對測試區,需 `ssh host2`) | `bff/test/e2e/`(編號即執行順序) | `npm run test:e2e` |
 | 驗收場景 | `docs/Gherkin/**/*.feature` | 對應上列測試 |
 | 下游樣本 | `samples/node-backend/test/` | 在該目錄 `npm test` |
 
@@ -112,4 +110,3 @@ giga-api-gateway-bff/
 | 測試目錄名稱 `test/` | Node.js 專案慣例;與原則中的 `tests/` 同義,不改名 |
 | `web-kit/`、`sdk/node/` 沒有測試 | 由 `bff/test/e2e` 與使用端間接驗證;新增功能時再補 `test/` |
 | 沒有 `src/utils/` | 目前沒有跨模組的無 I/O 工具函式;需要時再建立並更新本地圖 |
-| `tools/`、`deploy/dev/` 不進版控 | 本機環境,內容以開發主機為準(AGENT.md §9) |

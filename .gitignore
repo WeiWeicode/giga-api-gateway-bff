@@ -7,12 +7,4 @@ coverage/
 *.log
 secrets/
 .DS_Store
-deploy/dev/secrets/
 .ci-secrets/
-
-# 本機測試環境:模擬 AD / 下游後端、範例網頁、模擬資料庫(初始化腳本與測試資料)、開發用憑證與設定
-# 只保留在開發主機,不進版控;上公司環境需調整的項目見 docs/COMPANY-ENV-PLAN.md
-tools/
-deploy/dev/
-deploy/dev.env
-deploy/docker-compose.dev.yml

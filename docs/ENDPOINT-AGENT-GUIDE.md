@@ -24,7 +24,6 @@
 | 項目 | 狀態 |
 | --- | --- |
 | Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ⚠ **仍為 gRPC 版**(`grpc_pass`,2026-09-25 實測通過)。依 §4 改寫為 `proxy_pass` + WebSocket,**W6-1 訊息協定定版後進行** |
-| E2E `bff/test/e2e/06-websocket-agent.test.ts`、`tools/mock-upstream/endpoint.js` | ⚠ 仍為 gRPC 版,與 `agent.conf` 一起改寫 |
 | §3.4、§5–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
 
 ---
@@ -505,59 +504,12 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 
 ---
 
-## 9. 本機開發與測試
+## 9. 開發與測試
 
-本機完整環境:`sh deploy/dev/up.sh`(需 Docker)。`:9443` 在 `localhost:9443`,開發用憑證在 `deploy/dev/secrets/pki/`(不進版控):
-
-| 檔案 | 用途 |
-| --- | --- |
-| `ca.crt` | 開發用根 CA(用戶端以此驗證 Gateway 與 Endpoint Server) |
-| `agent-valid.crt` / `.key` | 有效裝置憑證,DN `O=GigaNexus Dev,CN=PC-001` |
-| `agent-expired`、`agent-revoked`、`agent-rogue` | 過期、已撤銷、非企業 CA 簽發(應被拒) |
-
-> ⚠ 預設的 Endpoint Server 模擬服務(`tools/mock-upstream/endpoint.js`)與 E2E `06-websocket-agent` **目前仍為 gRPC 版**,`agent.conf` 改寫時一起改為 HTTPS / WebSocket echo。以下改接步驟在改寫後適用。
-
-**改接自己在主機上執行的 Endpoint Server(RustIt `crates/server`)**:
-
-1. 以開發用 CA 為 Endpoint Server 簽一張 SAN 含 `host.docker.internal` 的憑證:
-
-   ```bash
-   openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout endpoint-dev.key -out endpoint-dev.csr -subj "/O=GigaNexus Dev/CN=endpoint-dev"
-   ```
-
-   ```bash
-   printf "subjectAltName=DNS:host.docker.internal,DNS:localhost\nextendedKeyUsage=serverAuth\n" > endpoint-dev.ext
-   ```
-
-   ```bash
-   openssl x509 -req -in endpoint-dev.csr -CA deploy/dev/secrets/pki/ca.crt -CAkey deploy/dev/secrets/pki/ca.key -CAcreateserial -days 30 -sha256 -extfile endpoint-dev.ext -out endpoint-dev.crt
-   ```
-
-2. 在主機以此憑證啟動 Endpoint Server 的 Agent 通道(`:51241`)。
-3. 建立覆寫檔 `nginx-endpoint.override.yml`,讓 Nginx 改轉到主機:
-
-   ```yaml
-   services:
-     nginx:
-       environment:
-         ENDPOINT_AGENT_UPSTREAM: host.docker.internal:51241
-   ```
-
-   在 `deploy/` 下執行:
-
-   ```bash
-   docker compose --env-file dev.env -f docker-compose.yml -f docker-compose.dev.yml -f nginx-endpoint.override.yml up -d --wait nginx
-   ```
-
-4. 測完還原(去掉覆寫檔再 `up` 一次):
-
-   ```bash
-   docker compose --env-file dev.env -f docker-compose.yml -f docker-compose.dev.yml up -d --wait nginx
-   ```
-
-- Agent 在本機開發時以 PEM 檔作為憑證來源(§3.4),並以 `ca.crt` 作為信任的根 CA。
-- 環境變數目前名稱為 `ENDPOINT_GRPC_UPSTREAM`,`agent.conf` 改寫時一併更名為 `ENDPOINT_AGENT_UPSTREAM`。
-- 對應驗收場景:`docs/Gherkin/gateway/agent-mtls.feature`。
+- 測試區 `:9443` 在 `10.10.130.124:9443`;臨時 PKI(根 CA、`agent-server.crt`、Agent CA 與 CRL)由 `deploy/gen-temp-pki.sh` 產生,放在主機 2 的 `${GW_SECRETS_DIR}/pki/`(不進版控)。正式的裝置憑證由 AD CS 簽發(§3)。
+- Endpoint Server 改接位址以環境變數 `ENDPOINT_GRPC_UPSTREAM` 指定(`agent.conf` 改寫時更名為 `ENDPOINT_AGENT_UPSTREAM`),寫在主機 2 的 `test.env`。
+- Agent 開發時以 PEM 檔作為憑證來源(§3.4),並以臨時根 CA 作為信任的根。
+- 對應驗收場景:`docs/Gherkin/gateway/agent-mtls.feature`;E2E 只驗證 `:9443` 拒絕沒有用戶端憑證的連線(`bff/test/e2e/01-nginx-entry`),HTTPS / WebSocket 通道的 E2E 於 `agent.conf` 改寫時補上。
 
 ---
 
@@ -567,7 +519,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 
 | # | 項目 | 影響 | 狀態 |
 | --- | --- | --- | --- |
-| G0 | `agent.conf`、E2E `06-websocket-agent`、`tools/mock-upstream/endpoint.js` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM` | Agent 上線前必須完成 | **待 W6-1 訊息協定定版** |
+| G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | **待 W6-1 訊息協定定版** |
 | G1 | CRL 定期更新並 reload Nginx | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
 | G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | 待確認是否接受 |
 | G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 Rust 或 k6 測試工具 |

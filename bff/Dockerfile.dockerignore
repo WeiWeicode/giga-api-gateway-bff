@@ -4,5 +4,3 @@
 **/.env.*
 .git
 docs
-tools
-deploy/dev/secrets

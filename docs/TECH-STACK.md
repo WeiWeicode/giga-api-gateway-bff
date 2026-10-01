@@ -52,8 +52,6 @@ giga-api-gateway-bff/
 ├─ db/seed/                    # 內建角色、權限、預設政策(Drizzle seed 腳本)
 ├─ drizzle.config.ts
 ├─ deploy/                     # docker-compose.yml(共用)+ .test.yml / .prod.yml(見 DEPLOYMENT.md §5)
-│  └─ dev/                     # 本機完整環境(docker-compose.dev.yml):模擬資料庫初始化、開發用憑證產生、路由設定
-├─ tools/                      # 測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端 / Endpoint Server)、sample-spa(範例 SPA)
 └─ .gitlab-ci.yml
 ```
 

@@ -146,7 +146,7 @@
 | 後端規範 | `docs/BACKEND-GUIDE.md` | 下游 port、內部 Token、OpenAPI 上架 |
 | 端點 Agent 通道 | `docs/ENDPOINT-AGENT-GUIDE.md` | RustIt 的 Endpoint Server、Rust Agent、Watchdog:`:9443` HTTPS / WebSocket 通道、裝置憑證、本機具名管道 |
 | 部署 | `docs/DEPLOYMENT.md` | CI/CD、各元件部署與回滾、機密 |
-| 上公司環境清單 | `docs/COMPANY-ENV-PLAN.md` | 從本機測試環境部署到測試區 / 正式區需調整的檔案 |
+| 公司環境清單 | `docs/COMPANY-ENV-PLAN.md` | 部署到測試區 / 正式區需調整的檔案與前置工作 |
 | 既有專案參考 | `docs/REFERENCES.md` | GeneralBackend、舊單一入口 |
 | 下游後端樣本 | `samples/node-backend/AGENT.md` | Node.js 後端樣本與 SDK(`sdk/node`)的 AI 協作準則:新增 API 前先查既有路由、GW_ENV、自動註冊 |
 | 驗收場景 | `docs/Gherkin/*.feature` | 各功能的驗收行為（標籤對應 IMPL-PLAN 工作項目） |
@@ -171,7 +171,7 @@
 | 指令 | 說明 |
 |:---|:---|
 | `npm run lint` / `typecheck` / `format:check` | 程式檢查 |
-| `npm test` / `npm run test:int` / `npm run test:e2e` | 單元 / 整合 / 端到端測試（E2E 需先 `sh deploy/dev/up.sh`） |
+| `npm test` / `npm run test:int` / `npm run test:e2e` | 單元 / 整合 / 端到端測試（E2E 對測試區執行，需 `ssh host2`，見 README「測試」） |
 | `npm run db:generate` / `db:check-2012` / `db:migrate` | Migration 產生、2012 語法檢查、套用 |
 
 ---
@@ -180,9 +180,8 @@
 
 Bug 修改紀錄與新增功能紀錄、前端修改紀錄、後端修改紀錄：
 1. 可以使用瀏覽器驗證並測試；有前端畫面或使用者操作流程的修改，完成後應以瀏覽器實際操作確認，並在回報與紀錄中說明操作了哪些步驟、結果如何。lint、型別檢查與自動化測試仍需執行並回報結果。
-   - 本機測試環境（`tools/`、`deploy/dev/` 等）只存在開發主機、不進版控，不可將其內容加入 git。
-   - 本機環境使用開發用自簽憑證，瀏覽器若無法直接開啟 `https://localhost`，改以 Vite dev server 經 proxy 連 Gateway（FRONTEND-GUIDE.md §8），例如 `cd tools/sample-spa && npx vite -c vite.it.config.ts` 後開啟 `http://localhost:5175/it/`。
-   - 測試帳號見 `README.md`（密碼 `Passw0rd!`，皆為虛構資料）；不可在瀏覽器輸入真實帳密。
+   - 瀏覽器驗證以測試區 `https://giganexus-test.gigasolar.com.tw` 為準（公司憑證）；開發機的 BFF（`npm run dev`）與測試區共用資料庫 `giganexus_gw_test`。
+   - 不可在瀏覽器輸入真實帳密；需要帳號時以假工號建立本機帳號（自行註冊 → CLI `local:approve`），測完刪除。
 2. 每次修正都需留紀錄，新紀錄加在檔案最上方。
 3. **開發新功能後，同一個變更內更新 `docs/PROJECT-MAP.md`**（§10.7），並在紀錄的「檔案」欄列出。
 
@@ -190,7 +189,7 @@ Bug 修改紀錄與新增功能紀錄、前端修改紀錄、後端修改紀錄�
 |:---|:---|:---|
 | Bug修改紀錄 | `docs/DevelopmentProcess/BugFix.md` | Bug修改紀錄 |
 | 新增功能紀錄 | `docs/DevelopmentProcess/NewFeatures.md` | 新增功能紀錄 |
-| 前端修改紀錄 | `docs/DevelopmentProcess/FrontendCorrection.md` | 前端修改紀錄（`web-kit/`、`tools/sample-spa/`） |
+| 前端修改紀錄 | `docs/DevelopmentProcess/FrontendCorrection.md` | 前端修改紀錄（`web-kit/`） |
 | 後端修改紀錄 | `docs/DevelopmentProcess/BackendCorrection.md` | 後端修改紀錄（`bff/`、`nginx/`、`db/`、`deploy/`） |
 
 ### 紀錄格式
@@ -239,7 +238,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | 專案 | 依賴 Gateway 的部分 | 與其他專案 |
 | --- | --- | --- |
 | giga-Portal | Nginx `/`(SPA 發佈到 `gw_www/portal`);BFF `/api/auth/*`(登入、`me.apps`)、`/api/portal/*` → `portal-api`(內部 Token、自動註冊);各系統經 BFF 的 API(HRM、BPM…) | 應用切換連到 GigaItApp 等其他應用(整頁導向);權限由 GigaItApp 設定、存在 BFF(PRD §8.3.2) |
-| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Endpoint Server;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
+| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);測試區 compose 加入 Gateway 的 Docker 網路 | 不直接呼叫 Endpoint Server;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
 | RustIt(Endpoint Server / Agent / Watchdog) | `:9443` 通道(HTTPS / WebSocket)、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;Agent 與 Watchdog、托盤以本機具名管道溝通 |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
@@ -267,7 +266,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 只改本次任務所屬的 repo。需要改其他 repo(包含 Gateway)時,先說明要改什麼、為什麼,取得同意後再改;**其他工程師負責的 repo 不直接修改**,改為整理需求交給負責人。
 - 在哪個 repo 改,就在**那個 repo** 的 `docs/DevelopmentProcess/` 留紀錄。
 - 每個 repo 各自 commit、push;commit 訊息註明配合的另一個 repo 與 commit(例:`配合 giga-api-gateway-bff cc13cd0`)。
-- 本機驗證跨專案功能時,以 Gateway 的本機環境(`deploy/dev/up.sh`)為共同基礎;模擬服務(`tools/`)與本機設定(`deploy/dev/`)不進版控,改了要在紀錄中說明。
+- 驗證跨專案功能時,以**測試區**(`https://giganexus-test.gigasolar.com.tw`)為共同基礎;各 repo 推送 `develop` 由 CI 部署後驗證。
 
 ### 10.6 新專案的 AGENT.md
 

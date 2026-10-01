@@ -4,7 +4,7 @@
 #   docker compose --env-file <區域>.env -f deploy/docker-compose.yml -f deploy/docker-compose.<test|prod>.yml pull
 #   docker compose ... run --rm migrate                      # migration + seed,失敗即中止部署
 #   docker compose ... up -d --no-deps bff-1 → 等 /readyz → bff-2 → worker → nginx
-# 本機開發:見 deploy/docker-compose.dev.yml
+# 開發機:不使用 compose,BFF 以 bff/.env 直連測試庫(README「開發環境」)
 #
 # 機密一律放在主機受保護目錄 ${GW_SECRETS_DIR}(不入版控、不寫進映像檔),以唯讀方式掛載:
 #   gw_db_password、gw_migrate_password、los_db_password、bpm_db_password、portal_db_password、

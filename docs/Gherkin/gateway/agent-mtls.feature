@@ -1,12 +1,14 @@
 # language: zh-TW
-@W6 @e2e @security
+@W6 @e2e @security @wip
 功能: Agent 專用通道(:9443 mTLS + HTTPS / WebSocket)
   為了讓端點 Agent(Rust)以裝置身分與 Endpoint Server 長連線
   身為 Gateway 維運人員
   我需要在獨立 port 強制驗證裝置憑證,且不影響瀏覽器使用者
 
+  # 未實作(2026-10-01):nginx/conf.d/agent.conf 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫(ENDPOINT-AGENT-GUIDE §10 G0)
+
   # 2026-10-01 由 gRPC 改為 HTTPS / WebSocket(PRD v0.9 §7.6)。
-  # 現行 nginx/conf.d/agent.conf 與 E2E 06-websocket-agent 仍為 gRPC 版,改寫後以本檔為準。
+  # 現行 nginx/conf.d/agent.conf 仍為 gRPC 版,改寫後以本檔為準。
 
   背景:
     假如 Nginx 在 ":9443" 啟用 "ssl_verify_client on"

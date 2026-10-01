@@ -37,8 +37,9 @@
     那麼 "gw.notify_message" 新增一筆 "S112009" 的未讀通知
     而且 "S112009" 的 WebSocket 收到新通知
 
+  # AD 群組成員取自 gw.user.ad_groups(登入時寫入),只涵蓋登入過的使用者
   場景: 以 AD 群組指定收件人
-    假如 AD 群組 "GN-HR-Managers" 有 3 位成員
+    假如 AD 群組 "GN-HR-Managers" 有 3 位登入過的成員
     當 呼叫端送出通知,收件對象為 AD 群組 "GN-HR-Managers"
     那麼 3 位成員各收到一則通知
 
@@ -52,13 +53,23 @@
     假如 SMTP 伺服器持續回應錯誤
     當 Worker 處理通知
     那麼 系統以指數退避重試 5 次
-    而且 最終 "gw.notify_log" 狀態為 "dead"
-    而且 系統發出告警
+    而且 最終 "gw.notify_log" 狀態為 "dead",retry_count 為 5
+    而且 系統記錄 alert 為 true 的錯誤日誌
 
   場景: 暫時失敗後重試成功
     假如 SMTP 伺服器第一次回應錯誤,第二次成功
     當 Worker 處理通知
     那麼 "gw.notify_log" 狀態為 "sent",retry_count 為 1
+
+  場景: 查無或沒有 Email 的收件人只記錄不寄送
+    當 呼叫端送出通知,收件對象為工號 "S112009" 與不存在的 "S999999"
+    那麼 回應狀態為 202,queued 與 skipped 各自計數
+    而且 "S999999" 的 "gw.notify_log" 狀態為 "skipped"
+
+  場景: 測試區的 Email 一律改寄測試信箱
+    假如 GW_ENV 為 "test",MAIL_REDIRECT_TO 為測試信箱
+    當 Worker 寄送 Email 給 "s112009@example.com"
+    那麼 信件寄到測試信箱,主旨開頭為 "[測試 → s112009@example.com]"
 
   場景: 要求 LINE 通道時回應不支援
     當 呼叫端送出通知並指定通道 "line"
