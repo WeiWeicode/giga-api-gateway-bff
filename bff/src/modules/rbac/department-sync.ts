@@ -1,5 +1,5 @@
 /**
- * 部門樹同步:BPM vw_gn_department → gw.department(PRD §8.3.1、DATABASE.md §3.2)。
+ * 部門樹同步:BPM OrganizationUnit / Organization(唯讀)→ gw.department(PRD §8.3.1、DATABASE.md §3.2)。
  * worker 每小時執行(佇列 employee-sync,工作 departments),或 CLI `dept:sync` 手動執行。
  *
  *   新增 / 改名 / 改上層 / 重新出現 → upsert;BPM 已無 → is_enabled = 0(不刪除,規則仍可參照)
@@ -7,8 +7,9 @@
  *   安全檢查:BPM 回傳 0 筆,或一次要停用超過 10%(且多於 5 個)時中止,避免 view 異常清空部門樹
  */
 import { eq } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/mssql-core';
 import type { GwDatabase } from '../../db/client.js';
-import { bpmDepartment } from '../../db/external/index.js';
+import { bpmOrganization, bpmOrganizationUnit } from '../../db/external/index.js';
 import { company, department } from '../../db/schema/index.js';
 import type { ExternalDb } from '../../plugins/db.js';
 import { bumpAllPermVersions } from './permission.js';
@@ -29,9 +30,20 @@ export interface DepartmentSyncResult {
 export class DepartmentSyncAborted extends Error {}
 
 export async function syncDepartments(db: GwDatabase, bpm: ExternalDb, actor: string, opts: { force?: boolean } = {}): Promise<DepartmentSyncResult> {
-  const source = await bpm.select().from(bpmDepartment);
+  const up = alias(bpmOrganizationUnit, 'up_unit');
+  const source = await bpm
+    .select({
+      deptCode: bpmOrganizationUnit.id,
+      name: bpmOrganizationUnit.name,
+      parentDeptCode: up.id,
+      orgName: bpmOrganization.name,
+      unitOid: bpmOrganizationUnit.oid,
+    })
+    .from(bpmOrganizationUnit)
+    .innerJoin(bpmOrganization, eq(bpmOrganization.oid, bpmOrganizationUnit.organizationOid))
+    .leftJoin(up, eq(up.oid, bpmOrganizationUnit.superUnitOid));
   const result: DepartmentSyncResult = { total: source.length, inserted: 0, updated: 0, disabled: 0, skipped: 0, treeChanged: false };
-  if (!source.length) throw new DepartmentSyncAborted('BPM vw_gn_department 沒有資料,中止同步');
+  if (!source.length) throw new DepartmentSyncAborted('BPM OrganizationUnit 沒有資料,中止同步');
 
   const incoming = new Map<string, { name: string; parent: string | null; orgName: string | null; unitOid: string | null }>();
   for (const d of source) {

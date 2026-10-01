@@ -71,7 +71,7 @@ giga-api-gateway-bff/
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
 | 通知 | 其他系統 `X-Api-Key` → `modules/notify/routes.ts` → `send.ts`(範本、收件人 × 通道、`gw.notify_log`)→ BullMQ `notify` → `workers/notify.worker.ts`(nodemailer / `gw.notify_message` + Redis `gw:notify:user:*` → `notify/ws.ts` 推播) |
 | 權限計算 | 登入 / Refresh / `me` / 權限試算 → `rbac/permission.ts`(`loadUserFacts` → `resolveRoles`:employee、AD 群組、公司、`rules.ts` 指派規則 + `gw.department` 樹、個別指派 → `permissionsOf` → `appsOf`) |
-| 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `vw_gn_department` → `gw.department`,樹變更遞增全體 pv) |
+| 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `OrganizationUnit` / `Organization` → `gw.department`,樹變更遞增全體 pv) |
 | 自行註冊 / 忘記密碼 | `modules/auth/routes.ts` → `local-account.ts`(AD 查詢、`profile.ts` 查 LOS / BPM、`gw.local_credential` / `local_account_token`)→ `app.notifier` 寄連結 |
 | Webhook | Nginx `portal.conf` `/webhook/`(IP 白名單)→ `modules/webhook/routes.ts`(驗簽 → 時間戳 → 去重 → `gw.webhook_log` → BullMQ `webhook`)→ `worker.ts` → `workers/webhook.worker.ts`(依 `dispatch_target` 處理) |
 | 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt`,Rust + Axum);BFF 不經手 |

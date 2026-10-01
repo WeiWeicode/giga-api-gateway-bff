@@ -2,7 +2,7 @@ import type sql from 'mssql';
 import { drizzle } from 'drizzle-orm/node-mssql';
 import { Sql2012GuardLogger, type Sql2012GuardMode } from '../client.js';
 
-export { bpmDepartment, bpmEmployee } from './bpm.js';
+export { bpmEmployee, bpmOrganization, bpmOrganizationUnit } from './bpm.js';
 export { losEmployee } from './los.js';
 export { portalLoginData } from './portal.js';
 

@@ -520,7 +520,8 @@ async function syncDepartmentTree(ctx: Ctx, force: boolean) {
     out(r);
   } catch (err) {
     if (err instanceof DepartmentSyncAborted) throw new CliError(err.message);
-    if (/vw_gn_department/.test((err as Error).message)) throw new CliError('BPM 尚未建立 vw_gn_department,請 DBA 執行 db/dba/03-bpm-department.sql');
+    if (/OrganizationUnit|Organization'|permission was denied/i.test((err as Error).message))
+      throw new CliError(`bpm_reader 尚無組織資料表的唯讀權限,請 DBA 執行 db/dba/03-bpm-org-grant.sql(${(err as Error).message})`);
     throw err;
   } finally {
     await pool.close();

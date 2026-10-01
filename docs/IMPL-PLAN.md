@@ -47,7 +47,7 @@
 | M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
 | **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
 | M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
-| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 進行中:P2-3a 已實作(2026-10-01;部門樹同步待 DBA 建立 BPM `vw_gn_department`) |
+| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 進行中:P2-3a 已實作(2026-10-01;部門樹同步待 DBA 授權 `bpm_reader` 唯讀 BPM `OrganizationUnit` / `Organization`(`db/dba/03-bpm-org-grant.sql`)) |
 
 | 子任務 | 狀態 |
 | --- | --- |
@@ -76,7 +76,7 @@
 | P-09 | SMTP 中繼帳號(Exchange) | IT | 主機、帳號、寄件人位址(✅ 2026-10-01:中繼 `10.10.130.69:25`,不需帳密) | W3-5 |
 | P-10 | ~~LINE 官方帳號申請~~ | — | **暫緩**:本階段不開發 LINE 通知(PRD Q7) | — |
 | P-11 | 主機 2(測試區)、主機 3(正式區)的 Docker 與 GitLab Runner、Registry `:5050` 登入、開機自動恢復、Port 80 / 443 / 9443 未被佔用([DEPLOYMENT.md](DEPLOYMENT.md) §6–§7)。**主機 2 已完成**(WSL2 Docker Engine + Runner,2026-09-30);主機 3 目前為 Docker Desktop,**2026-12 改為 Docker Engine 並註冊 `prod-deploy` Runner** | IT / W1 | 兩台主機可由 Pipeline 部署 Compose | 正式區 |
-| P-12 | LOS、BPM **唯讀帳號**與欄位對應(PRD Q9) | DBA、BPM 負責人 | 兩個唯讀登入帳號;BPM 依 GeneralBackend 的 EFGP 查詢建立唯讀 view([REFERENCES.md](REFERENCES.md) §1.2);LOS `EmployeeInfo` 欄位說明(2026-10-01:LOS、BPM `vw_gn_employee` 已可讀;部門樹 `vw_gn_department` 待以 `db/dba/03-bpm-department.sql` 建立) | W3-4 |
+| P-12 | LOS、BPM **唯讀帳號**與欄位對應(PRD Q9) | DBA、BPM 負責人 | 兩個唯讀登入帳號;BPM 依 GeneralBackend 的 EFGP 查詢建立唯讀 view([REFERENCES.md](REFERENCES.md) §1.2);LOS `EmployeeInfo` 欄位說明(2026-10-01:LOS、BPM `vw_gn_employee` 已可讀;部門樹待 DBA 授權 `bpm_reader` 唯讀 BPM `OrganizationUnit` / `Organization`(`db/dba/03-bpm-org-grant.sql`)) | W3-4 |
 | P-13 | 防火牆:BFF / worker 主機 → BPM 主機(SQL Server 2019)1433 | 網管 | 防火牆規則;BPM 伺服器憑證的 CA(加密連線用) | W3-4 |
 | P-14 | 防火牆:Gateway `:443` 開放使用者網段;`:9443` 只開放端點(Agent)網段 | 網管 | 防火牆規則 | W3-2、W3-3 |
 | P-15 | 舊單一入口:`PortalSolar.LoginData` 唯讀 view(不含 `EName`)與帳號;以**現行系統**建立 2–3 組測試帳號(參考原始碼為兩三年前的備份,PRD Q18、Q22);演算法常數存入 Docker secret | 提案人、DBA、IT | 唯讀帳號、測試帳號、secret | W3-4 |
@@ -206,7 +206,7 @@
 | P2-1 | 管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7 |
 | P2-2 | 草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3 |
 | P2-3 | 權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7 |
-| P2-3a | ✅(2026-10-01;部門同步待 `db/dba/03-bpm-department.sql`,`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
+| P2-3a | ✅(2026-10-01;部門同步待 DBA 授權 `bpm_reader` 唯讀 BPM `OrganizationUnit` / `Organization`(`db/dba/03-bpm-org-grant.sql`),`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
 | P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 |
 | P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 |
 | P2-6 | 「誰能存取」反查、有效權限檢視 | PRD §8.7 |

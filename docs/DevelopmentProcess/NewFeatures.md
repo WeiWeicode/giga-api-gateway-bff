@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-01 部門樹改為直接讀 BPM 組織資料表(不新增 view)
+- 工作項目:P2-3a
+- 內容:主管明確表示不准在 BPM(10.10.130.190)新增 table;需求方決定改請 DBA 授權 `bpm_reader` 唯讀 `dbo.OrganizationUnit`、`dbo.Organization`(只 GRANT,不新增物件),不使用 GeneralBackend 所用的 sa 帳號。刪除 `db/dba/03-bpm-department.sql`(建 view),新增 `db/dba/03-bpm-org-grant.sql`(GRANT SELECT);`bpmDepartment` view 定義改為 `bpmOrganizationUnit`、`bpmOrganization` 兩張表(欄位同 GeneralBackend `GeneralControlle.js`),`department-sync.ts` 以 OrganizationUnit JOIN Organization、LEFT JOIN 上層單位取得部門與上層;CLI `dept:sync` 權限不足時提示執行授權腳本
+- 檔案:`bff/src/db/external/bpm.ts`、`bff/src/db/external/index.ts`、`bff/src/modules/rbac/department-sync.ts`、`bff/src/cli/index.ts`、`db/dba/03-bpm-org-grant.sql`(新增)、`db/dba/03-bpm-department.sql`(刪除)、`docs/DATABASE.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md`、`README.md`
+- 驗證:`typecheck`、`lint` 通過;`npm run gw -- dept:sync` 回「`The SELECT permission was denied on the object 'Organization'`」(表存在,待授權),**同步結果待 DBA 執行授權後驗證**
+
 ## 2026-10-01 E2E 改為對測試區執行
 - 內容:家中環境不再使用,需求方要求 E2E 改寫為對測試區執行。`test/e2e/gw.ts` 改為:HTTP 經 `https://giganexus-test.gigasolar.com.tw`(公司憑證、Cookie jar 依 Path 送出;`/api/auth/login|register|password` 遇 Nginx 429 等 4 秒重試);CLI、Redis 經 `ssh host2` 在測試區容器內執行(`wsl -u root`);資料庫以 `bff/.env` 直連 `giganexus_gw_test`;假工號(`Z99E2E` 開頭)以「自行註冊 → CLI `local:approve` → 啟用連結」建立本機帳號,不使用真實帳密;`cleanupE2E` 刪除假帳號、`e2e-*` 角色 / API Key / 上游、`e2e*` 權限、`E2E_*` 範本與通知紀錄。新的 6 個檔案:`01-nginx-entry`(301、TLS 1.2+、公司憑證、入口網 / IT SPA、快取標頭、安全標頭、404 JSON、Webhook IP 403、`:9443` 無憑證被拒)、`02-auth-session`(本機登入、`me.apps`、鎖定與解鎖、Cookie 屬性、JWT、CSRF、Refresh Rotation 與重用偵測、登出、停用、JWKS 不對外、變更密碼、IT 重設限定憑證)、`03-self-service`(AD 帳號拒絕、待審核、核准啟用、忘記密碼回應一致、重設連結取自佇列工作、PASSWORD_REUSED、重設後撤銷登入、TOKEN_USED / EXPIRED / INVALID、註冊限流)、`04-rbac`(管理 API 權限、應用清單、權限樹、規則 CRUD、試算與 `me.apps` 一致、pv 遞增要求 Refresh、稽核操作人、mock 路由發佈後 401 / 403 / 以規則取得權限 200;有其他人的草稿時不發佈)、`05-notify-webhook`(站內通知入列、skipped、`/ws/notify` 推播、去重、LINE 400、無權限 403;Webhook 在 bff 容器內呼叫驗簽、時間戳、去重、404)、`06-service-registration`(自動註冊草稿、補上位址、搶用上游、格式 / port / kind 錯誤、catalog、IP 限制、停用)。刪除依賴模擬服務或會影響共用測試區的舊檔:AD 登入(模擬 AD)、動態路由 / 聚合 / 斷路器(模擬上游)、gRPC Agent、發佈同步(發佈全部草稿)、demo API、韌性(停止容器)。測試區新增 Webhook 密鑰 `secrets/webhook/bpm`(主機 2,隨機產生,未顯示)
 - 檔案:`bff/test/e2e/gw.ts`、`bff/test/e2e/01-nginx-entry.test.ts`、`02-auth-session.test.ts`、`03-self-service.test.ts`、`04-rbac.test.ts`、`05-notify-webhook.test.ts`、`06-service-registration.test.ts`(新增 / 改寫)、舊 `02`–`11`、`99`(刪除)、`bff/test/e2e/sequencer.ts`、`bff/vitest.config.ts`、`docs/IMPL-PLAN.md`
