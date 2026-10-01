@@ -1,6 +1,6 @@
 # GigaNexus Gateway — 實作計畫
 
-> 依據 [PRD.md](PRD.md) **v0.5** §13 里程碑,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。
+> 依據 [PRD.md](PRD.md) **v0.9** §13,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。**時程以 NexusPlan 甘特圖為準**,本文不列日期。
 > 相關文件:[ARCHITECTURE.md](ARCHITECTURE.md)、[DATABASE.md](DATABASE.md)、[TECH-STACK.md](TECH-STACK.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[DEPLOYMENT.md](DEPLOYMENT.md)、[REFERENCES.md](REFERENCES.md)。
 
 ---
@@ -9,10 +9,10 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.5(對齊 PRD v0.5:新增 W3-5.7a,Q3 兩區設定不互通) |
+| 文件版本 | v0.6(2026-10-01,對齊 PRD v0.9:時程改以甘特圖為準、標示測試區完成狀態、W3-3 取消並改為 Rust + WebSocket、主機 Docker 現況) |
 | 建立日期 | 2026-09-24 |
-| 對應工作流 | NexusPlan **W3. API Gateway + BFF**(2026-11-16 ~ 2027-01-29)+ 第二階段(2027-02 ~ 03) |
-| 狀態 | 規劃中 |
+| 對應工作流 | NexusPlan **W3. API Gateway + BFF** + 第二階段(配合 W4) |
+| 狀態 | **測試區已上線**(2026-09-30);正式區預計 2026-12 建置 |
 
 ### 1.1 已定案的前提
 
@@ -27,7 +27,9 @@
 | 人事資料 **BPM 為主、LOS 補充**,排程同步 + 登入補查(D7);離職只標記不自動停用(Q10) | W3-4 新增人員同步工作(W3-4.6a–c);需唯讀帳號與欄位對應(P-12、P-13) |
 | 登入效期 8 小時,「記住我」7 天僅限內網(Q4);Kerberos 列第三階段(Q5) | W3-4.4 實作記住我與來源 IP 判定 |
 | **LINE 通知暫緩**(Q7) | 通知只做 Email + 站內;不申請 LINE 官方帳號 |
-| `:443` 以 DNS 名稱存取、公司 `*.gigasolar.com.tw` 憑證;Agent 以 IP 存取、獨立 port `:9443`(Q1,2026-10-01 修訂) | `:9443` 憑證 SAN 帶 IP(P-05);W3-3 以 port 區分;無網域子公司電腦需另外安裝企業根憑證 |
+| `:443` 以 DNS 名稱存取、公司 `*.gigasolar.com.tw` 憑證;Agent 以 IP 存取、獨立 port `:9443`(Q1,2026-10-01 修訂) | `:9443` 憑證 SAN 帶 IP(P-05);無網域子公司電腦需另外安裝企業根憑證 |
+| **端點 Agent 改為 Rust + WebSocket**(2026-09-29 決定,PRD v0.9) | W3-3(gRPC)取消;`:9443` 改為 HTTPS / WebSocket,與 Endpoint Server(RustIt)一起於 W6 交付([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §10 G0) |
+| 主機 2(測試區)使用 WSL2 內的 Docker Engine;主機 3(正式區)目前為 Docker Desktop,**2026-12 改為 Docker Engine** | P-11、P-17;來源 IP 問題(PRD Q26)兩台採相同方案 |
 | AD 三網域全納入(Q11);過渡期沿用 `ldap://`(Q12,已取得主管與工程師同意,2026-09-24) | 各網域服務帳號(P-07) |
 | 無網域子公司使用**本機帳號**:LOS / BPM 找得到就可註冊,找不到才審核;密碼至少 8 碼(Q13–Q15) | W3-4 本機帳號登入與代建(W3-4.14–15);W3-5 自行註冊與忘記密碼(W3-5.8a–b) |
 | 兼任帳號不可單獨登入、併入本人(Q16);不同工號不歸戶(Q17) | 人員同步處理兼任帳號(W3-4.6b);不需 `PersonKey` |
@@ -35,53 +37,29 @@
 
 ---
 
-## 2. 時程總覽
+## 2. 進度與里程碑
 
-```mermaid
-gantt
-    title GigaNexus Gateway 實作時程
-    dateFormat YYYY-MM-DD
-    axisFormat %m/%d
+> 時程以 **NexusPlan 甘特圖**(`GigaNexusAIPlan`)為準,經常調整,本文只記錄判定條件與狀態。
 
-    section 前置
-    前置申請與環境準備            :p0, 2026-10-01, 2026-11-13
-
-    section W3-1 架構規劃
-    Drizzle × SQL 2012 PoC        :w31a, 2026-11-16, 5d
-    Go / No-Go 決定               :milestone, m0, 2026-11-20, 0d
-    專案骨架 + DDL + Seed         :w31b, 2026-11-23, 5d
-
-    section W3-2 Nginx 入口
-    TLS / SPA / API / WS / Webhook :w32, 2026-11-30, 2026-12-18
-
-    section W3-3 Agent 通道
-    mTLS + gRPC                   :w33, 2026-12-07, 2026-12-25
-
-    section W3-4 身分與權限
-    AD 登入 / JWT / RBAC          :w34, 2026-12-14, 2027-01-15
-    auth/me + mock 路由提供 W5    :milestone, m1, 2026-12-31, 0d
-
-    section W3-5 路由與通知
-    動態路由 / 聚合 / 同步        :w35a, 2027-01-11, 2027-01-22
-    通知 / Webhook / 健康檢查     :w35b, 2027-01-11, 2027-01-22
-    整合測試 / 壓測 / 部署        :w35c, 2027-01-25, 2027-01-29
-    Gateway + BFF 可用            :milestone, m2, 2027-01-29, 0d
-
-    section 第二階段
-    管理 API / 發佈回滾           :p2a, 2027-02-01, 2027-02-26
-    匯入 / 反查 / API Key / 遷移  :p2b, 2027-02-22, 2027-03-26
-```
-
-| 里程碑 | 日期 | 判定條件 |
+| 里程碑 | 判定條件 | 狀態(2026-10-01) |
 | --- | --- | --- |
-| M0 ORM Go / No-Go | 2026-11-20 | PoC 檢查表(§4.1)全部通過 → Drizzle;否則改 Kysely;Kysely 也不通過 → Sequelize(第三條路) |
-| M1 身分可用 | 2026-12-31 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 |
-| **M2 Gateway + BFF 可用** | **2027-01-29** | 經 W1 Pipeline 部署至測試區;§8 驗收指標通過;W4、W5 可開始串接 |
-| M3 管理功能完成 | 2027-03-26 | 第二階段項目完成,W4 IT 管理介面可自助管理 API |
+| M0 ORM Go / No-Go | PoC 檢查表(§4.1)全部通過 → Drizzle;否則改 Kysely;Kysely 也不通過 → Sequelize(第三條路) | **實質 Go(Drizzle)**:本機預驗全數通過;migration 已套用至公司 SQL Server 2012 `giganexus_gw_test`,測試區 BFF 以 2012 運作。`test:int` 對 2012 的正式複驗待執行([COMPANY-ENV-PLAN.md](COMPANY-ENV-PLAN.md) §6) |
+| M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
+| **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
+| M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
+| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 未開始 |
+
+| 子任務 | 狀態 |
+| --- | --- |
+| W3-1 架構規劃 | ✅ 完成(未做:W3-1.6 稽核表保存排程) |
+| W3-2 Nginx 入口 | ✅ 測試區完成(未做:W3-2.8 exporter) |
+| ~~W3-3 Agent 通道~~ | 取消,改為 Rust + WebSocket 併入 W6(§4.3) |
+| W3-4 身分與權限 | ✅ 測試區完成;待外部前置:W3-4.6b 人員同步 Worker(P-12)、W3-4.16 舊帳號遷移(P-15) |
+| W3-5 路由與通知 | 🔶 進行中:路由、聚合、斷路器、同步、自動註冊完成;W3-5.8 / 8a / 8b(待 P-09)、W3-5.10 Webhook 驗簽、W3-5.12 整合週未完成 |
 
 ---
 
-## 3. 前置工作(2026-10-01 ~ 11-13,W3 開工前完成)
+## 3. 前置工作
 
 > 這些項目需要其他單位配合,前置時間長,**應立即發出申請**。任一項延誤會直接卡住對應子任務。
 
@@ -91,19 +69,19 @@ gantt
 | P-02 | ~~安全例外同意~~:BFF ↔ SQL Server 2012 內網不加密、AD 過渡期 `ldap://` | 主管、工程師 | **已完成**(已取得主管與工程師同意,2026-09-24);補償控制見 [TECH-STACK.md](TECH-STACK.md) §4 | — |
 | P-03 | 防火牆:SQL Server 2012 的 1433 僅允許 BFF / worker 主機 | 網管 | 防火牆規則 | 部署 |
 | P-04 | SQL Server 2012 **整合測試專用庫**(或可重建的測試 instance) | DBA | 可由 CI 連線、可清空重建的測試庫 | W3-1 起的整合測試 |
-| P-05 | 伺服器憑證:`:443` 為公司 `*.gigasolar.com.tw` 憑證(2026-10-01 取得,測試區已套用);`:9443` 憑證 SAN 含測試區 / 正式區 Gateway **IP**(Agent 以 IP 存取,PRD Q1);企業根 CA 派送(網域電腦由 GPO,無網域子公司電腦另行安裝) | IT + W2 | AD CS 簽發的 IP SAN 憑證;根憑證安裝步驟 | W3-2 |
-| P-06 | AD CS「GigaNexus Agent」憑證範本、Agent 專用中繼 CA、CRL 發佈點 | IT + W2 | 範本與 CA 鏈;CRL 下載位置 | W3-3(可先用測試 CA,見 §9) |
+| P-05 | 伺服器憑證:`:443` 為公司 `*.gigasolar.com.tw` 憑證(**2026-10-01 取得,測試區已套用**;正式區 2026-12);`:9443` 憑證 SAN 含測試區 / 正式區 Gateway **IP**(Agent 以 IP 存取,PRD Q1,目前為臨時自簽);企業根 CA 派送(網域電腦由 GPO,無網域子公司電腦另行安裝) | IT + W2 | AD CS 簽發的 IP SAN 憑證;根憑證安裝步驟 | `:9443`:W6 Agent 上線 |
+| P-06 | AD CS「GigaNexus Agent」憑證範本、Agent 專用中繼 CA、CRL 發佈點 | IT + W2 | 範本與 CA 鏈;CRL 下載位置 | W6 Agent 上線(可先用測試 CA,見 §9) |
 | P-07 | AD **LDAP 查詢服務帳號**(三個網域各一組,PRD Q11);企業 CA 根憑證 | IT + 資安 | 各網域服務帳號(唯讀)、baseDN、連線資訊 | W3-4 |
 | P-08 | 規劃 AD 群組:`GN-*` 系列對應內建角色 | IT | 群組清單與成員 | W3-4 |
 | P-09 | SMTP 中繼帳號(Exchange) | IT | 主機、帳號、寄件人位址 | W3-5 |
 | P-10 | ~~LINE 官方帳號申請~~ | — | **暫緩**:本階段不開發 LINE 通知(PRD Q7) | — |
-| P-11 | 主機 2(測試區)、主機 3(正式區)的 Docker Desktop 與 GitLab Runner(`windows-runner`、`prod-deploy` Protected)、Registry `:5050` 登入、開機自動恢復、Port 80 / 443 / 9443 未被佔用([DEPLOYMENT.md](DEPLOYMENT.md) §6–§7) | IT / W1 | 兩台主機可由 Pipeline 部署 Compose | W3-2 起 |
+| P-11 | 主機 2(測試區)、主機 3(正式區)的 Docker 與 GitLab Runner、Registry `:5050` 登入、開機自動恢復、Port 80 / 443 / 9443 未被佔用([DEPLOYMENT.md](DEPLOYMENT.md) §6–§7)。**主機 2 已完成**(WSL2 Docker Engine + Runner,2026-09-30);主機 3 目前為 Docker Desktop,**2026-12 改為 Docker Engine 並註冊 `prod-deploy` Runner** | IT / W1 | 兩台主機可由 Pipeline 部署 Compose | 正式區 |
 | P-12 | LOS、BPM **唯讀帳號**與欄位對應(PRD Q9) | DBA、BPM 負責人 | 兩個唯讀登入帳號;BPM 依 GeneralBackend 的 EFGP 查詢建立唯讀 view([REFERENCES.md](REFERENCES.md) §1.2);LOS `EmployeeInfo` 欄位說明 | W3-4 |
 | P-13 | 防火牆:BFF / worker 主機 → BPM 主機(SQL Server 2019)1433 | 網管 | 防火牆規則;BPM 伺服器憑證的 CA(加密連線用) | W3-4 |
 | P-14 | 防火牆:Gateway `:443` 開放使用者網段;`:9443` 只開放端點(Agent)網段 | 網管 | 防火牆規則 | W3-2、W3-3 |
 | P-15 | 舊單一入口:`PortalSolar.LoginData` 唯讀 view(不含 `EName`)與帳號;以**現行系統**建立 2–3 組測試帳號(參考原始碼為兩三年前的備份,PRD Q18、Q22);演算法常數存入 Docker secret | 提案人、DBA、IT | 唯讀帳號、測試帳號、secret | W3-4 |
 | P-16 | 下游後端 port **51200–51300** 分配([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §3)與防火牆:只允許 Gateway 主機連入後端主機的該區間;各服務測試區 / 正式區 API Key(自動註冊用,§7.5) | Gateway 負責人、網管 | 分配紀錄、防火牆規則、API Key | W3-5 起各系統上架 |
-| P-17 | Docker Desktop 授權:員工數已確認未達 200 人,**確認年營收是否低於 1,000 萬美元**(PRD Q25);測試區 SMTP 攔截設定([DEPLOYMENT.md](DEPLOYMENT.md) §5.1) | 主管、IT | 授權結論;測試信箱 | W3-2 前 |
+| P-17 | Docker Desktop 授權(PRD Q25):主機 2 已改 Docker Engine,主機 3 於 2026-12 改用後**不再需要**;測試區 SMTP 攔截設定([DEPLOYMENT.md](DEPLOYMENT.md) §5.1) | 主管、IT | 測試信箱 | W3-5.8 |
 
 ---
 
@@ -111,11 +89,11 @@ gantt
 
 > 工作項目編號格式 `W3-x.n`;「文件」欄指向規格所在章節。
 
-### 4.1 W3-1 架構規劃(11/16 ~ 11/27)
+### 4.1 W3-1 架構規劃
 
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
-| W3-1.1 | **Drizzle × SQL Server 2012 PoC**(11/16 ~ 11/20) | [TECH-STACK.md](TECH-STACK.md) §4 | PoC 報告 + Go / No-Go 結論 |
+| W3-1.1 | **Drizzle × SQL Server 2012 PoC** | [TECH-STACK.md](TECH-STACK.md) §4 | PoC 報告 + Go / No-Go 結論 |
 | W3-1.2 | 專案骨架:`bff/`(Fastify 5 + TS)、`nginx/`、`db/`、`deploy/docker-compose*.yml`、ESLint / Prettier / Vitest、`.gitlab-ci.yml`(check / build / deploy-test / deploy-prod,分支策略見 [DEPLOYMENT.md](DEPLOYMENT.md) §2) | [TECH-STACK.md](TECH-STACK.md) §2 | 可建置、可跑測試的空專案 |
 | W3-1.3 | Drizzle schema:`gw.*` 全部資料表 | [DATABASE.md](DATABASE.md) §2–§5 | `bff/src/db/schema/` |
 | W3-1.4 | 產生初版 migration,**人工審查 2012 相容性**後套用至測試庫 | [DATABASE.md](DATABASE.md) §0、§7.4 | `db/migrations/0001_*.sql` |
@@ -136,11 +114,11 @@ gantt
 - [ ] 100 並行查詢下連線池穩定
 - [ ] 同一程式以唯讀 schema 查詢 **SQL Server 2019**(BPM,`encrypt: true`)與 2012 上的 LOS
 
-> 若有 1 項以上無法以合理方式繞過 → **No-Go**,改用 Kysely:W3-1.3 改寫為 Kysely 型別定義,W3-1.4 改為手寫 SQL migration(預估多 2 ~ 3 人天,由 W3-1 第二週吸收)。Kysely 以同一檢查表於 11/23 前複驗;仍不通過則**走第三條路**,改用 GeneralBackend 已驗證的 Sequelize 6(預估再多 2 人天)。
+> 若有 1 項以上無法以合理方式繞過 → **No-Go**,改用 Kysely:W3-1.3 改寫為 Kysely 型別定義,W3-1.4 改為手寫 SQL migration(預估多 2 ~ 3 人天,由 W3-1 第二週吸收)。Kysely 以同一檢查表複驗;仍不通過則**走第三條路**,改用 GeneralBackend 已驗證的 Sequelize 6(預估再多 2 人天)。
 
 **驗收:** 空專案經 CI 建置通過;migration 與 seed 在 `giganexus_gw_test` 套用成功;PoC 結論已記錄於 [TECH-STACK.md](TECH-STACK.md) §4。
 
-### 4.2 W3-2 Nginx:入口、SPA、API、WebSocket、Webhook(11/30 ~ 12/18)
+### 4.2 W3-2 Nginx:入口、SPA、API、WebSocket、Webhook
 
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
@@ -157,20 +135,21 @@ gantt
 
 **驗收:** 測試區以正式憑證(或 W2 暫用憑證)通過 HTTPS;SSL Labs 類工具檢查無弱加密;送入偽造 `X-User-Id` 不會到達上游;超過限流回 429;WebSocket 可維持 1 小時以上。
 
-### 4.3 W3-3 Nginx:Agent mTLS + gRPC(12/07 ~ 12/25)
+### 4.3 ~~W3-3 Nginx:Agent mTLS + gRPC~~(取消)
 
-| # | 工作項目 | 文件 | 交付物 |
-| --- | --- | --- | --- |
-| W3-3.1 | `:9443` Agent 專用 server block:`ssl_verify_client on`、`ssl_verify_depth 2`、`ssl_client_certificate`(Agent 中繼 CA) | PRD §7.6 | `nginx/conf.d/agent.conf` |
-| W3-3.2 | `grpc_pass grpcs://endpoint_upstream`;傳遞 `x-client-cert-dn / -fp / -verify` | PRD §7.6 | |
-| W3-3.3 | 長連線逾時、keepalive、`limit_conn` | PRD §7.6 | |
-| W3-3.4 | CRL:Pipeline 定期下載並 reload | PRD §14.1 | 排程作業 |
-| W3-3.5 | 測試工具:測試 CA 簽發的有效 / 過期 / 撤銷憑證;測試用 gRPC echo server 與 client(Go) | — | `tools/agent-test/` |
-| W3-3.6 | 200 條長連線模擬 | PRD §4.2 | 測試報告 |
+> **2026-09-29 決定**:端點 Agent 改由 RustIt 以 **Rust + WebSocket** 開發(1,000 台以內 WebSocket 已足夠),甘特圖刪除 W3-3。`:9443` 通道改為 mTLS + HTTPS / WebSocket,規格見 PRD §7.6、[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §4,與 Endpoint Server 一起在 **W6** 交付。
 
-**驗收:** 有效憑證可建立雙向串流且上游收到正確 DN / 指紋;無憑證、過期、已撤銷憑證 100% 在 TLS 層被拒;瀏覽器存取 `:443` 不會被要求出示憑證;200 條連線維持 1 小時無中斷。
+已完成、可沿用的部分(2026-09-25,gRPC 版):`:9443` server block、`ssl_verify_client on`、簽發者白名單、身分標頭覆寫、以憑證指紋計算的 `limit_conn`、測試 CA 與有效 / 過期 / 撤銷 / 非企業 CA 測試憑證。
 
-### 4.4 W3-4 BFF:AD 登入、JWT Cookie、RBAC(12/14 ~ 01/15)
+| # | 剩餘工作(隨 W6) | 文件 |
+| --- | --- | --- |
+| W6-G0 | `agent.conf` 由 `grpc_pass` 改為 `proxy_pass https://` + WebSocket 升級;環境變數改名 `ENDPOINT_AGENT_UPSTREAM`;E2E `06-websocket-agent` 與 `tools/mock-upstream/endpoint.js` 改為 HTTPS / WebSocket | ENDPOINT-AGENT-GUIDE §4、§10 G0 |
+| W6-G1 | CRL:Pipeline 定期下載並 reload | ENDPOINT-AGENT-GUIDE §10 G1 |
+| W6-G3 | 200 條 WebSocket 長連線維持 1 小時 | ENDPOINT-AGENT-GUIDE §10 G3 |
+
+**驗收:** 有效憑證可建立 WebSocket 且上游收到正確 DN / 指紋;無憑證、過期、已撤銷憑證 100% 被拒且不會到達 Endpoint Server;瀏覽器存取 `:443` 不會被要求出示憑證;200 條連線維持 1 小時無中斷。
+
+### 4.4 W3-4 BFF:AD 登入、JWT Cookie、RBAC
 
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
@@ -188,7 +167,7 @@ gantt
 | W3-4.9 | 內部 Token(`X-Internal-Token`,60 秒,`aud`)與 `/.well-known/jwks.json` | PRD §8.2.3 | |
 | W3-4.10 | `/api/auth/login|refresh|logout|me`、`/_auth/verify`(取代 W3-2.6 的 stub) | PRD §8.2.4 | |
 | W3-4.11 | `gw.auth_log` 寫入;登入 / 登出 / 重用偵測事件 | [DATABASE.md](DATABASE.md) §5 | |
-| W3-4.12 | **提前交付(M1,12/31)**:login / me + `mock` 型路由,讓 W5 前端先串接 | PRD §14.1 | 部署至測試區 |
+| W3-4.12 | **提前交付(M1,已完成)**:login / me + `mock` 型路由,讓 W5 前端先串接 | PRD §14.1 | 部署至測試區 |
 | W3-4.13 | 前端共用套件 `@giganexus/web-kit` v0(M1 一併交付):HTTP client、CSRF、401 Refresh、`useAuth` / `can`、路由守衛、開發用登入頁 | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6–§8 | 發佈至 GitLab Package Registry |
 | W3-4.14 | 登入方式判斷(帶網域 → AD;有本機帳號 → 本機;否則依所屬公司試 AD 網域)與**本機帳號登入**:Argon2id 驗證、連續 10 次失敗鎖定、`must_change_password`、`/api/auth/password/change` | PRD §8.2.5、[DATABASE.md](DATABASE.md) §3.1 | |
 | W3-4.15 | IT 代建本機帳號(MVP 以 CLI 或最小管理端點產生一次性啟用連結;完整管理 API 於 P2-3) | PRD §8.2.5 | |
@@ -196,7 +175,7 @@ gantt
 
 **驗收:** AD 帳密登入 p95 < 1 秒;Cookie 屬性正確、前端 JS 讀不到 `gn_at`;登出後舊 Access Token 立即 401;重用舊 RT 會撤銷整個家族;變更使用者角色後下一次請求權限即更新;同帳號連續失敗 5 次暫停嘗試且 AD 帳號未被鎖;快取命中下 RBAC 判斷 < 2 ms;同步後 `gw.user` 的部門與 BPM 一致;BPM 或 LOS 停機時仍可登入;人事資料變更後 15 分鐘內內部 Token 的 `dept` 更新;本機帳號登入 p95 < 1 秒、連續 10 次失敗鎖定;兼任帳號的公司併入本人 `cos`;以舊單一入口密碼登入可自動建立本機帳號,且未設定新密碼前拿不到正式 Token。
 
-### 4.5 W3-5 BFF:動態路由、聚合、通知骨架(01/11 ~ 01/29)
+### 4.5 W3-5 BFF:動態路由、聚合、通知骨架
 
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
@@ -214,25 +193,25 @@ gantt
 | W3-5.9 | `/ws/notify` 站內即時推播 | PRD §8.5 | |
 | W3-5.10 | Webhook 模組:驗簽、時間戳、去重、`gw.webhook_log`、分派(先接 `/webhook/bpm`) | PRD §8.6 | |
 | W3-5.11 | `/healthz`、`/readyz`(檢查 `giganexus_gw` 與 Redis;BPM / LOS 不列入)、`/metrics`、`/docs`(僅內網) | PRD §8.1 | |
-| W3-5.12 | **整合週(01/25 ~ 01/29)**:端到端測試、k6 壓測、資安檢查、部署測試區 | §6、§8 | 測試報告 + 部署紀錄 |
+| W3-5.12 | **整合週**:端到端測試、k6 壓測、資安檢查、部署測試區 | §6、§8 | 測試報告 + 部署紀錄 |
 
 **驗收:** 以 CLI 發佈新路由後 ≤ 5 秒所有 BFF 實例生效;停掉 Redis 後既有路由仍可服務;聚合路由非必要步驟失敗時回傳部分結果;上游連續失敗觸發斷路器;Email 通知失敗會重試且全部留有紀錄;BPM webhook 簽章錯誤回 401;LOS / BPM 找得到的工號可完成註冊、AD 找得到的工號無法註冊、查無者進入待審核;重設密碼後其他裝置被登出。
 
 ---
 
-## 5. 第二階段(2027-02-01 ~ 03-26,配合 W4 IT 管理介面)
+## 5. 第二階段(配合 W4 IT 管理介面,時程依甘特圖)
 
-| # | 工作項目 | 文件 | 期間 |
-| --- | --- | --- | --- |
-| P2-1 | 管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7 | 02/01 ~ 02/12 |
-| P2-2 | 草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3 | 02/08 ~ 02/19 |
-| P2-3 | 權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7 | 02/15 ~ 02/26 |
-| P2-3a | **配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` | 02/15 ~ 03/05 |
-| P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 | 02/22 ~ 03/12 |
-| P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 | 03/01 ~ 03/12 |
-| P2-6 | 「誰能存取」反查、有效權限檢視 | PRD §8.7 | 03/08 ~ 03/19 |
-| P2-7 | 通知範本管理與發送紀錄查詢 API、稽核查詢 API | PRD §8.7 | 03/15 ~ 03/26 |
-| P2-8 | 既有系統遷移(`notesapp`、`bpm` 等):逐一評估 PRD §7.2.4 方式 A / B / C,完成後關閉舊對外 port | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §10 | 03/01 起逐系統進行 |
+| # | 工作項目 | 文件 |
+| --- | --- | --- |
+| P2-1 | 管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7 |
+| P2-2 | 草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3 |
+| P2-3 | 權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7 |
+| P2-3a | **配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
+| P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 |
+| P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 |
+| P2-6 | 「誰能存取」反查、有效權限檢視 | PRD §8.7 |
+| P2-7 | 通知範本管理與發送紀錄查詢 API、稽核查詢 API | PRD §8.7 |
+| P2-8 | 既有系統遷移(`notesapp`、`bpm` 等):逐一評估 PRD §7.2.4 方式 A / B / C,完成後關閉舊對外 port | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §10 |
 
 > W4 前端與管理 API 並行開發:每項管理 API 完成即部署測試區,W4 依 OpenAPI 文件(`/docs`)串接。
 
@@ -282,7 +261,7 @@ gantt
 | 權限判斷 | < 2 ms(快取命中) | 單元基準測試 + `/metrics` 直方圖 | W3-4 |
 | 路由生效時間 | ≤ 5 秒 | 發佈後輪詢各實例,量測生效時間 | W3-5.6 |
 | 登入 | p95 < 1 秒;登出即失效 | k6 登入情境;登出後重放舊 Token | W3-4 |
-| Agent 連線 | 200 條穩定;無效憑證 100% 拒絕 | W3-3.6 模擬測試 | W3-3 |
+| Agent 連線 | 200 條 WebSocket 穩定;無效憑證 100% 拒絕 | W6-G3 模擬測試 | W6 |
 | 通知 | 送達率 ≥ 99%;100% 有紀錄 | 模擬 SMTP 暫時失敗,確認重試與紀錄 | W3-5.8 |
 | 稽核 | 登入、權限、設定變更 100% 記錄 | 端到端情境後比對稽核表 | W3-4、W3-5 |
 
@@ -292,14 +271,14 @@ gantt
 
 | 風險 | 觸發訊號 | 應變 |
 | --- | --- | --- |
-| Drizzle PoC 未通過 | M0(11/20)檢查表有項目無法繞過 | 改用 Kysely;W3-1 第二週吸收額外 2 ~ 3 人天;Kysely 也不通過則走第三條路 Sequelize(GeneralBackend 已驗證) |
+| Drizzle PoC 未通過 | M0 對 SQL Server 2012 正式複驗有項目無法繞過(本機預驗已全數通過) | 改用 Kysely;W3-1 第二週吸收額外 2 ~ 3 人天;Kysely 也不通過則走第三條路 Sequelize(GeneralBackend 已驗證) |
 | 過渡期 LDAP 未加密 | PRD Q12 已決定過渡期用 `ldap://` | 限內網(主管與工程師已同意);W2 補發網域控制站憑證後切換 LDAPS,只改連線設定 |
-| SQL Server 2012 測試庫無法提供 | P-04 於 11/13 前未就緒 | 暫以共用測試庫 + 每次測試使用獨立 schema 前綴隔離,CI 整合測試改為夜間執行 |
-| W2 憑證 / AD CS 範本延誤 | P-05、P-06 未就緒 | W3-2 先用暫用自簽憑證;W3-3 以自建測試 CA 完成功能驗證,正式 CA 就緒後只替換憑證 |
-| AD 服務帳號延誤 | P-07 未就緒 | W3-4 先以 OpenLDAP 容器開發,真實 AD 驗證順延但不晚於 01/08 |
-| W3-4 與 W3-5 時程重疊 | W3-4 於 01/11 仍未完成 | W3-5 先做不依賴登入的部分(路由載入、代理、斷路器、通知 worker),以 `public` 路由測試 |
+| SQL Server 2012 測試庫無法提供 | P-04 未就緒 | 暫以共用測試庫 + 每次測試使用獨立 schema 前綴隔離,CI 整合測試改為夜間執行 |
+| `:9443` 憑證 / AD CS 範本延誤 | P-05(`:9443`)、P-06 未就緒 | `:443` 已使用公司憑證;`:9443` 先以自建測試 CA 完成 W6 功能驗證,正式 CA 就緒後只替換憑證 |
+| AD 服務帳號延誤 | P-07 未就緒 | 測試區已以 gsmc 網域驗證;其他網域的服務帳號就緒後再加入 `ldap-domains.json` |
+| W3-4 與 W3-5 時程重疊 | W3-4 未完成即需開始 W3-5 | W3-5 先做不依賴登入的部分(路由載入、代理、斷路器、通知 worker),以 `public` 路由測試 |
 | 整合週發現效能不達標 | k6 未達 §8 指標 | 先調整連線池與快取;MES 高頻路由依 PRD Q6 評估例外直連 |
-| BPM / LOS 欄位對應未定 | P-12 於 12/14 前未就緒 | 先以 AD 資料登入(`profile_source = ad_only`),同步 Worker 與欄位對應於 01/15 前補上;W3-4 其餘項目不受影響 |
+| BPM / LOS 欄位對應未定 | P-12 未就緒 | 先以 AD 資料登入(`profile_source = ad_only`),同步 Worker 與欄位對應於 P-12 就緒後補上;W3-4 其餘項目不受影響 |
 | BPM 資料表結構變動 | 同步安全檢查中止或欄位讀取錯誤 | 以唯讀 view 隔離;view 由 BPM 負責人維護,變更前通知 |
-| 舊演算法測試帳號未就緒 | P-15 於 12/14 前未就緒 | 暫不啟用自動遷移,舊帳號使用者改走自行註冊(LOS / BPM 找得到就可註冊);測試帳號驗證通過後再開啟 |
-| Docker Desktop 授權未確認或主機重開後未自動恢復 | P-17 未完成;重開機演練失敗 | 改在 WSL2 內安裝 Docker Engine 並設為開機啟動;以 Windows 服務執行 Runner |
+| 舊演算法測試帳號未就緒 | P-15 未就緒 | 暫不啟用自動遷移,舊帳號使用者改走自行註冊(LOS / BPM 找得到就可註冊);測試帳號驗證通過後再開啟 |
+| 主機 3 改用 Docker Engine 前,Docker Desktop 重開後未自動恢復 | 正式區重開機演練失敗 | 2026-12 依主機 2 做法改在 WSL2 內安裝 Docker Engine 並設為開機啟動;以 Windows 服務執行 Runner |

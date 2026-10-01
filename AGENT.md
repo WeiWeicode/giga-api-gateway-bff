@@ -2,7 +2,7 @@
 
 > 本文件是 AI 程式助手（如 Claude、Gemini）在本專案中的行為準則。
 > 所有 AI 協作開發必須遵守以下規範。
-> 本專案與 GigaItApp、Go Endpoint Server 等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
+> 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
 
 ---
 
@@ -144,7 +144,7 @@
 | 實作計畫 | `docs/IMPL-PLAN.md` | 工作項目（W3-x.n）、前置工作、驗收條件、完成定義 |
 | 前端規範 | `docs/FRONTEND-GUIDE.md` | SPA 子路徑、web-kit、登入與權限 |
 | 後端規範 | `docs/BACKEND-GUIDE.md` | 下游 port、內部 Token、OpenAPI 上架 |
-| 端點 Agent 通道 | `docs/ENDPOINT-AGENT-GUIDE.md` | Go Endpoint Server、Go Agent、C# Watchdog:`:9443` gRPC 通道、裝置憑證、本機具名管道 |
+| 端點 Agent 通道 | `docs/ENDPOINT-AGENT-GUIDE.md` | RustIt 的 Endpoint Server、Rust Agent、Watchdog:`:9443` HTTPS / WebSocket 通道、裝置憑證、本機具名管道 |
 | 部署 | `docs/DEPLOYMENT.md` | CI/CD、各元件部署與回滾、機密 |
 | 上公司環境清單 | `docs/COMPANY-ENV-PLAN.md` | 從本機測試環境部署到測試區 / 正式區需調整的檔案 |
 | 既有專案參考 | `docs/REFERENCES.md` | GeneralBackend、舊單一入口 |
@@ -157,7 +157,7 @@
 
 | 層級 | 技術 |
 |:---|:---|
-| 反向代理 | Nginx 1.26+（TLS、HTTP/2、gRPC、mTLS、`auth_request`） |
+| 反向代理 | Nginx 1.26+（TLS、HTTP/2、WebSocket、mTLS、`auth_request`） |
 | BFF | Node.js 22 LTS + TypeScript + Fastify 5 |
 | 主要套件 | `drizzle-orm` + `mssql`、`ioredis`、`jose`、`ldapts`、`undici`、`find-my-way`、`@node-rs/argon2`、`zod`、`pino` |
 | 應用資料庫 | SQL Server 2012 Standard（`giganexus_gw`，內網不加密） |
@@ -206,7 +206,7 @@ Bug 修改紀錄與新增功能紀錄、前端修改紀錄、後端修改紀錄�
 
 ## 10. 多專案工作區
 
-GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Server、各系統的前端 / 後端),**各自管理自己的 repo 與 API**,但彼此相依。所有 repo 放在**同一層目錄**,從任一專案往上一層就找得到其他專案。本節是所有專案共用的規則,其他 repo 的 AGENT.md 只寫自己的部分並指向本節。
+GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系統、RustIt 端點管理、各系統的前端 / 後端),**各自管理自己的 repo 與 API**,但彼此相依。所有 repo 放在**同一層目錄**,從任一專案往上一層就找得到其他專案。本節是所有專案共用的規則,其他 repo 的 AGENT.md 只寫自己的部分並指向本節。
 
 ### 10.1 目錄配置
 
@@ -215,8 +215,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 ├─ giga-api-gateway-bff/           # Gateway:Nginx、BFF、路由表、web-kit、Node SDK — 所有專案的上位規範
 ├─ giga-Portal/                    # 員工入口網(/,含 /login;應用切換的起點)
 ├─ GigaItApp/                      # IT 管理系統(/it/;設定各應用的選單 / Tab / 按鈕權限)
-├─ giga-endpoint/                  # Go Endpoint Server + Go Agent(W6)
-├─ giga-agent-watchdog/            # C# Watchdog(端點電腦上看守 Go Agent)
+├─ RustIt/                         # 端點管理(W6,Rust):Endpoint Server、Agent、Watchdog、托盤
 └─ <其他系統>/                     # 其他工程師開發的入口網功能:各自的前端 / 後端 repo
 ```
 
@@ -231,8 +230,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
 | `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(M1:前端已建立並發佈本機 Nginx;portal-api 規劃中) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
 | `GigaItApp` | IT 管理系統:BFF 視覺化、**各應用的應用 / 選單 / Tab / 按鈕權限設定**;端點管理經 BFF。目前自有登入(頂列已有應用切換),規劃改用單一入口(PRD v0.7) | `/it/`、`/it/api/*`(51291;規劃改為 `/api/it/*` 經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
-| `giga-endpoint` | Go Endpoint Server + Go Agent + 小幫手 | `endpoint-api`(51240)、`endpoint-grpc`(51241);Agent 經 `:9443` | W6 負責人 | `../giga-endpoint/AGENT.md` |
-| `giga-agent-watchdog` | C# Watchdog:看守 Go Agent 的存活、健康、版本,自己經 `:9443` 上報(規劃中,只有文件) | 無對外;經 `:9443` 上報 | 待定 | `../giga-agent-watchdog/AGENT.md` |
+| `RustIt` | 端點管理(Rust,2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server(Axum)、Agent 與 Watchdog(Windows 服務)、托盤程式;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/README.md`、`../RustIt/docs/PROJECT-MAP.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
 
@@ -241,8 +239,8 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | 專案 | 依賴 Gateway 的部分 | 與其他專案 |
 | --- | --- | --- |
 | giga-Portal | Nginx `/`(SPA 發佈到 `gw_www/portal`);BFF `/api/auth/*`(登入、`me.apps`)、`/api/portal/*` → `portal-api`(內部 Token、自動註冊);各系統經 BFF 的 API(HRM、BPM…) | 應用切換連到 GigaItApp 等其他應用(整頁導向);權限由 GigaItApp 設定、存在 BFF(PRD §8.3.2) |
-| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Go;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
-| giga-endpoint(Go Endpoint Server / Agent) | `:9443` 通道、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;與 C# Watchdog 以本機具名管道溝通 |
+| GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);本機 compose 掛載 `../../giga-api-gateway-bff/deploy/dev/secrets/pki/ca.crt`、加入 Gateway 的 Docker 網路 | 不直接呼叫 Endpoint Server;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
+| RustIt(Endpoint Server / Agent / Watchdog) | `:9443` 通道(HTTPS / WebSocket)、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;Agent 與 Watchdog、托盤以本機具名管道溝通 |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
 - **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。
@@ -314,7 +312,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、IT 管理系統、Go Endpoint Se
 | Vue 3 前端(Vite) | `src/` | `pages/`(畫面組合,不寫共用樣式)、`ui/` 或 `components/`(無業務的共用元件)、`composables/`(狀態與邏輯)、`api/`(HTTP,頁面不直接 `fetch`) | `test/`(與 `src/` 平行,Vitest;元件測試可用 `*.test.ts` 放 `test/` 對應路徑) | 資源路徑用 `import.meta.env.BASE_URL` |
 | Go | **不使用 `src/`**(Go 模組以 `go.mod` 為根,這是 Go 慣例);`cmd/<程式>/`(進入點,只組裝)、`internal/<套件>/`(不可被其他模組 import) | 以套件分責:領域邏輯套件不 import gRPC / HTTP / Windows API;平台相依以 `_windows.go` / build tag 分檔;產生碼放 `gen/` | 單元測試 `_test.go` **與程式同目錄**(Go 工具鏈的規定,才能測試未匯出的函式);跨程式整合 / 端到端放根目錄 `test/` | `go vet`、`GOOS=windows go vet` 都要過 |
 | C# / .NET | `src/<專案>/`(.NET 慣例) | 核心邏輯只依賴介面(DI 注入);外部系統(SCM、具名管道、gRPC、憑證)各自包成 adapter;設定以 Options 綁定並驗證 | `tests/<專案>.Tests/`(與 `src/` 平行,xUnit) | 一個檔案一個主要型別 |
-| Rust(規劃中) | `src/`(cargo 慣例):`lib.rs` 放邏輯、`main.rs` 只組裝 | 以模組分責;平台相依 `#[cfg(windows)]` | 單元測試 `#[cfg(test)] mod tests` 同檔;整合測試 `tests/`(cargo 慣例,只能用公開 API) | — |
+| Rust(RustIt) | `src/`(cargo 慣例):`lib.rs` 放邏輯、`main.rs` 只組裝 | 以模組分責;平台相依 `#[cfg(windows)]` | 單元測試 `#[cfg(test)] mod tests` 同檔;整合測試 `tests/`(cargo 慣例,只能用公開 API) | — |
 | Nginx / 部署設定 / 腳本 | `nginx/`、`deploy/`、`scripts/` | 依部署區不同的值放 `templates/`、`allowlists/<區域>/` 或 env 檔 | 煙霧測試腳本(例 `deploy/smoke-test.sh`)或 E2E | 不放在 `src/` |
 
 - **新程式碼**必須符合本節。**既有程式**與原則不同時,不要為了符合原則而大規模搬移(§3 外科手術式修改);在專案地圖的「已知差異」列出,另開任務處理。

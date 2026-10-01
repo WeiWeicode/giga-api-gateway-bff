@@ -9,13 +9,13 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.7** |
+| 文件版本 | **v0.9**(2026-10-01) |
 | 建立日期 | 2026-09-24 |
-| 技術棧 | Nginx(TLS / HTTP2 / gRPC / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
+| 技術棧 | Nginx(TLS / HTTP2 / WebSocket / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
-| 對應工作流 | NexusPlan **W3. API Gateway + BFF**(2026-11-16 ~ 2027-01-29) |
+| 對應工作流 | NexusPlan **W3. API Gateway + BFF**(時程以 NexusPlan 甘特圖為準) |
 | 規劃依據 | `GigaNexusAIPlan/docs/PRD.md`(§8 W3)、`archatlas/src/data/sample-atlas.json`(`nginx-gateway`、`node-bff` 節點與上下游) |
-| 狀態 | 規劃中(v0.5:待決事項 Q6(待壓測)、Q25、Q26) |
+| 狀態 | **測試區已上線**(2026-09-30,`giganexus-test.gigasolar.com.tw`);正式區預計 2026-12 建置。待決事項:Q6(待壓測)、Q25、Q26、Q29 |
 
 ### 1.1 修訂紀錄
 
@@ -27,8 +27,9 @@
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
 | v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md);⑤ §14.1 新增「Docker Desktop 下 Nginx 看不到真實來源 IP」風險,新增 Q26;§7.6 Agent `limit_conn` 改以裝置憑證計算 |
 | v0.6 | 2026-09-26 | `gw.upstream` 新增 `project`(開發專案:實作該服務的 repo 資料夾名稱),由 OpenAPI 根層 `x-gateway.project`(選用)或 CLI `apply` 帶入;路由查詢回傳並可依此比對關鍵字,讓管理介面與開發者知道每條路由由哪個專案開發(§8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② 移除測試應用「公司文件系統」(TestGigaAPP):§7.2.1 子路徑 `/dms/`、BACKEND-GUIDE §3.3 port 51290 取消登記 |
-| v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
 | v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
+| v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
+| v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
 
 ---
 
@@ -38,7 +39,7 @@
 
 | 元件 | 一句話定位 | 主要職責 |
 | --- | --- | --- |
-| **Nginx 反向代理網關** | 地端**唯一入口**(`:443`;Agent 專用 `:9443`) | TLS 終結、SPA 靜態檔託管、`/api/*` 轉發、WebSocket 升級、Webhook 入口、Agent **mTLS + gRPC** 代理 |
+| **Nginx 反向代理網關** | 地端**唯一入口**(`:443`;Agent 專用 `:9443`) | TLS 終結、SPA 靜態檔託管、`/api/*` 轉發、WebSocket 升級、Webhook 入口、Agent **mTLS + HTTPS / WebSocket** 代理 |
 | **Node.js BFF(Fastify)** | **身分與政策中心** | AD / 本機帳號登入、JWT(httpOnly Cookie)、RBAC、**資料庫驅動的動態 API 路由**、API 聚合、Email / 站內通知(LINE 暫緩) |
 
 核心原則:
@@ -52,8 +53,8 @@
 ## 3. 背景與問題
 
 - 前端將有多個 SPA(員工入口網、MES 看板、HRM、FMS、IT 端點管理台、BI 看板),若各自對外開 port、各自做登入,**憑證、CORS、登入狀態會四散**。
-- 後端服務技術異質(Go MES、Go Endpoint Server、Node 核心服務、既有 BPM、鼎新 ERP 適配層),**沒有統一的認證與權限檢查點**。
-- 200 台端點 Agent 需要與 Go 後端長連線(gRPC 雙向流),必須有**裝置層級身分(mTLS)**,且不能與一般瀏覽器流量互相影響。
+- 後端服務技術異質(Go MES、Rust Endpoint Server(RustIt)、Node 核心服務、既有 BPM、鼎新 ERP 適配層),**沒有統一的認證與權限檢查點**。
+- 200 台端點 Agent(Rust)需要與 Endpoint Server 維持長連線(WebSocket)接收指令,必須有**裝置層級身分(mTLS)**,且不能與一般瀏覽器流量互相影響。
 - 目前新增一支 API 需要改程式、改 Nginx 設定、重新部署,**IT 無法自行管理 API 清單**,也無法回答「誰能呼叫哪些 API」。
 - 通知(LINE、Email)散落在各系統,格式與失敗重試各自為政。
 
@@ -69,7 +70,7 @@
 2. 以 AD 帳號或本機帳號完成單一登入(無網域子公司可自行註冊),Token 只存在 **httpOnly Cookie**,前端 JS 不接觸 Token。
 3. 建立以 **AD 群組 → 角色 → 權限 → API** 為骨幹的 RBAC。
 4. API 路由表**資料庫化**,支援 IT 管理介面 CRUD、批次匯入(OpenAPI / Excel)、版本發佈與回滾。
-5. 提供 Agent 專用的 **mTLS + gRPC** 通道。
+5. 提供 Agent 專用的 **mTLS + HTTPS / WebSocket** 通道。
 6. 提供統一的通知服務(Email / 站內通知;LINE 暫緩,見 §8.5),含範本、佇列、重試與紀錄。
 
 ### 4.2 成功指標(驗收標準)
@@ -81,7 +82,7 @@
 | 權限判斷 | 快取命中下單次 RBAC 判斷 < 2 ms |
 | 路由生效時間 | IT 於管理介面「發佈」後 ≤ 5 秒全部 BFF 實例生效,無需重啟 |
 | 登入 | AD / 本機帳號登入 p95 < 1 秒;登出後 Token 立即失效 |
-| Agent 連線 | 200 台 Agent 以 mTLS + gRPC 穩定長連線;無有效憑證者 100% 拒絕於 TLS 層 |
+| Agent 連線 | 200 台 Agent 以 mTLS + WebSocket 穩定長連線;無有效憑證者 100% 拒絕,不會到達 Endpoint Server |
 | 通知 | 通知送達成功率 ≥ 99%(含重試);100% 留有發送紀錄 |
 | 稽核 | 登入、權限變更、API 設定變更 100% 寫入稽核紀錄 |
 
@@ -96,7 +97,7 @@
 | 前端開發者(佳緯、Eric) | 同網域呼叫 `/api/...`;有 `/api/auth/me` 拿到使用者與權限以控制選單;遵守 [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) |
 | 後端服務開發者 | 不必各自實作登入;從標頭/內部 Token 取得可信任的使用者身分 |
 | IT 管理者 | 在 IT 管理介面維護 API 清單、角色權限、AD 群組對應、通知範本;查詢稽核紀錄 |
-| 端點 Agent(機器) | 以裝置憑證建立 mTLS,透過 gRPC 回報心跳與資產 |
+| 端點 Agent(機器) | 以裝置憑證建立 mTLS,以 HTTPS 回報資產、以 WebSocket 維持心跳並接收指令 |
 | 外部系統(BPM;LINE 平台暫緩) | 以 Webhook 回呼,需驗證簽章 |
 
 ---
@@ -182,7 +183,7 @@
 ### 7.4 WebSocket
 
 - `/ws/notify` → BFF(站內即時通知、待辦數更新)。
-- `/ws/endpoint/*` → Go Endpoint Server(螢幕串流、遠端指令中繼),以 `auth_request /_auth/verify` 向 BFF 驗證 Cookie 與權限,BFF 回傳 `X-Auth-User`、`X-Internal-Token` 標頭由 Nginx 帶給上游。
+- `/ws/endpoint/*` → Endpoint Server(RustIt,螢幕串流、遠端指令中繼),以 `auth_request /_auth/verify` 向 BFF 驗證 Cookie 與權限,BFF 回傳 `X-Auth-User`、`X-Internal-Token` 標頭由 Nginx 帶給上游。
 - 必要設定:`proxy_http_version 1.1`、`Upgrade` / `Connection` 標頭映射、`proxy_read_timeout 3600s`;BFF / 上游每 30 秒送 ping。
 
 ### 7.5 Webhook 入口
@@ -192,34 +193,37 @@
 - BFF 層:依 `gw.webhook_endpoint` 設定驗證簽章(HMAC-SHA256;未來 LINE 使用 `X-Line-Signature`)、時間戳防重放、`Idempotency-Key` 去重(Redis 24h),通過後分派至對應上游或佇列。
 - **LINE Webhook** **(暫緩)**:未來開發時需從網際網路可達,需與網管確認 DMZ 反向代理僅開放 `/webhook/line`(見 §14.1 風險)。
 
-### 7.6 Agent 專用通道:mTLS + gRPC
+### 7.6 Agent 專用通道:mTLS + HTTPS / WebSocket
+
+> **v0.9(2026-10-01)改為 Rust + WebSocket**:端點 Agent 由 RustIt 以 Rust 開發,1,000 台以內 WebSocket 已足夠,不再使用 gRPC。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版(`grpc_pass`),**待 W6-1 訊息協定定版後依本節改寫**,E2E `06-websocket-agent` 同步改寫。
 
 ```mermaid
 sequenceDiagram
-    participant AG as Go Agent (Windows 服務)
+    participant AG as Rust Agent (Windows 服務)
     participant NX as Nginx :9443(Agent 專用)
-    participant EP as Go Endpoint Server :51241
+    participant EP as Endpoint Server :51241(RustIt,Rust + Axum)
     AG->>NX: TLS ClientHello + 裝置憑證
     NX->>NX: ssl_verify_client on<br/>驗證簽發 CA、效期、CRL
     alt 憑證無效
-        NX-->>AG: TLS 握手失敗 (不進入應用層)
+        NX-->>AG: 拒絕(HTTP 400 / 403,不轉送上游)
     else 憑證有效
-        AG->>NX: gRPC over HTTP/2 (Heartbeat / ReportAssets 雙向流)
-        NX->>EP: grpc_pass grpcs://endpoint-server:51241<br/>+ x-client-cert-dn / x-client-cert-fp / x-client-verify
-        EP->>EP: 以憑證 DN/指紋比對已註冊端點
-        EP-->>AG: 回應 / 下行指令(經 Nginx)
+        AG->>NX: HTTPS POST(資產、事件回報)<br/>WSS /agent/v1/ws(心跳、指令)
+        NX->>EP: proxy_pass https://endpoint-server:51241<br/>+ x-client-cert-dn / x-client-cert-fp / x-client-verify
+        EP->>EP: 以憑證 DN / 指紋比對已註冊端點
+        EP-->>AG: 回應 / WebSocket 下行指令(經 Nginx)
     end
 ```
 
-- 獨立 `server { listen 9443 ssl; http2 on; }`:Agent 以 IP 存取,TLS 無法用 SNI 區分主機名稱,改以 **port** 區分(Q1);伺服器憑證 `agent-server.crt` 與 `:443` 分開;防火牆只開放端點網段連 `:9443`。設定:
+- 獨立 `server { listen 9443 ssl; }`:Agent 以 IP 存取,TLS 無法用 SNI 區分主機名稱,改以 **port** 區分(Q1);伺服器憑證 `agent-server.crt` 與 `:443` 分開;防火牆只開放端點網段連 `:9443`。設定:
   - `ssl_client_certificate`:內部 CA 鏈(僅信任 Agent 專用中繼 CA)。
   - `ssl_verify_client on;`、`ssl_verify_depth 2;`、`ssl_crl`(定期更新 CRL,撤銷遺失/報廢電腦的憑證)。
-  - `grpc_pass grpcs://endpoint_upstream;`(Nginx → Endpoint Server 亦為 TLS)。
-  - `grpc_set_header x-client-cert-dn $ssl_client_s_dn;`、`x-client-cert-fp $ssl_client_fingerprint;`、`x-client-verify $ssl_client_verify;`。
-  - 長連線:`grpc_read_timeout 1h`、`grpc_send_timeout 1h`、`client_body_timeout 1h`;`keepalive_timeout` 配合 gRPC keepalive(Agent 端 30s ping)。
-  - 每張裝置憑證的同時串流數上限(`limit_conn`,以憑證指紋 `$ssl_client_fingerprint` 計算,每張 10 條),避免異常 Agent 重連風暴;不以來源 IP 計算,Docker Desktop 轉送或子公司 NAT 時多台電腦共用來源 IP 也不受影響(§14.1)。
-- **裝置憑證發放**(建議):AD CS 建立「GigaNexus Agent」憑證範本,以 GPO **電腦憑證自動註冊(Autoenrollment)** 發到網域電腦的 `LocalMachine\My`,Agent 以 Windows 憑證存放區讀取,私鑰不可匯出。Subject 使用電腦名稱(`CN=<電腦名稱>`),SAN 帶 AD 電腦物件 GUID。**無網域子公司的電腦無法以 GPO 自動註冊**,需由 IT 另行簽發並安裝(見 §14.1)。
-- Endpoint Server 端的 gRPC API(proto)由 W6 定義;本專案只負責**通道、身分標頭與限流**。Endpoint Server、Go Agent 與 C# 守護程式(Watchdog,同樣經 `:9443`、使用同一張電腦憑證)的開發規範見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
+  - **HTTP/1.1**:WebSocket 以 HTTP/1.1 `Upgrade` 建立(Nginx 不支援以 HTTP/2 承載 WebSocket),`:9443` 不開 `http2`。
+  - `proxy_pass https://endpoint_agent_upstream;`(Nginx → Endpoint Server 亦為 TLS,`proxy_ssl_verify on`)、`proxy_http_version 1.1`、`Upgrade` / `Connection` 標頭映射。
+  - `proxy_set_header x-client-cert-dn $ssl_client_s_dn;`、`x-client-cert-fp $ssl_client_fingerprint;`、`x-client-verify $ssl_client_verify;`(覆寫 Agent 自送的同名標頭)。
+  - 長連線:`proxy_read_timeout 1h`、`proxy_send_timeout 1h`;Agent 每 30 秒送應用層心跳,任一方向 1 小時無資料即中斷。
+  - 每張裝置憑證的同時連線數上限(`limit_conn`,以憑證指紋 `$ssl_client_fingerprint` 計算,每張 10 條),避免異常 Agent 重連風暴;不以來源 IP 計算,Docker 轉送或子公司 NAT 時多台電腦共用來源 IP 也不受影響(§14.1)。
+- **裝置憑證發放**(建議):AD CS 建立「GigaNexus Agent」憑證範本,以 GPO **電腦憑證自動註冊(Autoenrollment)** 發到網域電腦的 `LocalMachine\My`,Agent 以 Windows 憑證存放區讀取,私鑰不可匯出。Subject 使用電腦名稱(`CN=<電腦名稱>`),SAN 帶 AD 電腦物件 GUID。**無網域子公司的電腦無法以 GPO 自動註冊**,需由 IT 另行簽發並安裝(見 §14.1)。RustIt PRD 另規劃首次註冊以一次性 enrollment token 取得裝置憑證,兩者擇一於 W6-1 定案。
+- Endpoint Server 的 HTTP / WebSocket 訊息格式由 W6(RustIt)定義;本專案只負責**通道、身分標頭與限流**。Endpoint Server、Rust Agent 與 Watchdog(同樣經 `:9443`、使用同一張電腦憑證)的開發規範見 [ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)。
 
 ### 7.7 日誌與監控
 
@@ -751,20 +755,21 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 ## 13. 範圍與里程碑
 
-> 對應 NexusPlan W3 子任務;日期沿用甘特圖初估。工作拆解、前置工作與驗收方式詳見 [IMPL-PLAN.md](IMPL-PLAN.md)。
+> 對應 NexusPlan W3 子任務。**時程以 NexusPlan 甘特圖為準**(經常調整,本文不另列日期)。工作拆解、前置工作與驗收方式詳見 [IMPL-PLAN.md](IMPL-PLAN.md)。
 
-### 13.1 MVP(W3,2026-11-16 ~ 2027-01-29)
+### 13.1 MVP(W3)
 
-| 子任務 | 期間 | 範圍 |
+| 子任務 | 範圍 | 狀態(2026-10-01) |
 | --- | --- | --- |
-| W3-1 架構規劃 | 11/16 ~ 11/27 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 |
-| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | 11/30 ~ 12/18 | §7.1–7.5、§7.7 |
-| W3-3 Nginx gRPC + mTLS | 12/07 ~ 12/25 | §7.6;以測試 Agent + 測試憑證驗證 |
-| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | 12/14 ~ 01/15 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) |
-| W3-5 BFF:動態路由、聚合、通知骨架 | 01/11 ~ 01/29 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(僅 BPM webhook);§8.2.5 自行註冊與忘記密碼(需 Email 通知) |
-| ◆ 里程碑:Gateway + BFF 可用 | 01/29 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 |
+| W3-1 架構規劃 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 | ✅ 完成(PoC 本機預驗通過;migration 已套用至公司 SQL Server 2012 測試庫、測試區以 2012 運作中;`test:int` 正式複驗待執行,[TECH-STACK.md](TECH-STACK.md) §4.1) |
+| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成(未做:nginx-prometheus-exporter) |
+| ~~W3-3 Nginx gRPC + mTLS~~ | §7.6 | **v0.9 取消**:Agent 通道改為 HTTPS / WebSocket,併入 W6(RustIt)與 Endpoint Server 一起交付 |
+| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;待外部前置:人員排程同步 Worker(P-12)、舊單一入口帳號遷移(P-15) |
+| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(僅 BPM webhook);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 進行中:路由、聚合、斷路器、發佈同步、自動註冊完成;通知 Worker、自行註冊 / 忘記密碼、Webhook 驗簽未完成 |
+| ◆ 測試區 Gateway + BFF 可用 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30 |
+| ◆ 正式區 Gateway + BFF 可用 | 主機 3(10.10.130.122)、`giganexus.gigasolar.com.tw` | 2026-12 |
 
-### 13.2 第二階段(配合 W4 IT 管理介面,2027-01 ~ 03)
+### 13.2 第二階段(配合 W4 IT 管理介面)
 
 - [ ] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾
 - [ ] OpenAPI / Excel 匯入與預覽
@@ -809,8 +814,8 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | 舊演算法移植錯誤 | 自訂 DES 演算法若移植不一致,或現行版本與 NAS 備份不同,所有舊帳號都無法遷移 | 依備份原始碼移植(Q18);以**現行系統**建立的測試帳號比對密文完全一致後才啟用;不一致時向現行版本維護者確認演算法;單一 DES 在 Node.js 22 預設的 OpenSSL 3 不提供,以純 JS 實作,不啟用整個程序的 legacy provider |
 | 舊單一入口留存明文密碼 | 依備份原始碼,`LoginData.EName` 可能存有明文「確認密碼」,舊忘記密碼頁會顯示原密碼 | 舊系統不修改(Q22);Gateway 不讀取 `EName`(唯讀 view 排除此欄),遷移時強制設定新密碼;舊系統隨功能轉移逐步關閉 |
 | 並行期間新舊密碼不一致 | 遷移後新系統密碼與舊單一入口各自獨立,使用者可能混淆或在舊入口繼續使用已外洩的舊密碼 | 登入與改密碼頁明示「新入口網密碼與舊單一入口無關」;建議使用者一併更改舊入口密碼;舊入口隨功能轉移逐步關閉 |
-| Windows 主機使用 Docker Desktop | 授權需付費訂閱(大型企業);預設需使用者登入才啟動,主機重開後服務可能未恢復 | 員工數未達 200 人,年營收待確認(Q25);設定開機自動登入 / 啟動、Runner 以服務執行、容器 `restart: unless-stopped`;正式區關閉自動更新([DEPLOYMENT.md](DEPLOYMENT.md) §6) |
-| Docker Desktop 下 Nginx 看不到真實來源 IP | 本機(macOS Docker Desktop)所有連線的來源都是 VM 閘道 `192.168.65.1`:Docker Desktop 的 published port 由主機程序接受連線後再轉進 VM,Windows(WSL2)使用同一套機制,社群也回報看不到真實 IP。主機 2、3 若相同:全站與登入 IP 限流變成全公司共用一份額度(上班時段大量 429)、BFF 登入失敗 IP 計數會鎖住所有人、Webhook 與內網服務 IP 白名單只能全拒或全放(§7.5)、「記住我」內網判定失效(Q4)、稽核無法記錄來源 | **上線前**依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 以一次性容器驗證;確認遺失時改在 Hyper-V Linux VM 或 WSL2(mirrored 模式)內執行 Docker Engine,或以 Linux L4 轉送 + PROXY protocol 帶入來源 IP(Q26)。Docker Desktop 的 host networking、WSL mirrored 模式都無法解決;方案確定前不修改其他 Nginx 設定;Agent `limit_conn` 已改以裝置憑證計算(2026-09-25),不受此影響 |
+| 正式區(主機 3)仍使用 Docker Desktop | 授權需付費訂閱(大型企業);預設需使用者登入才啟動,主機重開後服務可能未恢復。主機 2(測試區)已改用 WSL2 內的 Docker Engine | 主機 3 預計 2026-12 建置正式區時改為 Docker Engine(與主機 2 相同,[DEPLOYMENT.md](DEPLOYMENT.md) §6);改用前沿用 Docker Desktop 的開機自動啟動與 `restart: unless-stopped` |
+| Windows 主機上 Nginx 看不到真實來源 IP | **主機 2 已確認遺失**(2026-09-30:WSL2 Docker Engine + `netsh portproxy`,`remote_addr` 一律為 Docker 閘道 `172.19.0.1`);本機(macOS Docker Desktop)所有連線的來源都是 VM 閘道 `192.168.65.1`:Docker Desktop 的 published port 由主機程序接受連線後再轉進 VM,Windows(WSL2)使用同一套機制,社群也回報看不到真實 IP。影響:全站與登入 IP 限流變成全公司共用一份額度(上班時段大量 429)、BFF 登入失敗 IP 計數會鎖住所有人、Webhook 與內網服務 IP 白名單只能全拒或全放(§7.5)、「記住我」內網判定失效(Q4)、稽核無法記錄來源 | **開放給一般使用者前**處理:改在 Hyper-V Linux VM 或 WSL2(mirrored 模式)內執行 Docker Engine,或以 Linux L4 轉送 + PROXY protocol 帶入來源 IP(Q26)。Docker Desktop 的 host networking、Docker Desktop + WSL mirrored 都無法解決;主機 3 2026-12 改 Docker Engine 時一併採用同一方案;方案確定前不修改其他 Nginx 設定;Agent `limit_conn` 已改以裝置憑證計算(2026-09-25),不受此影響 |
 | 時程重疊 | W3 與 W5 架構同時進行 | W3-4 先提供 `/api/auth/me` 與 mock 路由,W5 前端可先行 |
 
 ### 14.2 待決事項
@@ -841,9 +846,9 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q22 | 舊系統的明文密碼問題(`LoginData.EName`、舊忘記密碼顯示原密碼)是否處理 | **已決定**:**不動舊系統**。參考的原始碼是 NAS 上兩三年前的備份,現行版本不在 NAS;Gateway 不讀取 `EName`,遷移後強制設定新密碼 | 提案人 |
 | Q23 | 新入口網的忘記密碼做法 | **已決定**:IT 重設密碼 + 寄送 Email 連結到重設頁面;畫面與細節於入口網(W5)開發時確定 | 提案人 |
 | Q24 | 並行期間新進無網域員工在哪裡註冊 | **已決定**:新舊入口都可以;舊入口註冊者登入新入口網時自動遷移 | 提案人 |
-| Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **員工人數已確認未達 200 人**(門檻 250 人);**尚需確認年營收**:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
-| Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 先依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 驗證;若 Docker Desktop 確實遺失來源 IP,建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。兩者都不需 Docker Desktop 授權,可一併解決 Q25 | 主管 + IT + 網管 |
-| Q27 | IT 管理系統(GigaItApp,v0.7 前為自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Go Endpoint Server;itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Go 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
+| Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **主機 2 已改用 Docker Engine(不需授權);主機 3 預計 2026-12 改用 Docker Engine**,之後本題結案。改用前:員工人數已確認未達 200 人(門檻 250 人),尚需確認年營收:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
+| Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 主機 2(WSL2 Docker Engine 預設 NAT + `netsh portproxy`)已確認遺失,**開放給一般使用者前必須處理**;建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。主機 3 於 2026-12 改用 Docker Engine 時採用相同方案 | 主管 + IT + 網管 |
+| Q27 | IT 管理系統(GigaItApp,v0.7 前為自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Endpoint Server(RustIt);itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Rust 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
 | Q28 | 員工入口網的選單 / Tab / 按鈕權限如何依部門、職位控管 | **已決定(2026-09-26)**:以 BFF 為唯一來源;新增角色指派規則,**職位以職級為主**、職稱選配,**部門含下層**;按鈕權限 = API 權限;GigaItApp 提供設定畫面並改用單一入口(§8.3.1–§8.3.3) | 需求方 |
 | Q29 | 職級值的比較方式:規則列出職級清單,或以數值範圍(「課長以上」)表示 | 第一版列出清單;待 BPM 負責人確認 `FunctionLevel.levelValue` 大小與職位高低的對應後再評估範圍條件 | BPM 負責人 + IT |
 
@@ -852,9 +857,9 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 ## 15. 未來規劃
 
 - IT 管理介面(W4)以本服務的管理 API 為後端,完成 API、角色、通知的自助管理。
-- 端點 Agent(W6)以本服務的 mTLS + gRPC 通道上線,並以相同身分機制讓 IT 管理台呼叫 Endpoint Server。
+- 端點 Agent(W6,RustIt)以本服務的 mTLS + HTTPS / WebSocket 通道上線,並以相同身分機制讓 IT 管理台呼叫 Endpoint Server。
 - AI Gateway(W7)沿用本服務的身分、權限、稽核與限流,讓每一次 LLM 呼叫都可追溯到人與權限。
 
 ---
 
-*本文件 v0.4;待決事項 Q6(待 W3-5 壓測結果)、Q25 確認後更新為 v0.5。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md)。*
+*本文件 v0.9(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q26、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*

@@ -37,7 +37,7 @@ sh deploy/dev/up.sh
 
 | 服務 | 內容 |
 | --- | --- |
-| `nginx` | `:80` 轉址、`:443`(SPA + `/api` + `/ws` + `/webhook`)、`:9443`(Agent mTLS + gRPC) |
+| `nginx` | `:80` 轉址、`:443`(SPA + `/api` + `/ws` + `/webhook`)、`:9443`(Agent mTLS;現行為 gRPC 版,2026-10-01 決定改為 HTTPS / WebSocket,待改寫) |
 | `bff-1`、`bff-2` | BFF ×2,共用 Redis 與 SQL Server |
 | `redis` | Redis 7(本機 `127.0.0.1:16379`) |
 | `mssql` + `mssql-init` | SQL Server 2022:`giganexus_gw`、`giganexus_gw_test`、`LOS`、`PortalSolar`(相容層級 110)、`BPM`(150)+ 模擬資料 |
@@ -78,9 +78,9 @@ M0 Go / No-Go 仍需以整合測試對**真正的 SQL Server 2012 測試庫**(P-
 
 | 項目 | 狀態 |
 | --- | --- |
-| W3-1 骨架、schema、migration、seed、Drizzle PoC | 完成(容器預驗,待 2012 複驗) |
+| W3-1 骨架、schema、migration、seed、Drizzle PoC | 完成(容器預驗;migration 已套用至公司 2012 測試庫,`test:int` 正式複驗待執行) |
 | W3-2 Nginx 入口:TLS、SPA、`/api`、WebSocket、`auth_request`、Webhook 白名單、JSON 錯誤、限流 | 完成 |
-| W3-3 Agent `:9443` mTLS + gRPC、CRL、簽發者限制 | 完成(見下方注意事項) |
+| ~~W3-3 Agent `:9443` mTLS + gRPC~~ | gRPC 版完成後**取消**:Agent 改為 Rust + WebSocket(PRD v0.9),`agent.conf` 與 E2E 隨 W6 改寫([ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md) §10 G0);mTLS、簽發者限制、憑證指紋限流沿用 |
 | W3-4 AD 多網域登入、本機帳號、JWT Cookie、Refresh Rotation、CSRF、RBAC、內部 Token / JWKS、登入補查 BPM / LOS、IT 代建 | 完成 |
 | W3-4.6b 人員排程同步 Worker、W3-4.16 舊單一入口遷移 | 未開始(後者需 P-15 測試帳號) |
 | W3-5 動態路由、聚合、限流、快取、斷路器、發佈 / 回滾 / 補償、CLI 匯入 | 完成 |
@@ -89,7 +89,7 @@ M0 Go / No-Go 仍需以整合測試對**真正的 SQL Server 2012 測試庫**(P-
 
 注意事項:
 
-- Nginx `ssl_verify_client on` 對無效 / 無憑證的 Agent 會完成 TLS 握手後在 HTTP 層回 400(不會到達 Endpoint Server),而非 TLS 層中斷;與 IMPL-PLAN W3-3 驗收字面「TLS 層被拒」不同,需確認是否可接受。
+- Nginx `ssl_verify_client on` 對無效 / 無憑證的 Agent 會完成 TLS 握手後在 HTTP 層回 400(不會到達 Endpoint Server),而非 TLS 層中斷;與舊版驗收字面「TLS 層被拒」不同,需確認是否可接受(ENDPOINT-AGENT-GUIDE §10 G2)。
 - 斷路器狀態由各 BFF 實例在記憶體中維護(DATABASE.md §6 列有 `gw:cb:{upstream}`,目前未使用)。
 - 權限對應變更時 CLI 以全體使用者遞增 `perm_version`(DATABASE.md §7.2 為「受影響使用者」);管理 API(P2-3)時改為精準遞增。
-- `.gitlab-ci.yml`、`ci-templates/spa-deploy.yml`、`deploy/docker-compose.test|prod.yml` 尚未在實際 Runner / 主機上執行過。
+- 測試區(主機 2)已由 `.gitlab-ci.yml` `develop` Pipeline 部署(2026-09-30,`https://giganexus-test.gigasolar.com.tw`);`deploy-prod` 與 `deploy/docker-compose.prod.yml` 待 2026-12 正式區(主機 3)建置後執行。

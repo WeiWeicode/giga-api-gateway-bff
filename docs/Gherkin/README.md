@@ -8,7 +8,7 @@
 | 目錄 / 檔案 | 內容 | PRD | 工作項目 |
 | --- | --- | --- | --- |
 | `gateway/nginx-entry.feature` | `:443` 入口、HTTP 轉址、SPA 子路徑、標頭淨化、入口限流、WebSocket | §7.1–§7.4 | W3-2 |
-| `gateway/agent-mtls.feature` | Agent 專用 `:9443` mTLS + gRPC | §7.6 | W3-3 |
+| `gateway/agent-mtls.feature` | Agent 專用 `:9443` mTLS + HTTPS / WebSocket | §7.6 | W6(原 W3-3) |
 | `auth/ad-login.feature` | AD 多網域登入、失敗限流、群組對應角色 | §8.2.1 | W3-4.2–4.3 |
 | `auth/token-session.feature` | Cookie、CSRF、Refresh Rotation、登出、記住我、內部 Token | §8.2.2–§8.2.3 | W3-4.4–4.5、4.9 |
 | `auth/local-account.feature` | 登入方式判斷、本機帳號登入、密碼政策、鎖定 | §8.2.5 | W3-4.14–4.15 |

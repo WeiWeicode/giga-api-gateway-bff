@@ -1,6 +1,6 @@
 # 公司測試區架設手冊(手動部署,一頁式)
 
-> 適用:**公司 GitLab / CI / Registry 與 AD CS 憑證尚未就緒**時,在**主機 2(B 測試區,Windows + Docker Desktop)**手動架設 Gateway、員工入口網(giga-Portal)與 IT 管理系統(GigaItApp)。
+> 適用:**公司 GitLab / CI / Registry 與 AD CS 憑證尚未就緒**時,在**主機 2(B 測試區,Windows + WSL2 內的 Docker Engine,2026-09-29 起不使用 Docker Desktop)**手動架設 Gateway、員工入口網(giga-Portal)與 IT 管理系統(GigaItApp)。
 > CI 就緒後改依 [DEPLOYMENT.md](DEPLOYMENT.md) §2–§3;完整調整清單見 [COMPANY-ENV-PLAN.md](COMPANY-ENV-PLAN.md)。建立日期 2026-09-26。
 > 指令一律在 **Git Bash** 執行(Git for Windows 內附)。以下以 `D:/giganexus` 為例,請依實際位置替換;`<主機 IP>` 為主機 2 的 IP。
 
@@ -12,8 +12,8 @@
 | --- | --- | --- |
 | 資料庫 | DBA 在 SQL Server 2012 建好 `giganexus_gw_test`、schema `gw`、帳號 `gw_app` / `gw_migrate`(含 `gw_app_role`) | P-01 |
 | AD | 各網域查詢用服務帳號(DN + 密碼)、DC 位址;要開放登入的網域才需要 | P-07 |
-| 主機 2 | Docker Desktop 已啟動;`80`、`443` 未被佔用;防火牆對使用者網段開放 `443`(`80` 轉址) | P-11 |
-| 網路 | 主機可連 Docker Hub 與 npm(`node:22-alpine`、`nginx:1.27-alpine`、`redis:7-alpine`、`alpine:3.20`、npm 套件);需 proxy 時先設定 Docker Desktop 與 `.npmrc` | — |
+| 主機 2 | WSL2 內的 Docker Engine 已啟動;`80`、`443` 未被佔用;防火牆對使用者網段開放 `443`(`80` 轉址) | P-11 |
+| 網路 | 主機可連 Docker Hub 與 npm(`node:22-alpine`、`nginx:1.27-alpine`、`redis:7-alpine`、`alpine:3.20`、npm 套件);需 proxy 時先設定 Docker(WSL 內 `/etc/systemd/system/docker.service.d/`)與 `.npmrc` | — |
 | 帳號 | GigaItApp 讀 BFF 用的服務帳號(公司 AD 帳號,需有 Gateway 管理讀取權限) | — |
 
 > 不需要:GitLab、Registry、AD CS 憑證(先用臨時自簽,步驟 4)、Endpoint Server、LOS / BPM / 舊入口網資料庫(未設定時略過,人員同步與舊帳號遷移尚未實作)。
@@ -31,7 +31,7 @@ git clone https://github.com/WeiWeicode/giga-Portal.git
 git clone https://github.com/WeiWeicode/GigaItApp.git
 ```
 
-- 必須並排:giga-Portal 建置時取 `../giga-api-gateway-bff/web-kit`。`giga-agent-watchdog` 是端點電腦上的服務,**不部署到伺服器**。
+- 必須並排:giga-Portal 建置時取 `../giga-api-gateway-bff/web-kit`。Watchdog(RustIt)是端點電腦上的服務,**不部署到伺服器**。
 
 ## 3. 主機受保護目錄(機密與設定,不入版控)
 

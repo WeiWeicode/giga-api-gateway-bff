@@ -46,7 +46,7 @@ flowchart LR
 
 ### 3.1 規則
 
-- 所有下游後端服務供 Gateway 呼叫的 port **一律使用 51200–51300**(含 gRPC)。
+- 所有下游後端服務供 Gateway 呼叫的 port **一律使用 51200–51300**(含端點 Agent 通道)。
 - **一個服務一個 port**;同一服務的多個實例若在不同主機,使用相同 port。
 - **測試區與正式區使用相同 port**,只有主機不同。
 - 防火牆**只允許 Gateway 主機(BFF、Nginx)連入**,不對使用者網段開放(PRD §4.2「入口收斂」)。
@@ -63,7 +63,7 @@ flowchart LR
 | 51210–51219 | MES |
 | 51220–51229 | HRM |
 | 51230–51239 | FMS |
-| 51240–51249 | Endpoint Server(REST 與 Agent gRPC) |
+| 51240–51249 | Endpoint Server(RustIt:REST 與 Agent HTTPS / WebSocket) |
 | 51250–51259 | BPM 適配 |
 | 51260–51269 | ERP 適配層 |
 | 51270–51279 | 入口網 / 共用服務(公告、檔案等) |
@@ -82,7 +82,7 @@ flowchart LR
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
-| 51241 | Endpoint | `endpoint-grpc`(Agent gRPC,Nginx `:9443` 轉入) | gRPC(TLS) | W6 負責人 | 規劃中 |
+| 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名) | HTTPS / WebSocket(TLS) | W6 負責人 | 規劃中 |
 | 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 
 ---

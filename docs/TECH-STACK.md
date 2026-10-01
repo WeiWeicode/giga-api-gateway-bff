@@ -9,7 +9,7 @@
 
 | 層級 | 技術 | 用途 |
 | --- | --- | --- |
-| 反向代理 | **Nginx 1.26+**(stable,含 `http_v2`、`grpc`、`auth_request`、`ssl`) | 入口、TLS、mTLS、gRPC |
+| 反向代理 | **Nginx 1.26+**(stable,含 `http_v2`、`auth_request`、`ssl`) | 入口、TLS、mTLS、WebSocket |
 | BFF 執行環境 | **Node.js 22 LTS** + **TypeScript** | |
 | Web 框架 | **Fastify 5** | 高效能、plugin 架構、JSON Schema 驗證 |
 | 主要套件 | `@fastify/cookie`、`@fastify/websocket`、`@fastify/multipart`、`@fastify/swagger`、`undici`(上游連線池)、`jose`(JWT/JWKS)、`ldapts`(AD,多網域)、`@node-rs/argon2`(本機帳號密碼雜湊)、純 JS DES 實作(舊單一入口密碼比對,不啟用 OpenSSL legacy provider)、`drizzle-orm` + `mssql`(tedious 驅動)、`ioredis`、`bullmq`、`nodemailer`、`pino`(日誌)、`prom-client`(指標)、`zod` 或 TypeBox(型別/驗證) | |
@@ -28,7 +28,7 @@ giga-api-gateway-bff/
 ├─ nginx/
 │  ├─ nginx.conf
 │  ├─ conf.d/portal.conf       # 443:SPA、/api、/ws、/webhook
-│  ├─ conf.d/agent.conf        # 9443 Agent 專用:mTLS + grpc_pass
+│  ├─ conf.d/agent.conf        # 9443 Agent 專用:mTLS + HTTPS / WebSocket(現行為 grpc_pass,待改寫)
 │  └─ snippets/                # ssl、security-headers、proxy-common
 ├─ bff/
 │  ├─ src/
@@ -53,7 +53,7 @@ giga-api-gateway-bff/
 ├─ drizzle.config.ts
 ├─ deploy/                     # docker-compose.yml(共用)+ .test.yml / .prod.yml(見 DEPLOYMENT.md §5)
 │  └─ dev/                     # 本機完整環境(docker-compose.dev.yml):模擬資料庫初始化、開發用憑證產生、路由設定
-├─ tools/                      # 測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端 / Endpoint gRPC)、sample-spa(範例 SPA)
+├─ tools/                      # 測試用:mock-ad(模擬 AD)、mock-upstream(模擬下游後端 / Endpoint Server)、sample-spa(範例 SPA)
 └─ .gitlab-ci.yml
 ```
 

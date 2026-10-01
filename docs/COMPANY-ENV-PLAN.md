@@ -129,8 +129,8 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `jwt/<kid>.pem` | ES256(P-256)私鑰,**測試區與正式區各自產生**;檔名即 `kid`,排序最後者為簽章用 | — |
 | `pki/server.crt`、`pki/server.key` | `:443` 用:公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo,至 2027-01-31;測試區與正式區共用同一張)。`server.crt` = `STAR_gigasolar_com_tw.crt` + `ca.crt`(中繼鏈),`server.key` = `ssl.key`;置換步驟見 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 步驟 4。需網通先建 DNS A 紀錄(PRD Q1) | 測試區已套用 2026-10-01;正式區待 DNS |
 | `pki/agent-server.crt`、`pki/agent-server.key` | `:9443` 用:AD CS 簽發,SAN 含 Gateway **IP**;到位前以 `deploy/gen-temp-pki.sh` 產生臨時自簽憑證(含臨時 Agent CA / CRL 讓 Nginx 能啟動) | P-05 |
-| `pki/agent-ca-chain.pem`、`pki/agent.crl` | Agent 專用中繼 CA + 根 CA、CRL(需定期更新,W3-3.4) | P-06 |
-| `pki/ca.crt` | 企業根 CA(Nginx 以 grpcs 連 Endpoint Server 時驗證用)。**不是**公司憑證附的 Sectigo `ca.crt`,兩者不可互換 | P-05 |
+| `pki/agent-ca-chain.pem`、`pki/agent.crl` | Agent 專用中繼 CA + 根 CA、CRL(需定期更新,ENDPOINT-AGENT-GUIDE §10 G1) | P-06 |
+| `pki/ca.crt` | 企業根 CA(Nginx 以 TLS 連 Endpoint Server 時驗證用)。**不是**公司憑證附的 Sectigo `ca.crt`,兩者不可互換 | P-05 |
 
 產生 JWT 金鑰:`openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out <kid>.pem`
 
@@ -146,7 +146,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `deploy/docker-compose.test.yml`、`.prod.yml` | 目前只有 `GW_ENV` 與 log level;依主機需要補充(例如 port 衝突時改 `GW_HTTP_PORT` 等) | P-11 |
 | 下游後端 API Key | 每個後端服務在測試區、正式區各建一把(`gw client:create --code <服務代碼> [--ips <主機網段>]`),明文交給該服務存入 Docker secret(`GW_API_KEY_FILE`);後端的 `GW_BASE_URL` 指向該區 Gateway,且主機網段需列入 `internal-services.conf`(取 JWKS)(BACKEND-GUIDE §7.5) | P-16 |
 | 下游後端信任 Gateway 憑證 | Gateway 憑證由 AD CS 簽發(P-05);Node.js 後端以 `NODE_EXTRA_CA_CERTS` 指向企業根 CA,否則自動註冊與取 JWKS 會因憑證驗證失敗(本機以開發用根憑證 `deploy/dev/secrets/pki/ca.crt` 驗證過) | P-05 |
-| Windows 主機 | `GW_SECRETS_DIR` 等路徑使用 Windows 路徑;確認 80 / 443 / 9443 未被佔用;Docker Desktop 開機自動啟動 | P-11、P-17 |
+| Windows 主機 | `GW_SECRETS_DIR` 等路徑使用 Windows 路徑;確認 80 / 443 / 9443 未被佔用;WSL2 Docker Engine 與 Runner 開機自動啟動(主機 2 已完成;主機 3 於 2026-12 由 Docker Desktop 改用) | P-11 |
 | **Windows 主機:來源 IP 驗證** | 本機 Docker Desktop 的 Nginx 看到的來源一律是 `192.168.65.1`。**部署前**依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 以一次性容器(`-p 18080:80`)從另一台電腦連入,檢查 log 的 `remote_addr`;若遺失,Nginx 的 IP 限流(`gw_ip`、`gw_auth`)、`webhook-bpm.conf` / `internal-services.conf` 白名單、BFF「記住我」內網判定(`INTERNAL_NETWORKS`)與登入失敗 IP 計數都會失效(PRD §14.1),需依 PRD Q26 改變執行方式。結果確定前不修改這些設定(Agent `limit_conn` 已改以裝置憑證計算,不受影響) | P-11、P-17 |
 
 ---
@@ -180,7 +180,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | --- | --- |
 | `bff/src/modules/admin/db-viewer.ts`、`onboarding.ts`(IT 管理 demo 的資料庫檢視、上架演練預覽 API) | 在 `GW_ENV` 不是 `prod` 時註冊,測試區也會開啟(測試區以唯讀帳號讀取正式人事資料,DEPLOYMENT.md §5.1)。**2026-09-26 需求方決定:測試區保留(GigaItApp live 讀取需要)、正式區關閉**,維持現行程式 |
 | 自動註冊與發佈 | `POST /api/admin/registrations` 在正式區也開放(PRD v0.5);CLI `publish` 會**一併發佈所有草稿**,含其他服務剛自動註冊的草稿。正式區發佈前務必檢視差異,發佈流程由 IT 確認 |
-| Agent 無效憑證 | Nginx 於 TLS 握手後回 HTTP 400(不會到達 Endpoint Server),與 IMPL-PLAN W3-3 驗收字面「TLS 層被拒」不同,需確認 |
+| Agent 無效憑證 | Nginx 於 TLS 握手後回 HTTP 400(不會到達 Endpoint Server),與舊版驗收字面「TLS 層被拒」不同,需確認(ENDPOINT-AGENT-GUIDE §10 G2);Agent 通道 2026-10-01 改為 HTTPS / WebSocket,`agent.conf` 待改寫(G0) |
 | 斷路器 | 各 BFF 實例於記憶體維護,未使用 `gw:cb:*` |
 | CLI 權限變更 | 以全體使用者遞增 `perm_version`,管理 API(P2-3)時改為只遞增受影響者 |
 
@@ -194,5 +194,5 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | W3-4.16 舊單一入口帳號遷移(DES 比對、`gw:pwchg` 流程已完成) | P-15 |
 | W3-5.8 通知 Worker(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼 | P-09 |
 | W3-5.10 Webhook 驗簽 | — |
-| W3-1.6 稽核表保存排程、W3-2.8 nginx-prometheus-exporter、W3-3.4 CRL 更新排程 | — |
+| W3-1.6 稽核表保存排程、W3-2.8 nginx-prometheus-exporter、CRL 更新排程(ENDPOINT-AGENT-GUIDE §10 G1) | — |
 | P2-5 路由的 `api_key` 驗證模式、API Key 管理 API(目前 API Key 只用於自動註冊與路由查詢,以 CLI `client:create` / `client:disable` 管理) | — |

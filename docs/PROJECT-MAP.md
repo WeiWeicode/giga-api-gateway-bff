@@ -14,7 +14,7 @@ giga-api-gateway-bff/
 ├─ nginx/                     反向代理(Docker 映像)
 │  ├─ nginx.conf
 │  ├─ conf.d/portal.conf      :80 轉址、:443 瀏覽器 / 系統對系統、SPA 子路徑、/api → BFF、/ws
-│  ├─ conf.d/agent.conf       :9443 端點 Agent 專用(mTLS + gRPC → Endpoint Server)
+│  ├─ conf.d/agent.conf       :9443 端點 Agent 專用(mTLS + HTTPS / WebSocket → Endpoint Server;現行為 gRPC 版,待改寫)
 │  ├─ snippets/               共用片段:ssl、security-headers、proxy-bff、websocket、spa-*、json-errors
 │  ├─ templates/              依部署區不同的值(envsubst)
 │  └─ allowlists/<dev|test|prod>/  Agent 簽發者、內部服務、BPM Webhook 來源
@@ -68,7 +68,7 @@ giga-api-gateway-bff/
 | 登入 | `modules/auth/routes.ts` → `login.ts`(`ldap.ts` / `password.ts`)→ `profile.ts`(BPM → LOS → AD)→ `session.ts` + `keys.ts` |
 | 路由發佈 | CLI / 管理 API → `db/sync/release.ts`(SQL Server → Redis)→ 各 BFF `modules/router/sync.ts` 載入快照、原子替換路由樹 |
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
-| 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `grpc_pass` → Go Endpoint Server(W6,repo 暫定 `../giga-endpoint`);BFF 不經手 |
+| 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt`,Rust + Axum);BFF 不經手 |
 
 ## 4. 要改什麼 → 看哪裡
 

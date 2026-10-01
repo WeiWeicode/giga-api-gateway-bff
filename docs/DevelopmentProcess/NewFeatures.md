@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-01 文件對齊甘特圖:Agent 改 Rust + WebSocket、時程以甘特圖為準(PRD v0.9,只改文件)
+- 內容:需求方決定 ① 端點 Agent 全面改為 **Rust + WebSocket**(RustIt;2026-09-29 甘特圖已刪除 W3-3 gRPC):PRD §2–§5、§7.6、§15 與 ARCHITECTURE、TECH-STACK、BACKEND-GUIDE(51241 改登記 `endpoint-agent`)、Gherkin `agent-mtls.feature` 改為 mTLS + HTTPS / WebSocket;`ENDPOINT-AGENT-GUIDE.md` 改寫為 v0.3(Endpoint Server = RustIt Axum、Rust Agent / Watchdog、JSON 訊息信封、`rustls-cng` 取用不可匯出私鑰);AGENT.md §10.2 以 `RustIt` 取代 `giga-endpoint`、`giga-agent-watchdog`。② **時程以 NexusPlan 甘特圖為準**:PRD §13、IMPL-PLAN §2 改為狀態表(M0 實質 Go、M1 完成、測試區 M2 2026-09-30 完成、正式區 2026-12),移除各節日期。③ 主機現況:主機 2 已用 WSL2 Docker Engine,主機 3 目前 Docker Desktop、2026-12 改 Docker Engine(DEPLOYMENT §1、§6、§6.1 主機 2 來源 IP 實測遺失、PRD Q25 / Q26、IMPL-PLAN P-11 / P-17)。④ PRD 版本號整理(檔頭、狀態、頁尾一致,修訂紀錄依版本排序)。
+- 檔案:`docs/PRD.md`、`docs/IMPL-PLAN.md`、`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/ARCHITECTURE.md`、`docs/TECH-STACK.md`、`docs/BACKEND-GUIDE.md`、`docs/DEPLOYMENT.md`、`docs/DATABASE.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/TEST-DEPLOY-RUNBOOK.md`、`docs/PROJECT-MAP.md`、`docs/Gherkin/README.md`、`docs/Gherkin/gateway/agent-mtls.feature`、`AGENT.md`、`README.md`
+- 驗證:測試區 `https://giganexus-test.gigasolar.com.tw` `/healthz` 200、`/api/auth/me` 401(2026-10-01)。**未改程式**:`nginx/conf.d/agent.conf`、E2E `06-websocket-agent`、`tools/mock-upstream/endpoint.js`、`ENDPOINT_GRPC_UPSTREAM` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫(ENDPOINT-AGENT-GUIDE §10 G0)
+
 ## 2026-09-29 GitLab 與 GitLab Runner 架設手冊(只改文件)
 - 內容:需求方開始架設主機 1(Ubuntu,已裝 Docker)與主機 2(Windows)。新增 `docs/GITLAB-SETUP.md`:SSH 金鑰準備、主機 1 以 Docker Compose 安裝 GitLab CE(HTTP、Registry `:5050`、Git SSH `:2222`、資料在 `/srv/gitlab`、備份)、主機 2 以 shell executor + Git Bash 安裝 Runner(`windows-runner`,Windows 服務)、推送專案與第一條 Pipeline 預期調整項目、驗收清單。涉及密碼與 Token 的步驟標示由需求方執行。`COMPANY-ENV-PLAN.md`、`PROJECT-MAP.md` 加上連結。
 - 檔案:`docs/GITLAB-SETUP.md`(新增)、`docs/COMPANY-ENV-PLAN.md`、`docs/PROJECT-MAP.md`

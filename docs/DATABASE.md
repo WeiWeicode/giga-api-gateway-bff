@@ -80,7 +80,7 @@ erDiagram
 | `tls_verify` | BIT | 是否驗證上游憑證 |
 | `forward_cookies` | BIT | 是否透傳 Cookie,預設 0 |
 | `owner` | NVARCHAR(64) | 負責人 |
-| `project` | VARCHAR(100) NULL | 開發專案:實作此服務的 repo 資料夾名稱(例 `giga-endpoint`,Gateway `AGENT.md` §10.2);匯入時對應 OpenAPI 根層 `x-gateway.project`,未提供時保留既有值。不進路由快照 |
+| `project` | VARCHAR(100) NULL | 開發專案:實作此服務的 repo 資料夾名稱(例 `RustIt`、`GigaItApp`,Gateway `AGENT.md` §10.2);匯入時對應 OpenAPI 根層 `x-gateway.project`,未提供時保留既有值。不進路由快照 |
 | `archatlas_node_id` | VARCHAR(50) NULL | 對應 ArchAtlas 節點 ID,可連結架構圖 |
 | `is_enabled` | BIT | |
 | `description` | NVARCHAR(500) | |
