@@ -521,7 +521,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | --- | --- | --- | --- |
 | G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | **待 W6-1 訊息協定定版** |
 | G1 | CRL 定期更新並 reload Nginx | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
-| G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | 待確認是否接受 |
+| G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | **已接受**(2026-10-01 需求方確認) |
 | G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 Rust 或 k6 測試工具 |
 | G4 | Windows 主機上 Nginx 看到的來源 IP | 主機 2 已以 Traefik + PROXY protocol 保留來源 IP(`:443`,2026-10-01);`:9443` 開放時在 Traefik 加 `agent` 入口 → `127.0.0.1:19443`(Nginx 已有 `19443 proxy_protocol`,[DEPLOYMENT.md](DEPLOYMENT.md) §6.1)。`limit_conn` 以裝置憑證計算 | `:443` 已處理;`:9443` 待 Agent 上線 |
 | G5 | 子公司經 NAT 連入 | 同一公司的電腦共用來源 IP;`limit_conn` 已改以裝置憑證計算,不受影響 | 已處理(2026-09-25) |

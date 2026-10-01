@@ -696,6 +696,7 @@ sequenceDiagram
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |
 | 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
 
+- **路由設定(P2-1 / P2-2,2026-10-01 實作)**:修改與刪除需帶 `rowVer`(`row_ver` 的 hex;DELETE 以查詢參數 `?rowVer=`),不符回 409 `VERSION_CONFLICT`。管理 API 只寫資料庫,路由、上游、限流政策的變更都在**下次發佈**時生效;修改已發佈的路由會改為草稿。`DELETE` 上游 / 路由為停用(上游仍被未停用的路由或聚合步驟使用時拒絕),限流政策為刪除(仍被路由參照時拒絕)。上游的 `targets` 只管理本區(`GW_ENV`)位址。`GET /api/admin/releases/preview` 回傳草稿清單與「目前發佈版本 → 發佈後」差異。`POST /api/admin/routes/:id/test`(試打)尚未實作。
 - **GigaItApp 改用單一入口後(v0.7)**,其前端以**使用者本人的登入**直接呼叫上述管理 API(寫入的稽核記錄實際操作人),不再使用服務帳號;`gw.admin.rbac.write` 只授予 IT 權限管理人員。
 
 ---
@@ -725,7 +726,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 - **作為 Go MES 後端開發者**,我從 `X-Internal-Token` 取得工號與部門,不用自己接 AD。
 - **作為 IT 管理者**,MES 團隊上了新版 API,我在 IT 管理介面匯入它的 OpenAPI 檔,預覽 12 支新增、3 支修改,指定權限後按「發佈」,5 秒內生效。
 - **作為 IT 管理者**,有人問「誰可以核准加班?」,我在管理介面查 `hrm.overtime.approve` → 看到哪些角色、哪些 AD 群組、哪些人。
-- **作為 IT 管理者**,某台筆電遺失,我撤銷它的裝置憑證,Agent 下次連線即在 TLS 層被拒。
+- **作為 IT 管理者**,某台筆電遺失,我撤銷它的裝置憑證,Agent 下次連線即被拒(TLS 握手後由 Nginx 回 HTTP 400,不會到達 Endpoint Server;ENDPOINT-AGENT-GUIDE §10 G2)。
 - **作為主管**,待簽核的單據會以 Email 與站內通知提醒我,點連結直接開入口網對應頁面。(**暫不處理**:2026-10-01 決定 BPM 不送 Webhook、BPM 簽核通知先不做;未來:綁定 LINE 後改推到 LINE)
 
 ---

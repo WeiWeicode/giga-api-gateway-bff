@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-01**(P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
+> **最後更新:2026-10-01**(P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -30,7 +30,9 @@ giga-api-gateway-bff/
 │  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*;local-account(自行註冊、忘記 / 重設密碼)
 │  │  │  ├─ rbac/             權限計算與快取(permission.ts:角色來源含指派規則、me.apps)、規則比對(rules.ts,純函式)、部門樹同步(department-sync.ts)
 │  │  │  ├─ router/           動態路由:路由樹、快照、同步、限流 / 快取、上游呼叫
-│  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、權限設定(rbac.ts:權限樹、角色權限、指派規則、部門樹、應用、試算)、demo(DB 檢視、上手導覽)
+│  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、權限設定(rbac.ts:權限樹、角色權限、指派規則、部門樹、應用、試算)、
+│  │  │  │                    路由設定(routing.ts:上游、路由、聚合步驟、限流政策;欄位檢查 routing-rules.ts 純函式)、發佈 / 回滾(releases.ts)、
+│  │  │  │                    授權(authorize.ts:API Key 或登入者)、demo(DB 檢視、上手導覽)
 │  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify
 │  │  │  ├─ webhook/          /webhook/{source}:驗簽(signature.ts 純函式)、時間戳、去重、gw.webhook_log、入列
 │  │  │  └─ health/           /healthz、/readyz
@@ -57,7 +59,7 @@ giga-api-gateway-bff/
 | 層 | 位置 | 說明 |
 | --- | --- | --- |
 | 介面 | `bff/src/modules/*/routes.ts`、`modules/router/plugin.ts`、`modules/notify/ws.ts`、`modules/health/`、`cli/`、`worker.ts` + `workers/`(佇列工作) | 參數驗證、回應格式;不寫商業規則 |
-| 核心邏輯 | `modules/auth/`(login、session、identity、password、profile)、`modules/rbac/permission.ts`、`modules/router/`(table、snapshot、guards、upstream)、`modules/admin/`(registration、route-import)、`modules/webhook/signature.ts`、`modules/notify/`(send、template)、`modules/auth/local-account.ts` | 登入、權限、路由比對與轉送、Webhook 簽章、通知、自行註冊 |
+| 核心邏輯 | `modules/auth/`(login、session、identity、password、profile)、`modules/rbac/permission.ts`、`modules/router/`(table、snapshot、guards、upstream)、`modules/admin/`(registration、route-import、routing-rules)、`modules/webhook/signature.ts`、`modules/notify/`(send、template)、`modules/auth/local-account.ts` | 登入、權限、路由比對與轉送、Webhook 簽章、通知、自行註冊 |
 | 基礎設施 | `plugins/`(db、redis、queues、errors)、`db/`(client、schema、external、sync、migrate) | 資料庫、Redis、外部唯讀來源 |
 | 共用設定 / 錯誤 | `config.ts`、`errors.ts` | 全專案共用 |
 | 共用套件(其他 repo 使用) | `web-kit/`、`sdk/node/` | 前端 / 下游後端依賴 |
@@ -87,6 +89,7 @@ giga-api-gateway-bff/
 | 資料表變更 | `bff/src/db/schema/*.ts` → `npm run db:generate` → 審查 `db/migrations/` → `npm run db:check-2012` |
 | Redis 鍵 | `docs/DATABASE.md` §6 先登記 |
 | 通知範本 / 系統範本 | CLI `apply` 的 `notifyTemplates:`;註冊與重設密碼的系統範本在 `db/seed/data.mts` `NOTIFY_TEMPLATES`(seed 只新增) |
+| 路由設定 / 發佈 API(W4 IT 管理介面) | `bff/src/modules/admin/routing.ts`(欄位檢查 `routing-rules.ts`)、`releases.ts`;發佈邏輯共用 `bff/src/db/sync/release.ts`(CLI `publish` / `rollback` 同一套) |
 | 權限設定 API(GigaItApp) | `bff/src/modules/admin/rbac.ts`;規則比對 `modules/rbac/rules.ts`;應用登記以 CLI `apply` 的 `apps:` |
 | 本機帳號審核 / IT 重設 | CLI `local:approve`、`local:reset`、`local:unlock`(`bff/src/cli/index.ts`) |
 | Webhook 來源 / 事件處理 | 端點以 CLI `apply` 的 `webhooks:`;處理程序登記在 `bff/src/workers/webhook.worker.ts`;簽章規格 `docs/BACKEND-GUIDE.md` §7.6 |

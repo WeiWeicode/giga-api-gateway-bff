@@ -141,7 +141,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | --- | --- |
 | `bff/src/modules/admin/db-viewer.ts`、`onboarding.ts`(IT 管理 demo 的資料庫檢視、上架演練預覽 API) | 在 `GW_ENV` 不是 `prod` 時註冊,測試區也會開啟(測試區以唯讀帳號讀取正式人事資料,DEPLOYMENT.md §5.1)。**2026-09-26 需求方決定:測試區保留(GigaItApp live 讀取需要)、正式區關閉**,維持現行程式 |
 | 自動註冊與發佈 | `POST /api/admin/registrations` 在正式區也開放(PRD v0.5);CLI `publish` 會**一併發佈所有草稿**,含其他服務剛自動註冊的草稿。正式區發佈前務必檢視差異,發佈流程由 IT 確認 |
-| Agent 無效憑證 | Nginx 於 TLS 握手後回 HTTP 400(不會到達 Endpoint Server),與舊版驗收字面「TLS 層被拒」不同,需確認(ENDPOINT-AGENT-GUIDE §10 G2);Agent 通道 2026-10-01 改為 HTTPS / WebSocket,`agent.conf` 待改寫(G0) |
+| Agent 無效憑證 | Nginx 於 TLS 握手後回 HTTP 400(不會到達 Endpoint Server),與舊版驗收字面「TLS 層被拒」不同,2026-10-01 需求方確認接受(ENDPOINT-AGENT-GUIDE §10 G2);Agent 通道 2026-10-01 改為 HTTPS / WebSocket,`agent.conf` 待改寫(G0) |
 | 斷路器 | 各 BFF 實例於記憶體維護,未使用 `gw:cb:*` |
 | CLI 權限變更 | 以全體使用者遞增 `perm_version`,管理 API(P2-3)時改為只遞增受影響者 |
 

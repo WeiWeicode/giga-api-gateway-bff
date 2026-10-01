@@ -88,8 +88,11 @@ function parseJson<T>(raw: string | null, fallback: T): T {
 
 type Db = GwDatabase | Parameters<Parameters<GwDatabase['transaction']>[0]>[0];
 
-/** 以目前資料庫中「已發佈 / 已棄用」的路由組成快照內容(不含版本號) */
-export async function buildSnapshotContent(db: Db, environment: string): Promise<RouteSnapshotContent> {
+/**
+ * 以目前資料庫中「已發佈 / 已棄用」的路由組成快照內容(不含版本號)。
+ * includeDrafts:草稿視同已發佈,供發佈前預覽差異(P2-2)。
+ */
+export async function buildSnapshotContent(db: Db, environment: string, opts: { includeDrafts?: boolean } = {}): Promise<RouteSnapshotContent> {
   const env = environment === 'prod' ? 'prod' : 'test';
   const ups = await db.select().from(upstream).where(eq(upstream.isEnabled, true));
   const targets = ups.length
@@ -113,7 +116,7 @@ export async function buildSnapshotContent(db: Db, environment: string): Promise
   const routes = await db
     .select()
     .from(apiRoute)
-    .where(inArray(apiRoute.status, ['published', 'deprecated']));
+    .where(inArray(apiRoute.status, opts.includeDrafts ? ['published', 'deprecated', 'draft'] : ['published', 'deprecated']));
   const steps = routes.length
     ? await db
         .select()
@@ -166,7 +169,7 @@ export async function buildSnapshotContent(db: Db, environment: string): Promise
         responseHeadersRemove: parseJson<string[] | null>(r.responseHeadersRemove, null),
         mockResponse: parseJson<unknown>(r.mockResponse, null),
         auditLevel: r.auditLevel as SnapshotRoute['auditLevel'],
-        status: r.status as SnapshotRoute['status'],
+        status: (r.status === 'draft' ? 'published' : r.status) as SnapshotRoute['status'],
         deprecatedAt: r.deprecatedAt?.toISOString() ?? null,
         steps: steps
           .filter((s) => s.routeId === r.routeId)

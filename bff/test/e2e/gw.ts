@@ -240,7 +240,7 @@ export async function createApiKey(code: string, perms: string[]): Promise<strin
   return r.key as string;
 }
 
-/** 刪除 E2E 建立的所有資料(假工號、e2e 角色 / API Key / 權限 / 範本 / 上游) */
+/** 刪除 E2E 建立的所有資料(假工號、e2e 角色 / API Key / 權限 / 範本 / 上游 / 限流政策) */
 export async function cleanupE2E(): Promise<void> {
   await query(`
     DECLARE @u TABLE (id INT);
@@ -266,7 +266,10 @@ export async function cleanupE2E(): Promise<void> {
 
     DECLARE @up TABLE (id INT);
     INSERT INTO @up SELECT upstream_id FROM gw.upstream WHERE code LIKE 'e2e-%';
+    DELETE s FROM gw.aggregate_step s JOIN gw.api_route r ON r.route_id = s.route_id WHERE r.upstream_id IN (SELECT id FROM @up) OR r.route_code LIKE 'e2ez.%';
+    DELETE FROM gw.aggregate_step WHERE upstream_id IN (SELECT id FROM @up);
     DELETE FROM gw.api_route WHERE upstream_id IN (SELECT id FROM @up) OR route_code LIKE 'e2ez.%';
+    DELETE FROM gw.rate_limit_policy WHERE code LIKE 'e2e-%';
     DELETE i FROM gw.api_import_item i JOIN gw.api_import_batch b ON b.batch_id = i.batch_id WHERE b.upstream_id IN (SELECT id FROM @up) OR b.file_name LIKE 'registration:e2e-%';
     DELETE FROM gw.api_import_batch WHERE upstream_id IN (SELECT id FROM @up) OR file_name LIKE 'registration:e2e-%';
     DELETE FROM gw.upstream_target WHERE upstream_id IN (SELECT id FROM @up);

@@ -85,11 +85,12 @@ E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CL
 | W3-5.7a 後端自動註冊(API Key、草稿)、路由查詢、`gw.api_route.gherkin`、Node.js SDK 與樣本 | 完成 |
 | W3-5.8 通知(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 完成(2026-10-01;目前沒有 Webhook 外部來源,BPM 不送) |
 | W3-5.12 整合週(k6 壓測、資安檢查) | 未開始 |
-| P2-3a 指派規則、部門樹、權限分類、應用登記與 `me.apps` | 完成(部門同步待 DBA 授權 `bpm_reader` 唯讀 BPM `OrganizationUnit` / `Organization`(`db/dba/03-bpm-org-grant.sql`)) |
+| P2-1 路由設定管理 API(上游、路由、聚合步驟、限流政策,`row_ver` 樂觀鎖)、P2-2 發佈 / 預覽 / 回滾 API | 完成(2026-10-01;路由試打 `POST /api/admin/routes/:id/test` 未做) |
+| P2-3a 指派規則、部門樹、權限分類、應用登記與 `me.apps` | 完成(部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀)) |
 
 注意事項:
 
-- Nginx `ssl_verify_client on` 對無效 / 無憑證的 Agent 會完成 TLS 握手後在 HTTP 層回 400(不會到達 Endpoint Server),而非 TLS 層中斷;與舊版驗收字面「TLS 層被拒」不同,需確認是否可接受(ENDPOINT-AGENT-GUIDE §10 G2)。
+- Nginx `ssl_verify_client on` 對無效 / 無憑證的 Agent 會完成 TLS 握手後在 HTTP 層回 400(不會到達 Endpoint Server),而非 TLS 層中斷;2026-10-01 需求方確認接受(ENDPOINT-AGENT-GUIDE §10 G2)。
 - 斷路器狀態由各 BFF 實例在記憶體中維護(DATABASE.md §6 列有 `gw:cb:{upstream}`,目前未使用)。
 - 權限對應變更時 CLI 與管理 API 都以全體使用者遞增 `perm_version`(DATABASE.md §7.2 為「受影響使用者」)。
 - 測試區(主機 2)已由 `.gitlab-ci.yml` `develop` Pipeline 部署(2026-09-30,`https://giganexus-test.gigasolar.com.tw`);`deploy-prod` 與 `deploy/docker-compose.prod.yml` 待 2026-12 正式區(主機 3)建置後執行。
