@@ -34,7 +34,7 @@ flowchart LR
         WD -.-> CS
     end
 
-    subgraph GW ["Gateway(以 IP 存取)"]
+    subgraph GW ["Gateway(:9443 以 IP 存取)"]
         N9[":9443<br/>mTLS 必要 + HTTP/2"]
         N4[":443"]
         BFF["BFF"]

@@ -91,6 +91,8 @@ openssl x509 -in "$PKI/server.crt" -noout -modulus | openssl md5; openssl rsa -i
 ```
 
 - `test.env` / `prod.env` 設定 `GW_PUBLIC_HOST`(見 env 範本),執行步驟 6 的 `up -d nginx`;`nginx -t` 失敗時還原 `*.temp.bak`。
+  - 主機 2(CI 部署,WSL root):`cd /srv/giganexus/shared/giga-api-gateway-bff && IMAGE_TAG=$(cat ../gateway-image-tag) docker compose --env-file /srv/giganexus/deploy/test.env -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml up -d --no-deps --force-recreate nginx`(或在 GitLab 重跑 `deploy-test`)
+- 公司憑證檔複製到主機只為了置換,完成後刪除暫存的那份,私鑰只留在 `pki/`。
 - 驗證:`openssl s_client -connect <主機 IP>:443 -servername <DNS 名稱> </dev/null | openssl x509 -noout -subject -enddate` 顯示 `CN=*.gigasolar.com.tw`;瀏覽器開 `https://<DNS 名稱>/` 無憑證警告。
 - **同主機的 GigaItApp**(`itapp-api` 以 `https://nginx` 呼叫 BFF)會因主機名稱不符而失敗,需同步改為 `https://<GW_PUBLIC_HOST>`(Gateway compose 已將此名稱設為 nginx 的網路別名)並移除 `GW_CA_CERT` 的臨時根 CA;下游 Node.js 後端 `GW_BASE_URL` 改用 DNS 名稱,不需 `NODE_EXTRA_CA_CERTS`。
 - 憑證 2027-01-31 到期,更新時重做步驟 2–3。

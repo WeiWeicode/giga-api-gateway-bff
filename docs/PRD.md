@@ -27,6 +27,7 @@
 | v0.4 | 2026-09-24 | ① 新增**舊單一入口帳號自動遷移**(`PortalSolar.LoginData`,首次登入比對舊密碼後建立本機帳號並強制設定新密碼,新增 Q18–Q20);② 依舊系統原始碼確認密碼演算法與 `Certify` 用途(Q18–Q20 定案),發現舊系統明文密碼問題;Q21 決定**不提供舊系統單一登入相容**,新舊入口並行,轉移約 7 成功能後舊系統逐步關閉(§8.2.6);③ Q22–Q24 定案:**舊系統維持現狀不修改**(參考原始碼為兩三年前的備份)、新入口網忘記密碼採 IT 重設 + Email 連結(細節入口網開發時確定)、新進員工新舊入口都可註冊;④ **兩項安全例外已取得主管與工程師同意**:BFF 連 SQL Server 2012 不加密、連 AD 過渡期使用未加密的 `ldap://`;⑤ 新增 [BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範、BFF 管理方式、API 上架時程);**下游後端 port 統一使用 51200–51300**;⑥ 新增 §8.1.1 **錯誤代碼總表**,並建立 [Gherkin](Gherkin/README.md) 驗收行為規格;⑦ 新增 [DEPLOYMENT.md](DEPLOYMENT.md):主機 1 GitLab(Ubuntu)、主機 2 測試區 / 主機 3 正式區(Windows + Docker Desktop)、`develop` 自動部署測試區、`main` 手動部署正式區、SPA 打包成映像檔(新增 Q25) |
 | v0.5 | 2026-09-25 | ① `gw.api_route` 新增 `gherkin`(行為規格),`description` 改為 API 用途說明;OpenAPI 以 operation 的 `description` 與 `x-gherkin` 匯入(§8.4.4、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② **後端自動註冊**:測試區、正式區的後端服務啟動時以 API Key 送出 OpenAPI,Gateway 寫入草稿,仍由 IT 核可發佈(§8.4.4、§8.7);新增既有路由查詢端點,供開發者新增 API 前查詢避免重複;③ Q3 修訂:**測試區與正式區設定不再互通**,取消「測試區發佈版本匯出 → 匯入正式區」,兩區各自由後端自動註冊;④ 新增 Node.js 後端 SDK(`sdk/node`)與樣本(`samples/node-backend`,含 AI 協作準則 AGENT.md);⑤ §14.1 新增「Docker Desktop 下 Nginx 看不到真實來源 IP」風險,新增 Q26;§7.6 Agent `limit_conn` 改以裝置憑證計算 |
 | v0.6 | 2026-09-26 | `gw.upstream` 新增 `project`(開發專案:實作該服務的 repo 資料夾名稱),由 OpenAPI 根層 `x-gateway.project`(選用)或 CLI `apply` 帶入;路由查詢回傳並可依此比對關鍵字,讓管理介面與開發者知道每條路由由哪個專案開發(§8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6.1);② 移除測試應用「公司文件系統」(TestGigaAPP):§7.2.1 子路徑 `/dms/`、BACKEND-GUIDE §3.3 port 51290 取消登記 |
+| v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
 | v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
 
 ---
@@ -115,7 +116,7 @@
 ### 7.1 TLS 與入口
 
 - 監聽 `:443`(HTTP/2,瀏覽器與系統對系統)與 `:9443`(Agent 專用 mTLS,見 §7.6);`:80` 僅做 301 轉址至 HTTPS。
-- **以 DNS 名稱存取 `:443`**(Q1,2026-10-01 修訂):測試區 `https://giganexus-test.gigasolar.com.tw/`(10.10.130.124)、正式區 `https://giganexus.gigasolar.com.tw/`(10.10.130.122),由網通在公司 DNS 建立 A 紀錄。Nginx `server_name` 維持 `_`(`default_server`),以 IP 連入仍可到達,但瀏覽器會出現憑證警告。
+- **以 DNS 名稱存取 `:443`**(Q1,2026-10-01 修訂):測試區 `https://giganexus-test.gigasolar.com.tw/`(10.10.130.124)、正式區 `https://giganexus.gigasolar.com.tw/`(10.10.130.122),由網通在公司 DNS 建立 A 紀錄(測試區 2026-10-01 已建立並以瀏覽器驗證憑證受信任;正式區待建)。文件以 `<gateway-host>` 表示。Nginx `server_name` 維持 `_`(`default_server`),以 IP 連入仍可到達,但瀏覽器會出現憑證警告。
 - `:443` 伺服器憑證為公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo 公開 CA,瀏覽器預設信任,不需另行安裝根憑證);`pki/server.crt` 為伺服器憑證 + 中繼憑證鏈。到期日 2027-01-31,需排程更新。
 - `:9443`(Agent)仍以 **IP** 連線,使用另一張伺服器憑證 `pki/agent-server.crt`(AD CS 企業 CA,SAN 帶 Gateway **IP**;到位前為臨時自簽),見 §7.6。
 - TLS 1.2 / 1.3 only;停用弱加密套件;開啟 OCSP Stapling(若 CA 支援)。
@@ -130,7 +131,7 @@
 
 #### 7.2.1 子路徑配置
 
-所有 SPA 與 API 同一來源(`https://<gateway-ip>`),每個系統掛在固定子路徑下:
+所有 SPA 與 API 同一來源(`https://<gateway-host>`),每個系統掛在固定子路徑下:
 
 | 路徑 | 目錄 | 說明 |
 | --- | --- | --- |
@@ -165,7 +166,7 @@
 | --- | --- | --- | --- |
 | **A. 遷入 Gateway**(目標) | 以子路徑重新打包(`base`、Router、API 路徑),靜態檔依 §7.2.3 部署;後端 API 登記至 BFF 路由表 | 仍在維護的系統 | 完全整合,可共用登入 |
 | **B. 暫時轉發既有前端容器** | 仍需以子路徑重新打包;Gateway 設 `location /notes/ { proxy_pass http://notesapp-frontend/; }`,容器部署方式不變 | 短期內無法調整部署流程的系統 | 同網域、可共用登入;之後再遷為 A |
-| **C. 獨立 port** | 目前沒有 DNS,改給獨立 port(例如 `https://<gateway-ip>:8443/`),Gateway 整站轉發,不需重新打包 | 無法修改的舊系統 | 與入口網不同來源,**無法共用登入 Cookie**,維持原有登入方式 |
+| **C. 獨立 port** | 改給獨立 port(例如 `https://<gateway-host>:8443/`),Gateway 整站轉發,不需重新打包 | 無法修改的舊系統 | 與入口網不同來源,**無法共用登入 Cookie**,維持原有登入方式 |
 
 - 過渡完成後,既有系統對使用者網段開放的 port(例如 `5121`、`5122`)需關閉,只經 Gateway `:443` 存取(對應 §4.2「入口收斂」)。
 

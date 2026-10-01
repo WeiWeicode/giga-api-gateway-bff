@@ -6,7 +6,7 @@
  *   npm run gw -- publish [--note 說明]              發佈所有草稿(≤ 5 秒全部 BFF 生效)
  *   npm run gw -- rollback --to <版本>               以歷史版本產生新版本
  *   npm run gw -- releases                           列出最近 20 個發佈版本
- *   npm run gw -- local:create --emp <工號> [--base-url https://<gateway-ip>]   IT 代建本機帳號,產生 72 小時啟用連結
+ *   npm run gw -- local:create --emp <工號> [--base-url https://<gateway-host>]   IT 代建本機帳號,產生 72 小時啟用連結
  *   npm run gw -- local:unlock --emp <工號>
  *   npm run gw -- user:disable|user:enable --emp <工號>
  *   npm run gw -- client:create --code <服務代碼> [--name 名稱] [--perm 權限代碼 ...] [--ips CIDR,...] [--expires-days 天數]

@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-10-01 測試區套用公司憑證、文件改為 DNS 名稱
+- 內容:主管決定以 `gigasolar.com.tw` 為主。網通已建 `giganexus-test.gigasolar.com.tw` → 10.10.130.124;本人於主機 2 依 RUNBOOK 4.1 置換 `pki/server.crt/key`、`test.env` 加 `GW_PUBLIC_HOST`、`itapp.env` 加 `BFF_BASE_URL`、重建 nginx。文件:`:443` 位址佔位改為 `<gateway-host>`(`:9443` 維持 `<gateway-ip>`),移除「內部沒有 DNS / 以 IP 存取」的敘述,PRD v0.8;COMPANY-ENV-PLAN §1.1 記錄主機 2 現況;RUNBOOK 4.1 補主機 2 的重建指令(CI 部署目錄為 `/srv/giganexus/shared/giga-api-gateway-bff`)。CLI 說明、onboarding 回傳的瀏覽器範例網址同步改佔位
+- 檔案:`docs/PRD.md`、`docs/ARCHITECTURE.md`、`docs/IMPL-PLAN.md`、`docs/FRONTEND-GUIDE.md`、`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/GITLAB-SETUP.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/TEST-DEPLOY-RUNBOOK.md`、`bff/src/cli/index.ts`、`bff/src/modules/admin/onboarding.ts`、`sdk/node/src/env.ts`
+- 驗證:`openssl s_client -connect 10.10.130.124:443 -servername giganexus-test.gigasolar.com.tw -verify_hostname …` → `CN=*.gigasolar.com.tw`、`Verify return code: 0`;`/healthz` 200、`/api/auth/me` 401、`/` 200、`/it/` 200;本人以瀏覽器開 `https://giganexus-test.gigasolar.com.tw/it/login` 憑證受信任、頁面正常。`npm run lint`、`typecheck` 通過,`npm test` 70 項通過,修改檔案 `prettier --check` 通過
+
 ## 2026-10-01 `:443` 改用公司 SSL 憑證(*.gigasolar.com.tw)、`:9443` 憑證分開
 - 內容：主管提供公司萬用憑證 `*.gigasolar.com.tw`(Sectigo DV,至 2027-01-31)。萬用憑證不能用 IP 驗證,PRD Q1 修訂為 `:443` 以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw` → 10.10.130.124、正式區 `giganexus.gigasolar.com.tw` → 10.10.130.122,待網通建 A 紀錄);Agent `:9443` 仍以 IP 連線。① `snippets/ssl.conf` 移除 `ssl_certificate`,改寫在 `portal.conf`(`server.crt`)與 `agent.conf`(新檔名 `agent-server.crt`),兩個 port 可各自替換;② `gen-temp-pki.sh` 另產生 `agent-server.crt/key`,舊版 `pki/` 再執行會由 `server.*` 補上;③ compose 給 nginx 網路別名 `${GW_PUBLIC_HOST}`,同主機容器以 DNS 名稱呼叫時主機名稱符合憑證;env 範本新增 `GW_PUBLIC_HOST`;④ 文件:置換步驟(RUNBOOK 4.1)、機密表、PRD §7.1 / §7.6 / Q1。憑證與私鑰不入版控,只放在主機 `GW_SECRETS_DIR/pki/`。公司憑證附的 `ca.crt`(Sectigo 中繼鏈)與 `pki/ca.crt`(企業根 CA,驗證 Endpoint Server)不同,不可互換
 - 檔案：`.gitlab-ci.yml`(部署時補 `agent-server.*`,避免主機上舊 `pki/` 讓 Nginx 起不來)、`nginx/snippets/ssl.conf`、`nginx/conf.d/portal.conf`、`nginx/conf.d/agent.conf`、`deploy/gen-temp-pki.sh`、`deploy/docker-compose.yml`、`deploy/test.env.example`、`deploy/prod.env.example`、`samples/node-backend/.env.example`、`docs/PRD.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/TEST-DEPLOY-RUNBOOK.md`、`docs/DEPLOYMENT.md`、`docs/PROJECT-MAP.md`

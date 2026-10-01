@@ -3,7 +3,7 @@
  *
  *   GW_ENV                 dev(本機開發,不自動註冊)/ test(測試區)/ prod(正式區);test、prod 啟動時自動註冊 API
  *   SERVICE_CODE           服務代碼(= gw.upstream.code = 內部 Token 的 aud = API Key 代碼),例 go-mes
- *   GW_BASE_URL            Gateway 位址,例 https://<gateway-ip>;自動註冊與路由查詢經此呼叫
+ *   GW_BASE_URL            Gateway 位址,例 https://<gateway-host>;自動註冊與路由查詢經此呼叫
  *   GW_JWKS_URL            選用,預設 {GW_BASE_URL}/.well-known/jwks.json(Nginx 只允許內網服務網段)
  *   GW_API_KEY_FILE        API Key 檔案(Docker secret);dev 可改用 GW_API_KEY。正式區只接受 _FILE
  *   SERVICE_ADVERTISE_URL  Gateway 連到本服務的位址,例 http://mes-host:51210;test、prod 必填,port 需在 51200–51300

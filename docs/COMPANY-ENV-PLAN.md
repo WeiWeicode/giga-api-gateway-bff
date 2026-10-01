@@ -90,13 +90,14 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 
 | 主機 2 WSL 路徑 | 內容 | 建立方式 |
 | --- | --- | --- |
-| `/srv/giganexus/deploy/test.env`、`portal.env`、`itapp.env` | 非機密設定(範本:各 repo `deploy/test.env.example`) | Claude 經 SSH 建立 |
+| `/srv/giganexus/deploy/test.env`、`portal.env`、`itapp.env` | 非機密設定(範本:各 repo `deploy/test.env.example`);2026-10-01 加入 `GW_PUBLIC_HOST`、`BFF_BASE_URL`(`giganexus-test.gigasolar.com.tw`) | Claude 經 SSH 建立 |
 | `/srv/giganexus/deploy/config/ldap-domains.json` | 只有 `gsmc` | Claude |
-| `/srv/giganexus/deploy/secrets/pki/`、`jwt/test-202609.pem` | 臨時自簽憑證(SAN 含 10.10.130.124,至 2029-01)與 JWT 金鑰;於主機上產生 | Claude(`gen-temp-pki.sh`) |
+| `/srv/giganexus/deploy/secrets/pki/`、`jwt/test-202609.pem` | `server.crt/key`:公司 `*.gigasolar.com.tw` 憑證(2026-10-01 置換,臨時憑證備份為 `*.temp.bak`);`agent-server.*`、Agent CA / CRL、`ca.crt`:臨時自簽(SAN 含 10.10.130.124,至 2029-01);JWT 金鑰 | 臨時:Claude(`gen-temp-pki.sh`);公司憑證:**本人**(RUNBOOK 4.1) |
 | `/srv/giganexus/deploy/secrets/*_password` | `gw_db`、`gw_migrate`、`los_db`、`bpm_db`、`portal_db`、`ldap_gsmc` 密碼 | **本人**:`sudo sh deploy/host2-set-secrets.sh`(隱藏輸入) |
 | `/srv/giganexus/itapp-secrets/` | GigaItApp JWT 密鑰、種子帳號密碼(隨機產生,只在主機 2)、`bff_service_password`(mock 模式佔位) | Claude |
 | `/srv/giganexus/shared/` | Gateway build 複製的 `web-kit/src`、`deploy/`,與已部署映像 tag `gateway-image-tag` | CI |
 
+- **公司 SSL 憑證(2026-10-01)**:DNS `giganexus-test.gigasolar.com.tw` → 10.10.130.124 已由網通建立;`:443` 改用公司憑證,瀏覽器開 `https://giganexus-test.gigasolar.com.tw/it/login` 憑證受信任。`:9443` 仍為臨時憑證。
 - Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。
 - **來源 IP 實測(2026-09-30)**:自 10.10.112.13 連入,Nginx log 的 `remote_addr` 一律為 `172.19.0.1`(Docker 閘道),真實 IP 遺失(PRD Q26、DEPLOYMENT §6.1)。影響:登入限流 `GW_AUTH_RATE`(每分鐘 5 次)全體共用、IP 限流 / 白名單 / 「記住我」內網判定失效。**開放給一般使用者前必須處理**;少數人測試時連續登入可能遇到 429。
 - **上架結果(2026-09-30)**:三個專案 `develop` Pipeline 全部通過(Gateway `dd79914`、giga-Portal `f3ca9d2`、GigaItApp `83087c8`);自使用者網段驗證 `/`、`/login`、`/it/` 200,`/api/auth/me`、`/it/api/auth/me` 401,HTTP 301 轉 HTTPS。
@@ -126,7 +127,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `los_db_password`、`bpm_db_password`、`portal_db_password` | 唯讀帳號密碼 | P-12、P-15 |
 | `ldap_gsc_password`、`ldap_gsmc_password`、`ldap_ygdmc_password` | 三個 AD 網域的查詢服務帳號密碼 | P-07 |
 | `jwt/<kid>.pem` | ES256(P-256)私鑰,**測試區與正式區各自產生**;檔名即 `kid`,排序最後者為簽章用 | — |
-| `pki/server.crt`、`pki/server.key` | `:443` 用:公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo,至 2027-01-31;測試區與正式區共用同一張)。`server.crt` = `STAR_gigasolar_com_tw.crt` + `ca.crt`(中繼鏈),`server.key` = `ssl.key`;置換步驟見 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 步驟 4。需網通先建 DNS A 紀錄(PRD Q1) | 已取得 2026-10-01 |
+| `pki/server.crt`、`pki/server.key` | `:443` 用:公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo,至 2027-01-31;測試區與正式區共用同一張)。`server.crt` = `STAR_gigasolar_com_tw.crt` + `ca.crt`(中繼鏈),`server.key` = `ssl.key`;置換步驟見 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 步驟 4。需網通先建 DNS A 紀錄(PRD Q1) | 測試區已套用 2026-10-01;正式區待 DNS |
 | `pki/agent-server.crt`、`pki/agent-server.key` | `:9443` 用:AD CS 簽發,SAN 含 Gateway **IP**;到位前以 `deploy/gen-temp-pki.sh` 產生臨時自簽憑證(含臨時 Agent CA / CRL 讓 Nginx 能啟動) | P-05 |
 | `pki/agent-ca-chain.pem`、`pki/agent.crl` | Agent 專用中繼 CA + 根 CA、CRL(需定期更新,W3-3.4) | P-06 |
 | `pki/ca.crt` | 企業根 CA(Nginx 以 grpcs 連 Endpoint Server 時驗證用)。**不是**公司憑證附的 Sectigo `ca.crt`,兩者不可互換 | P-05 |

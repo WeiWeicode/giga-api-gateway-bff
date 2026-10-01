@@ -27,7 +27,7 @@ flowchart LR
     F --> U["後端服務<br/>(MES、HRM…)"]
 ```
 
-1. **同一個來源、不同子路徑**:目前以主機 IP 存取(`https://<gateway-ip>/`,PRD Q1),每個系統掛在固定子路徑下(例如 `/mes/`),與 API 同來源,**沒有 CORS 問題**。
+1. **同一個來源、不同子路徑**:以 DNS 名稱存取(`https://<gateway-host>/`,PRD Q1),每個系統掛在固定子路徑下(例如 `/mes/`),與 API 同來源,**沒有 CORS 問題**。
 2. **前端不碰 Token**:登入後 BFF 以 httpOnly Cookie 保存身分,瀏覽器自動帶上;前端只需處理 CSRF 標頭與 401 / 403。
 3. **只呼叫 `/api/...`**:前端不知道、也不應知道後端服務的主機與 port,一律經 Gateway。
 4. **統一登入**:各系統不自建登入頁,未登入一律導向入口網 `/login`(由員工入口網 `../giga-Portal` 提供)。
@@ -64,8 +64,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       // 本機開發時,API 與 WebSocket 轉到測試區 Gateway(見 §8)
-      '/api': { target: 'https://<test-gateway-ip>', changeOrigin: true, secure: false, cookieDomainRewrite: '' },
-      '/ws': { target: 'wss://<test-gateway-ip>', ws: true, changeOrigin: true, secure: false },
+      '/api': { target: 'https://giganexus-test.gigasolar.com.tw', changeOrigin: true, secure: false, cookieDomainRewrite: '' },
+      '/ws': { target: 'wss://giganexus-test.gigasolar.com.tw', ws: true, changeOrigin: true, secure: false },
     },
   },
 })
@@ -333,7 +333,7 @@ Pipeline 範本由 Gateway 團隊提供(`include` 共用的 `.gitlab-ci` 片段)
 
 ### 10.3 遷移完成條件
 
-- [ ] 經 `https://<gateway-ip>/notes/` 可正常使用,重新整理任一頁面不會 404
+- [ ] 經 `https://<gateway-host>/notes/` 可正常使用,重新整理任一頁面不會 404
 - [ ] 使用入口網登入後進入不需再次登入
 - [ ] 舊的對外 port(`5121`、`5122`)已對使用者網段關閉
 

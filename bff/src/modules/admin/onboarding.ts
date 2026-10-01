@@ -316,7 +316,7 @@ const onboarding: FastifyPluginAsync = async (app) => {
           source: 'manual',
         },
         flow: {
-          browser: `${r.method === '*' ? 'GET' : r.method} https://<gateway-ip>${r.publicPath}`,
+          browser: `${r.method === '*' ? 'GET' : r.method} https://<gateway-host>${r.publicPath}`,
           upstream: upstreamUrl ? `${r.method === '*' ? 'GET' : r.method} ${upstreamUrl}` : null,
           suggestedPublicPath: r.upstreamPath ? toPublicPath(r.systemCode, r.upstreamPath) : null,
         },

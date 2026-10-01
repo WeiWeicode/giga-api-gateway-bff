@@ -27,7 +27,7 @@
 | 人事資料 **BPM 為主、LOS 補充**,排程同步 + 登入補查(D7);離職只標記不自動停用(Q10) | W3-4 新增人員同步工作(W3-4.6a–c);需唯讀帳號與欄位對應(P-12、P-13) |
 | 登入效期 8 小時,「記住我」7 天僅限內網(Q4);Kerberos 列第三階段(Q5) | W3-4.4 實作記住我與來源 IP 判定 |
 | **LINE 通知暫緩**(Q7) | 通知只做 Email + 站內;不申請 LINE 官方帳號 |
-| **以 IP 存取**(Q1),Agent 改用獨立 port `:9443` | 憑證 SAN 帶 IP(P-05);W3-3 以 port 區分;無網域子公司電腦需另外安裝企業根憑證 |
+| `:443` 以 DNS 名稱存取、公司 `*.gigasolar.com.tw` 憑證;Agent 以 IP 存取、獨立 port `:9443`(Q1,2026-10-01 修訂) | `:9443` 憑證 SAN 帶 IP(P-05);W3-3 以 port 區分;無網域子公司電腦需另外安裝企業根憑證 |
 | AD 三網域全納入(Q11);過渡期沿用 `ldap://`(Q12,已取得主管與工程師同意,2026-09-24) | 各網域服務帳號(P-07) |
 | 無網域子公司使用**本機帳號**:LOS / BPM 找得到就可註冊,找不到才審核;密碼至少 8 碼(Q13–Q15) | W3-4 本機帳號登入與代建(W3-4.14–15);W3-5 自行註冊與忘記密碼(W3-5.8a–b) |
 | 兼任帳號不可單獨登入、併入本人(Q16);不同工號不歸戶(Q17) | 人員同步處理兼任帳號(W3-4.6b);不需 `PersonKey` |
@@ -91,7 +91,7 @@ gantt
 | P-02 | ~~安全例外同意~~:BFF ↔ SQL Server 2012 內網不加密、AD 過渡期 `ldap://` | 主管、工程師 | **已完成**(已取得主管與工程師同意,2026-09-24);補償控制見 [TECH-STACK.md](TECH-STACK.md) §4 | — |
 | P-03 | 防火牆:SQL Server 2012 的 1433 僅允許 BFF / worker 主機 | 網管 | 防火牆規則 | 部署 |
 | P-04 | SQL Server 2012 **整合測試專用庫**(或可重建的測試 instance) | DBA | 可由 CI 連線、可清空重建的測試庫 | W3-1 起的整合測試 |
-| P-05 | 伺服器憑證:SAN 含測試區 / 正式區 Gateway **IP**(PRD Q1 以 IP 存取);企業根 CA 派送(網域電腦由 GPO,無網域子公司電腦另行安裝) | IT + W2 | AD CS 簽發的 IP SAN 憑證;根憑證安裝步驟 | W3-2 |
+| P-05 | 伺服器憑證:`:443` 為公司 `*.gigasolar.com.tw` 憑證(2026-10-01 取得,測試區已套用);`:9443` 憑證 SAN 含測試區 / 正式區 Gateway **IP**(Agent 以 IP 存取,PRD Q1);企業根 CA 派送(網域電腦由 GPO,無網域子公司電腦另行安裝) | IT + W2 | AD CS 簽發的 IP SAN 憑證;根憑證安裝步驟 | W3-2 |
 | P-06 | AD CS「GigaNexus Agent」憑證範本、Agent 專用中繼 CA、CRL 發佈點 | IT + W2 | 範本與 CA 鏈;CRL 下載位置 | W3-3(可先用測試 CA,見 §9) |
 | P-07 | AD **LDAP 查詢服務帳號**(三個網域各一組,PRD Q11);企業 CA 根憑證 | IT + 資安 | 各網域服務帳號(唯讀)、baseDN、連線資訊 | W3-4 |
 | P-08 | 規劃 AD 群組:`GN-*` 系列對應內建角色 | IT | 群組清單與成員 | W3-4 |
@@ -145,7 +145,7 @@ gantt
 | # | 工作項目 | 文件 | 交付物 |
 | --- | --- | --- | --- |
 | W3-2.1 | `nginx.conf` 與 `snippets/`:TLS 1.2 / 1.3、安全標頭、`server_tokens off`、`X-Request-Id`、JSON access log | PRD §7.1、§7.7 | `nginx/nginx.conf`、`nginx/snippets/*` |
-| W3-2.2 | `:80` → 301;`:443` server block(以 IP 存取) | PRD §7.1 | `nginx/conf.d/portal.conf` |
+| W3-2.2 | `:80` → 301;`:443` server block(DNS 名稱,`default_server`) | PRD §7.1 | `nginx/conf.d/portal.conf` |
 | W3-2.3 | SPA 託管:`/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`,History 模式、快取標頭、gzip;`/srv/www/<app>/current` symlink 結構 | PRD §7.2 | 各路徑以範例 SPA 驗證 |
 | W3-2.3a | 前端部署 CI 範本:建置 SPA 映像檔、以一次性容器發佈到 `gw_www` volume、原子切換 `current`、保留 5 版、手動回滾 job | PRD §7.2.3、[DEPLOYMENT.md](DEPLOYMENT.md) §3.4 | `ci-templates/spa-deploy.yml` |
 | W3-2.4 | `/api/` → `bff_upstream`(keepalive);清除 `X-Internal-*`、`X-User-*`;body 大小、逾時 | PRD §7.3 | |

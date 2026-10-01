@@ -62,15 +62,15 @@ flowchart LR
 
 | # | 流量 | 入口(Host / Path) | 經過 | 目的地 | 認證 |
 | --- | --- | --- | --- | --- | --- |
-| T1 | SPA 靜態檔 | `<gateway-ip>/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`(新系統依 PRD §7.2.1 登記子路徑) | Nginx | 本機靜態目錄 `/srv/www/<app>/current` | 無(未登入由 SPA 導向 `/login`) |
-| T2 | 業務 API | `<gateway-ip>/api/{system}/...` | Nginx → BFF | 依路由表轉上游 | JWT Cookie + RBAC |
-| T3 | 認證 API | `<gateway-ip>/api/auth/*`(登入、註冊、忘記密碼) | Nginx(嚴格限流)→ BFF | BFF 本身 | 登入前免驗證 |
-| T4 | 管理 API | `<gateway-ip>/api/admin/*` | Nginx → BFF | BFF 本身 | JWT + `gw.admin.*` 權限 |
-| T5 | 通知 WebSocket | `<gateway-ip>/ws/notify` | Nginx → BFF | BFF | Cookie(握手時驗) |
-| T6 | 串流 WebSocket(螢幕串流等大流量) | `<gateway-ip>/ws/endpoint/*` | Nginx(`auth_request` 問 BFF)→ | Go Endpoint Server | Cookie → BFF 驗證後放行 |
-| T7 | Webhook | `<gateway-ip>/webhook/{source}` | Nginx(IP 白名單)→ BFF | BFF 驗簽後分派 | HMAC 簽章 / 來源 IP |
+| T1 | SPA 靜態檔 | `<gateway-host>/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`(新系統依 PRD §7.2.1 登記子路徑) | Nginx | 本機靜態目錄 `/srv/www/<app>/current` | 無(未登入由 SPA 導向 `/login`) |
+| T2 | 業務 API | `<gateway-host>/api/{system}/...` | Nginx → BFF | 依路由表轉上游 | JWT Cookie + RBAC |
+| T3 | 認證 API | `<gateway-host>/api/auth/*`(登入、註冊、忘記密碼) | Nginx(嚴格限流)→ BFF | BFF 本身 | 登入前免驗證 |
+| T4 | 管理 API | `<gateway-host>/api/admin/*` | Nginx → BFF | BFF 本身 | JWT + `gw.admin.*` 權限 |
+| T5 | 通知 WebSocket | `<gateway-host>/ws/notify` | Nginx → BFF | BFF | Cookie(握手時驗) |
+| T6 | 串流 WebSocket(螢幕串流等大流量) | `<gateway-host>/ws/endpoint/*` | Nginx(`auth_request` 問 BFF)→ | Go Endpoint Server | Cookie → BFF 驗證後放行 |
+| T7 | Webhook | `<gateway-host>/webhook/{source}` | Nginx(IP 白名單)→ BFF | BFF 驗簽後分派 | HMAC 簽章 / 來源 IP |
 | T8 | Agent gRPC | `<gateway-ip>:9443`(HTTP/2);Go Agent 與 C# Watchdog 共用([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md)) | Nginx(mTLS 必要)→ | Go Endpoint Server | 裝置憑證(mTLS) |
-| T9 | 系統對系統 API | `<gateway-ip>/api/{system}/...` | Nginx → BFF | 上游 | API Key(`X-Api-Key`)+ 範圍 |
+| T9 | 系統對系統 API | `<gateway-host>/api/{system}/...` | Nginx → BFF | 上游 | API Key(`X-Api-Key`)+ 範圍 |
 
 ## 3. 關鍵架構決策
 
@@ -78,7 +78,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | D1 | **所有 `/api/*` 由 Nginx 一律轉給 BFF**,由 BFF 依路由表轉上游;Nginx 只保留固定、少量的 location | API 要能由 IT 介面動態維護且即時生效;權限判斷需在同一處。改 Nginx 設定需 reload 且難以資料庫化 | Nginx 直接依 `/api/mes` 轉 Go MES + `auth_request`:少一跳,但路由無法動態管理 |
 | D2 | **大流量/長連線例外**:螢幕串流 WebSocket(T6)走 Nginx 直連 Endpoint Server,以 `auth_request` 向 BFF 驗證一次 | 避免影像串流多經一層 Node | 全部經 BFF:實作簡單但浪費頻寬與 CPU |
-| D3 | **Agent 使用獨立 port `:9443`**,該 server block `ssl_verify_client on` | 以 IP 存取(PRD Q1)時 TLS 無法用 SNI 區分主機名稱;獨立 port 讓瀏覽器完全不會被要求出示憑證,Agent 流量的設定、日誌、限流與防火牆規則皆分開 | 同一 port 設 `ssl_verify_client optional`:設定混雜、易誤放行;以主機名稱(SNI)區分:需要 DNS,目前沒有 |
+| D3 | **Agent 使用獨立 port `:9443`**,該 server block `ssl_verify_client on` | Agent 以 IP 存取(PRD Q1)時 TLS 無法用 SNI 區分主機名稱;獨立 port 讓瀏覽器完全不會被要求出示憑證,Agent 流量的設定、日誌、限流與防火牆規則皆分開 | 同一 port 設 `ssl_verify_client optional`:設定混雜、易誤放行;以主機名稱(SNI)區分:Agent 端需改用 DNS 名稱與另一張憑證 |
 | D4 | **Access / Refresh Token 皆放 httpOnly + Secure + SameSite=Strict Cookie**,搭配 CSRF 雙重提交 Token | 前端 JS 讀不到 Token,降低 XSS 竊取風險 | Token 放 LocalStorage:易被 XSS 竊取 |
 | D5 | **下游服務只信任 BFF 簽發的短效內部 Token**(`X-Internal-Token`,60 秒,`aud`=服務代碼) | 下游 Go/Node 服務以 JWKS 驗章即可取得身分,不必各自接 AD | 只傳 `X-User-Id` 明文標頭:若網段被繞過即可偽造 |
 | D6 | 路由設定 **SQL Server 為事實來源**,Redis 存「已發佈版本」快照 + Pub/Sub 通知,BFF 實例記憶體內建立路由樹 | 查詢路徑不打 DB;Redis 掛掉時仍可用記憶體與本地快照運作 | 每次請求查 Redis:多一次網路往返 |
