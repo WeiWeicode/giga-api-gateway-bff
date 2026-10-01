@@ -87,6 +87,9 @@ build:
     - $C up -d --no-deps bff-2
     - sh deploy/wait-healthy.sh bff-2
     # 4. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
+    #    2026-10-01 起 :9443 讀 pki/agent-server.crt/key;舊 pki/ 沒有時由 server.* 補上(與 gen-temp-pki.sh 相同,只補一次)
+    - S="$(sed -n 's/^GW_SECRETS_DIR=//p' "$GW_DEPLOY_DIR/$GW_ENV.env")"
+    - docker run --rm -v "$S/pki:/pki" alpine:3.20 sh -c 'cd /pki && { [ -f agent-server.crt ] || { cp server.crt agent-server.crt && cp server.key agent-server.key && chmod 600 agent-server.key && echo "已補上 pki/agent-server.crt/key"; }; }'
     - $C up -d --no-deps nginx
     # 5. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
     - echo "$CI_COMMIT_SHA" > "$(dirname "$GW_SHARED_DIR")/gateway-image-tag"

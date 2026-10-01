@@ -239,5 +239,5 @@ flowchart LR
 - [ ] `80`、`443`、`9443` 未被其他容器佔用;Windows 防火牆規則已設定
 - [ ] 來源 IP 驗證(§6.1):從另一台電腦連入時,Nginx log 的 `remote_addr` 是那台電腦的 IP
 - [ ] 機密檔案已放入受保護目錄,權限只限 Docker 服務帳號
-- [ ] 伺服器憑證(SAN 含本機 IP)、Agent 中繼 CA、CRL 已放入對應 volume
+- [ ] 公司 DNS A 紀錄已建立(PRD Q1);`:443` 公司憑證 `server.crt/key`、`:9443` 伺服器憑證 `agent-server.crt/key`(SAN 含本機 IP)、Agent 中繼 CA、CRL 已放入對應 volume
 - [ ] 測試區 SMTP 已設定攔截

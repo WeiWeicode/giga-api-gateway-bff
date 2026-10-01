@@ -42,7 +42,7 @@
 
 核心原則:
 
-1. **一個入口**:瀏覽器、Agent、外部系統只認得 Gateway 的位址(目前以 IP 存取,Q1),後端服務不直接對外。
+1. **一個入口**:瀏覽器、Agent、外部系統只認得 Gateway 的位址(瀏覽器與系統以 DNS 名稱、Agent 以 IP,Q1),後端服務不直接對外。
 2. **一個身分**:有 AD 網域者用 AD 帳號、無網域的子公司員工用本機註冊帳號,一律以**工號**為身分;BFF 簽發 JWT,下游服務只信任 BFF 傳下來的身分。
 3. **API 是資料,不是程式碼**:API 路由、權限對應、限流、快取設定存在 SQL Server,由 Redis 快取並即時生效;IT 管理介面(W4)可新增、匯入、編輯,**不需重新部署 BFF**。
 
@@ -115,8 +115,9 @@
 ### 7.1 TLS 與入口
 
 - 監聽 `:443`(HTTP/2,瀏覽器與系統對系統)與 `:9443`(Agent 專用 mTLS,見 §7.6);`:80` 僅做 301 轉址至 HTTPS。
-- **以 IP 存取**(Q1 已決定):內部目前沒有 DNS,測試區與正式區各以主機 IP 對外(`https://<gateway-ip>/`)。文件以 `<gateway-ip>` 表示;日後若架設 DNS,只需改 Nginx `server_name` 與憑證。
-- 伺服器憑證來自 W2(AD CS 企業 CA),SAN 需包含 Gateway 的 **IP 位址**(`iPAddress` 類型,測試區與正式區各一張)。瀏覽器需信任企業根 CA:網域電腦由 GPO 派送;**無網域子公司的電腦需另行安裝根憑證**(見 §14.1)。
+- **以 DNS 名稱存取 `:443`**(Q1,2026-10-01 修訂):測試區 `https://giganexus-test.gigasolar.com.tw/`(10.10.130.124)、正式區 `https://giganexus.gigasolar.com.tw/`(10.10.130.122),由網通在公司 DNS 建立 A 紀錄。Nginx `server_name` 維持 `_`(`default_server`),以 IP 連入仍可到達,但瀏覽器會出現憑證警告。
+- `:443` 伺服器憑證為公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo 公開 CA,瀏覽器預設信任,不需另行安裝根憑證);`pki/server.crt` 為伺服器憑證 + 中繼憑證鏈。到期日 2027-01-31,需排程更新。
+- `:9443`(Agent)仍以 **IP** 連線,使用另一張伺服器憑證 `pki/agent-server.crt`(AD CS 企業 CA,SAN 帶 Gateway **IP**;到位前為臨時自簽),見 §7.6。
 - TLS 1.2 / 1.3 only;停用弱加密套件;開啟 OCSP Stapling(若 CA 支援)。
 - 安全標頭:`Strict-Transport-Security`、`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`(或 CSP `frame-ancestors`)、`Referrer-Policy`、`Content-Security-Policy`(依 SPA 調整)。
 - 瀏覽器對 IP 位址不套用 HSTS,仍以 `:80` 301 轉址確保使用 HTTPS。
@@ -209,7 +210,7 @@ sequenceDiagram
     end
 ```
 
-- 獨立 `server { listen 9443 ssl; http2 on; }`:以 IP 存取時 TLS 無法用 SNI 區分主機名稱,改以 **port** 區分(Q1);防火牆只開放端點網段連 `:9443`。設定:
+- 獨立 `server { listen 9443 ssl; http2 on; }`:Agent 以 IP 存取,TLS 無法用 SNI 區分主機名稱,改以 **port** 區分(Q1);伺服器憑證 `agent-server.crt` 與 `:443` 分開;防火牆只開放端點網段連 `:9443`。設定:
   - `ssl_client_certificate`:內部 CA 鏈(僅信任 Agent 專用中繼 CA)。
   - `ssl_verify_client on;`、`ssl_verify_depth 2;`、`ssl_crl`(定期更新 CRL,撤銷遺失/報廢電腦的憑證)。
   - `grpc_pass grpcs://endpoint_upstream;`(Nginx → Endpoint Server 亦為 TLS)。
@@ -815,7 +816,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 | # | 問題 | 建議 | 決定者 |
 | --- | --- | --- | --- |
-| Q1 | 正式網域名稱與 SAN | **已決定**:內部目前沒有 DNS,**先以 IP 存取**;憑證 SAN 帶 Gateway IP;Agent 通道改用獨立 port `:9443`(原本以主機名稱 `agent.xxx` + SNI 區分,IP 無法使用 SNI) | 提案人 + IT |
+| Q1 | 正式網域名稱與 SAN | **已決定**(2026-10-01 修訂):`:443` 以 DNS 名稱存取,測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`,使用公司 `*.gigasolar.com.tw` 萬用憑證(主管提供);Agent 通道 `:9443` 仍以 IP 存取、憑證 SAN 帶 IP、獨立 port(原本以主機名稱 `agent.xxx` + SNI 區分)。原決定為「內部沒有 DNS,先以 IP 存取」 | 提案人 + IT |
 | Q2 | gw 資料表放 `heatco_db` schema `gw` 或獨立 DB | **已決定**:獨立 DB `giganexus_gw`(schema `gw`),備份、權限、生命週期獨立 | 提案人 + DBA |
 | Q3 | 測試區 / 正式區是否共用同一 SQL Server gw 設定 | **已決定**:各自一套(`giganexus_gw_test` / `giganexus_gw`),**設定不互通**;兩區各自由後端服務啟動時自動註冊為草稿,由 IT 分別核可發佈(v0.5 修訂,取消「匯出 → 匯入另一區」) | 提案人 |
 | Q4 | Refresh 效期:8 小時(一個工作日)或 7 天 | **已決定**:預設 8 小時;勾選「記住我」延長為 7 天,僅限從公司內網登入時提供(以來源 IP 網段判定) | 主管 |

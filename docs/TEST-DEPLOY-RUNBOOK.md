@@ -71,7 +71,29 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "D:/giganexus/deploy/secrets:/out" -v "$(p
 
 - 產生 `secrets/pki/`(伺服器憑證 SAN 含主機 IP、臨時 Agent CA 與 CRL,讓 Nginx 能啟動)與 `secrets/jwt/test-<年月>.pem`。
 - 瀏覽器會出現憑證警告;要消除時把 `secrets/pki/ca.crt`(**不是** `ca.key`)匯入使用者電腦的「受信任的根憑證授權單位」。
-- 正式憑證(P-05、P-06)到位後,以同名檔案取代 `pki/` 內容,再執行步驟 6 的 `up -d nginx`。
+- AD CS 憑證(P-05、P-06)到位後,以同名檔案取代 `agent-server.*`、`agent-ca-chain.pem`、`agent.crl`、`ca.crt`,再執行步驟 6 的 `up -d nginx`。
+
+### 4.1 `:443` 換成公司憑證(`*.gigasolar.com.tw`,PRD Q1)
+
+前提:網通已建立 DNS A 紀錄(測試區 `giganexus-test.gigasolar.com.tw` → 10.10.130.124;正式區 `giganexus.gigasolar.com.tw` → 10.10.130.122),`nslookup` 查得到。公司憑證檔(`STAR_gigasolar_com_tw.crt`、`ca.crt`、`ssl.key`)向主管取得,**不放進任何 repo**。
+
+```bash
+PKI=<GW_SECRETS_DIR>/pki
+SSL=<公司憑證資料夾>
+# 1. 舊版 pki/ 先補上 :9443 用的 agent-server.*(必須在換掉 server.crt 之前;已有則略過)
+#    重新執行上方 gen-temp-pki.sh 即可
+# 2. 備份後置換:server.crt = 伺服器憑證 + 中繼鏈(順序不可顛倒)
+cp "$PKI/server.crt" "$PKI/server.crt.temp.bak"; cp "$PKI/server.key" "$PKI/server.key.temp.bak"
+cat "$SSL/STAR_gigasolar_com_tw.crt" "$SSL/ca.crt" > "$PKI/server.crt"
+cp "$SSL/ssl.key" "$PKI/server.key"; chmod 600 "$PKI/server.key"
+# 3. 確認私鑰與憑證成對(兩行輸出相同)
+openssl x509 -in "$PKI/server.crt" -noout -modulus | openssl md5; openssl rsa -in "$PKI/server.key" -noout -modulus | openssl md5
+```
+
+- `test.env` / `prod.env` 設定 `GW_PUBLIC_HOST`(見 env 範本),執行步驟 6 的 `up -d nginx`;`nginx -t` 失敗時還原 `*.temp.bak`。
+- 驗證:`openssl s_client -connect <主機 IP>:443 -servername <DNS 名稱> </dev/null | openssl x509 -noout -subject -enddate` 顯示 `CN=*.gigasolar.com.tw`;瀏覽器開 `https://<DNS 名稱>/` 無憑證警告。
+- **同主機的 GigaItApp**(`itapp-api` 以 `https://nginx` 呼叫 BFF)會因主機名稱不符而失敗,需同步改為 `https://<GW_PUBLIC_HOST>`(Gateway compose 已將此名稱設為 nginx 的網路別名)並移除 `GW_CA_CERT` 的臨時根 CA;下游 Node.js 後端 `GW_BASE_URL` 改用 DNS 名稱,不需 `NODE_EXTRA_CA_CERTS`。
+- 憑證 2027-01-31 到期,更新時重做步驟 2–3。
 
 ## 5. 在主機上建置 Gateway 映像檔(沒有 Registry)
 
@@ -125,7 +147,7 @@ $IT run --rm --build spa-it
 
 ## 9. 驗收(從另一台電腦的瀏覽器)
 
-- [ ] `https://<主機 IP>/` 導向 `/login`;以 AD 帳號登入後看到員工入口網首頁與選單
+- [ ] `https://<DNS 名稱>/` 導向 `/login`、無憑證警告;以 AD 帳號登入後看到員工入口網首頁與選單
 - [ ] 一般員工看不到應用切換;有 `it.app.access` 的人看得到,點「IT 管理系統」到 `/it/`
 - [ ] 登出後回到 `/login`
 - [ ] Gateway log 的 `remote_addr` 是那台電腦的 IP(DEPLOYMENT.md §6.1 步驟 6)

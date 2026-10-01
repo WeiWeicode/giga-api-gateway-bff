@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-09-26**(公司測試區手動架設手冊 TEST-DEPLOY-RUNBOOK、臨時憑證腳本 deploy/gen-temp-pki.sh)。
+> **最後更新:2026-10-01**(`:443` 改用公司 `*.gigasolar.com.tw` 憑證、`:9443` 憑證分開為 `agent-server.crt`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。

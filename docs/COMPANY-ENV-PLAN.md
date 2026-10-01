@@ -126,9 +126,10 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `los_db_password`、`bpm_db_password`、`portal_db_password` | 唯讀帳號密碼 | P-12、P-15 |
 | `ldap_gsc_password`、`ldap_gsmc_password`、`ldap_ygdmc_password` | 三個 AD 網域的查詢服務帳號密碼 | P-07 |
 | `jwt/<kid>.pem` | ES256(P-256)私鑰,**測試區與正式區各自產生**;檔名即 `kid`,排序最後者為簽章用 | — |
-| `pki/server.crt`、`pki/server.key` | AD CS 簽發,SAN 含 Gateway **IP**;到位前以 `deploy/gen-temp-pki.sh` 產生臨時自簽憑證(含臨時 Agent CA / CRL 讓 Nginx 能啟動) | P-05 |
+| `pki/server.crt`、`pki/server.key` | `:443` 用:公司 `*.gigasolar.com.tw` 萬用憑證(Sectigo,至 2027-01-31;測試區與正式區共用同一張)。`server.crt` = `STAR_gigasolar_com_tw.crt` + `ca.crt`(中繼鏈),`server.key` = `ssl.key`;置換步驟見 [TEST-DEPLOY-RUNBOOK.md](TEST-DEPLOY-RUNBOOK.md) 步驟 4。需網通先建 DNS A 紀錄(PRD Q1) | 已取得 2026-10-01 |
+| `pki/agent-server.crt`、`pki/agent-server.key` | `:9443` 用:AD CS 簽發,SAN 含 Gateway **IP**;到位前以 `deploy/gen-temp-pki.sh` 產生臨時自簽憑證(含臨時 Agent CA / CRL 讓 Nginx 能啟動) | P-05 |
 | `pki/agent-ca-chain.pem`、`pki/agent.crl` | Agent 專用中繼 CA + 根 CA、CRL(需定期更新,W3-3.4) | P-06 |
-| `pki/ca.crt` | 企業根 CA(Nginx 以 grpcs 連 Endpoint Server 時驗證用) | P-05 |
+| `pki/ca.crt` | 企業根 CA(Nginx 以 grpcs 連 Endpoint Server 時驗證用)。**不是**公司憑證附的 Sectigo `ca.crt`,兩者不可互換 | P-05 |
 
 產生 JWT 金鑰:`openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out <kid>.pem`
 

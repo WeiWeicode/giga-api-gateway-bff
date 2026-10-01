@@ -2,13 +2,15 @@
 # 測試區臨時憑證與 JWT 金鑰(AD CS 憑證 P-05 / P-06 到位前使用;docs/TEST-DEPLOY-RUNBOOK.md 步驟 4)。
 # 產生到 $OUT(主機受保護目錄 GW_SECRETS_DIR):
 #   pki/ca.crt、ca.key        臨時根 CA(瀏覽器可匯入 ca.crt 消除警告;ca.key 只留在主機)
-#   pki/server.crt、server.key  Gateway 伺服器憑證,SAN 含 GATEWAY_IPS(PRD Q1 以 IP 存取)
+#   pki/server.crt、server.key  :443 伺服器憑證,SAN 含 GATEWAY_IPS(公司 *.gigasolar.com.tw 憑證到位前使用)
+#   pki/agent-server.crt、agent-server.key  :9443 伺服器憑證(Agent 以 IP 連線;與 server.crt 相同內容,各自獨立替換)
 #   pki/agent-ca-chain.pem、agent.crl  臨時 Agent 中繼 CA + 根 CA 與 CRL(只為了讓 Nginx :9443 能啟動;不發 Agent 憑證)
 #   jwt/<kid>.pem              BFF JWT 簽章金鑰(ES256,kid = <區域>-<年月>)
 # 用法(Windows 主機不需安裝 openssl,在 Git Bash 執行):
 #   docker run --rm -v "<GW_SECRETS_DIR>:/out" -v "$PWD/deploy:/scripts:ro" -e GATEWAY_IPS="<主機 IP>" -e GW_ENV=test \
 #     alpine:3.20 sh -c "apk add -q openssl && OUT=/out sh /scripts/gen-temp-pki.sh"
 # 已存在的檔案不覆寫;正式憑證到位後直接以同名檔案取代 pki/ 內容並重建 nginx 容器。
+# 舊版產生的 pki/(沒有 agent-server.*)再執行一次即補上,須在 server.crt 換成公司憑證之前執行。
 set -eu
 : "${OUT:?OUT 必須指定(GW_SECRETS_DIR 掛載點)}"
 : "${GATEWAY_IPS:?GATEWAY_IPS 必須指定(主機 IP,空白分隔)}"
@@ -29,6 +31,13 @@ fi
 
 cd "$PKI"
 if [ -f server.crt ]; then
+  if [ ! -f agent-server.crt ]; then
+    cp server.crt agent-server.crt
+    cp server.key agent-server.key
+    chmod 644 agent-server.crt
+    chmod 600 agent-server.key
+    echo "已由 server.crt 補上 pki/agent-server.crt/key(:9443 用)"
+  fi
   echo "pki/server.crt 已存在,略過憑證產生(要重建請先移除 pki/ 內容)"
   exit 0
 fi
@@ -79,9 +88,11 @@ cat agent-ca.crt ca.crt > agent-ca-chain.pem
 CA_NAME=root openssl ca -config ca.cnf -cert ca.crt -keyfile ca.key -gencrl -out root.crl 2>/dev/null
 CA_NAME=agent openssl ca -config ca.cnf -cert agent-ca.crt -keyfile agent-ca.key -gencrl -out agent-ca.crl 2>/dev/null
 cat agent-ca.crl root.crl > agent.crl
+cp server.crt agent-server.crt
+cp server.key agent-server.key
 
 rm -rf ./*.csr ./*.ext ./*.srl ca.cnf index-* serial-* crlnumber-* newcerts root.crl agent-ca.crl
 # Nginx 以 root 讀取;私鑰只留在主機受保護目錄
-chmod 644 server.crt ca.crt agent-ca-chain.pem agent.crl
-chmod 600 ca.key agent-ca.key server.key
+chmod 644 server.crt agent-server.crt ca.crt agent-ca-chain.pem agent.crl
+chmod 600 ca.key agent-ca.key server.key agent-server.key
 echo "已產生臨時憑證:$PKI(SAN:$SAN)"

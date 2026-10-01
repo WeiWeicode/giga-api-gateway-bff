@@ -8,7 +8,7 @@
 #
 # 機密一律放在主機受保護目錄 ${GW_SECRETS_DIR}(不入版控、不寫進映像檔),以唯讀方式掛載:
 #   gw_db_password、gw_migrate_password、los_db_password、bpm_db_password、portal_db_password、
-#   ldap_<網域代碼>_password、jwt/<kid>.pem、pki/(server.crt/key、agent-ca-chain.pem、agent.crl、ca.crt)
+#   ldap_<網域代碼>_password、jwt/<kid>.pem、pki/(server.crt/key、agent-server.crt/key、agent-ca-chain.pem、agent.crl、ca.crt)
 
 name: giganexus-gw
 
@@ -77,6 +77,11 @@ services:
     volumes:
       - gw_www:/srv/www:ro
       - ${GW_SECRETS_DIR}/pki:/etc/nginx/pki:ro
+    # 同主機容器(GigaItApp 等)以 https://<GW_PUBLIC_HOST> 呼叫時直接解析到本容器,主機名稱符合 :443 憑證(Q1)
+    networks:
+      default:
+        aliases:
+          - ${GW_PUBLIC_HOST:-nginx}
     depends_on:
       - bff-1
       - bff-2
