@@ -39,6 +39,11 @@ export async function revokeUserSessions(redis: Redis, userId: number): Promise<
   return families.length;
 }
 
+/** 使用者目前的登入工作階段數(Refresh Token 家族;管理介面顯示用,已過期的家族可能仍計入至集合到期) */
+export function userSessionCount(redis: Redis, userId: number): Promise<number> {
+  return redis.scard(userRtKey(userId));
+}
+
 export type RefreshOutcome =
   { ok: true; userId: number; amr: 'ad' | 'local'; remember: boolean; familyId: string } | { ok: false; reason: 'missing' | 'expired' | 'reused' };
 

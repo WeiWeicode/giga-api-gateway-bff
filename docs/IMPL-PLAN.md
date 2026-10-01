@@ -47,7 +47,7 @@
 | M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
 | **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
 | M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
-| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 進行中:P2-1 路由設定管理 API、P2-2 發佈 / 回滾 API、P2-3a 指派規則 / 部門樹 / 應用完成(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`);P2-3 其餘、P2-4–P2-8 未開始 |
+| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 進行中:P2-1 路由設定管理 API、P2-2 發佈 / 回滾 API、P2-3 使用者 / 公司 / 本機帳號管理(人員同步紀錄待 W3-4.6b)、P2-3a 指派規則 / 部門樹 / 應用完成(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`);P2-4–P2-8 未開始 |
 
 | 子任務 | 狀態 |
 | --- | --- |
@@ -205,7 +205,7 @@
 | --- | --- | --- |
 | P2-1 | ✅(2026-10-01;`POST /api/admin/routes/:id/test` 試打未做,見 PRD §8.7 註)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
 | P2-2 | ✅(2026-10-01;CLI `publish` / `rollback` 保留)草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3;Gherkin `router/release-publish.feature` |
-| P2-3 | 權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7 |
+| P2-3 | 🔶(2026-10-01:使用者管理、強制登出、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用完成;權限 / 角色於 P2-3a 完成;**人員同步紀錄與手動觸發待 W3-4.6b**;AD 群組對應 API 未做,維持 CLI `apply`)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
 | P2-3a | ✅(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀);`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
 | P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 |
 | P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 |

@@ -697,6 +697,7 @@ sequenceDiagram
 | 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
 
 - **路由設定(P2-1 / P2-2,2026-10-01 實作)**:修改與刪除需帶 `rowVer`(`row_ver` 的 hex;DELETE 以查詢參數 `?rowVer=`),不符回 409 `VERSION_CONFLICT`。管理 API 只寫資料庫,路由、上游、限流政策的變更都在**下次發佈**時生效;修改已發佈的路由會改為草稿。`DELETE` 上游 / 路由為停用(上游仍被未停用的路由或聚合步驟使用時拒絕),限流政策為刪除(仍被路由參照時拒絕)。上游的 `targets` 只管理本區(`GW_ENV`)位址。`GET /api/admin/releases/preview` 回傳草稿清單與「目前發佈版本 → 發佈後」差異。`POST /api/admin/routes/:id/test`(試打)尚未實作。
+- **使用者 / 公司 / 本機帳號(P2-3,2026-10-01 實作)**:`:id` 可為 `user_id` 或工號。另提供 `GET /api/admin/users/:id`(所屬公司、個別指派、本機帳號狀態、登入工作階段數)與 `PATCH /api/admin/companies/:id`(全名、工號字首、啟用);網域與預設角色以 `PUT …/ad-domains`(`{ rowVer, domains: [依嘗試順序] }`)、`PUT …/roles`(`{ rowVer, roles: [角色代碼] }`)整組取代,另有 `POST /api/admin/local-accounts/:id/disable`。`PATCH /api/admin/users/:id` 的 `roles` 為個別指派的完整清單(`[{ code, validTo?, reason? }]`);**指派或移除的角色所含權限須是操作人本身具備的**,否則 403 `PERMISSION_DENIED`(防止提權)。代建 / 核准回傳 72 小時啟用連結、IT 重設回傳臨時密碼,皆只顯示一次。人員同步紀錄與手動觸發待排程人員同步(W3-4.6b)。
 - **GigaItApp 改用單一入口後(v0.7)**,其前端以**使用者本人的登入**直接呼叫上述管理 API(寫入的稽核記錄實際操作人),不再使用服務帳號;`gw.admin.rbac.write` 只授予 IT 權限管理人員。
 
 ---

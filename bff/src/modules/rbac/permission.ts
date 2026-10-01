@@ -70,7 +70,7 @@ export interface ResolvedRole {
   ruleIds: number[];
 }
 
-function parseGroups(json: string | null): string[] {
+export function parseGroups(json: string | null): string[] {
   if (!json) return [];
   try {
     const v: unknown = JSON.parse(json);

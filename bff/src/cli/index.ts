@@ -8,6 +8,7 @@
  *   npm run gw -- releases                           列出最近 20 個發佈版本
  *   npm run gw -- local:create --emp <工號> [--base-url https://<gateway-host>]   IT 代建本機帳號,產生 72 小時啟用連結
  *   npm run gw -- local:unlock --emp <工號>
+ *   npm run gw -- local:disable --emp <工號>                    停用本機帳號(撤銷登入;重新啟用以 local:create)
  *   npm run gw -- local:approve --emp <工號> [--base-url ...]   核准自行註冊的待審核申請(LOS / BPM 查無者),產生 72 小時啟用連結
  *   npm run gw -- local:reset --emp <工號>                      IT 重設本機帳號密碼(無 Email 者):產生臨時密碼,首次登入須更換
  *   npm run gw -- user:disable|user:enable --emp <工號>
@@ -19,11 +20,10 @@
  * 容器內:node dist/bff/src/cli/index.js <指令> ...
  * 所有寫入皆記錄 gw.audit_log(actor = --actor 或 cli:<OS 使用者>)。
  */
-import { createHash, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { userInfo } from 'node:os';
 import { parseArgs } from 'node:util';
-import { and, desc, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import { parse as parseYaml } from 'yaml';
 import { loadConfig, type AppConfig } from '../config.js';
@@ -37,8 +37,6 @@ import {
   apiRoute,
   company,
   configRelease,
-  localAccountToken,
-  localCredential,
   notifyTemplate,
   permission,
   rateLimitPolicy,
@@ -53,13 +51,13 @@ import {
 import { publishRelease, rollbackRelease } from '../db/sync/release.js';
 import { clientKey, generateApiKey } from '../modules/auth/api-key.js';
 import { AdDirectory } from '../modules/auth/ldap.js';
+import { GwError } from '../errors.js';
 import { isChannel } from '../modules/notify/template.js';
 import { permissionDeclError, type PermissionDecl } from './openapi.js';
-import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo } from '../modules/auth/profile.js';
-import { hashPassword, pushHistory } from '../modules/auth/password.js';
+import { normalizeEmpNo } from '../modules/auth/profile.js';
 import { DepartmentSyncAborted, syncDepartments } from '../modules/rbac/department-sync.js';
 import { bumpAllPermVersions } from '../modules/rbac/permission.js';
-import { revokeUserSessions } from '../modules/auth/session.js';
+import * as localAdmin from '../modules/admin/local-account-admin.js';
 import { audit, ensurePermissions, ImportError, importOpenApiDoc, setTargets, upsertUpstream } from '../modules/admin/route-import.js';
 
 interface Ctx {
@@ -380,13 +378,8 @@ async function applyConfig(ctx: Ctx, file: string) {
   out(result);
 }
 
+/** IT 代建本機帳號(PRD §8.2.5),產生 72 小時啟用連結;邏輯與管理 API 共用(admin/local-account-admin.ts) */
 async function createLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
-  const emp = normalizeEmpNo(empArg);
-  if (!isValidEmpNo(emp)) throw new CliError(`工號格式錯誤:${empArg}`);
-  // 一個工號只有一種驗證方式:任一 AD 網域找得到者必須使用 AD(PRD §8.2.5)
-  const ad = new AdDirectory(ctx.config.ldapDomains);
-  for (const code of ad.codes) if (await ad.exists(code, emp).catch(() => false)) throw new CliError(`${emp} 在 AD 網域 ${code} 已有帳號,不可建立本機帳號`);
-
   const ext: { bpm?: ReturnType<typeof createExternalDb>; los?: ReturnType<typeof createExternalDb> } = {};
   const pools = [];
   for (const [name, src] of [
@@ -401,47 +394,16 @@ async function createLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
     }
   }
   try {
-    const lookup = await lookupEmployee(ext, emp);
-    if (lookup.selfVirtual) throw new CliError(`${emp} 為兼任帳號,不可單獨登入`);
-    const merged = mergeProfile(lookup);
-    if (merged.profileSource === 'ad_only') throw new CliError(`${emp} 在 LOS / BPM 查無資料`);
-    if (merged.employmentStatus === 'resigned') throw new CliError(`${emp} 已離職`);
-
-    const token = randomBytes(32).toString('base64url');
-    const userId = await ctx.db.transaction(async (tx) => {
-      let [u] = await tx.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
-      if (!u)
-        [u] = await tx
-          .insert(user)
-          .output({ id: user.userId })
-          .values({ employeeNo: emp, displayName: merged.displayName ?? emp, profileSource: merged.profileSource, createdBy: ctx.actor, updatedBy: ctx.actor });
-      await applyProfile(tx, u!.id, merged, ctx.actor);
-      const [cred] = await tx.select().from(localCredential).where(eq(localCredential.userId, u!.id));
-      if (cred?.status === 'active') throw new CliError(`${emp} 已有啟用中的本機帳號`);
-      if (cred)
-        await tx
-          .update(localCredential)
-          .set({ status: 'pending_verify', registeredVia: 'admin', mustChangePassword: false, updatedBy: ctx.actor })
-          .where(eq(localCredential.userId, u!.id));
-      else
-        await tx
-          .insert(localCredential)
-          .values({ userId: u!.id, status: 'pending_verify', registeredVia: 'admin', createdBy: ctx.actor, updatedBy: ctx.actor });
-      // 同用途新 token 產生時,舊 token 一併作廢
-      await tx
-        .update(localAccountToken)
-        .set({ usedAt: new Date() })
-        .where(and(eq(localAccountToken.userId, u!.id), eq(localAccountToken.purpose, 'activate'), isNull(localAccountToken.usedAt)));
-      await tx.insert(localAccountToken).values({
-        userId: u!.id,
-        purpose: 'activate',
-        tokenHash: createHash('sha256').update(token).digest('hex'),
-        expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
-      });
-      await audit(tx, ctx.actor, 'local.create', 'user', emp, { emp, companies: merged.companies.map((c) => c.compName) });
-      return u!.id;
+    const r = await localAdmin.createLocalAccount({ db: ctx.db, redis: ctx.redis, ad: new AdDirectory(ctx.config.ldapDomains), ext }, empArg, {
+      name: ctx.actor,
     });
-    out({ employeeNo: emp, userId, activationToken: token, link: `${baseUrl.replace(/\/$/, '')}/register/activate?token=${token}`, expiresInHours: 72 });
+    out({
+      employeeNo: r.employeeNo,
+      userId: r.userId,
+      activationToken: r.token,
+      link: localAdmin.activationLink(baseUrl, r.token),
+      expiresInHours: localAdmin.ACTIVATE_TTL_HOURS,
+    });
   } finally {
     await Promise.all(pools.map((p) => p.close()));
   }
@@ -449,64 +411,20 @@ async function createLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
 
 /** 核准自行註冊的待審核申請(PRD §8.2.5:LOS / BPM 查無者由管理員確認身分) */
 async function approveLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
-  const emp = normalizeEmpNo(empArg);
-  const [row] = await ctx.db
-    .select({ userId: user.userId, status: localCredential.status })
-    .from(user)
-    .innerJoin(localCredential, eq(localCredential.userId, user.userId))
-    .where(eq(user.employeeNo, emp));
-  if (row?.status !== 'pending_approval') throw new CliError(`${emp} 沒有待審核的註冊申請`);
-  const token = randomBytes(32).toString('base64url');
-  await ctx.db.transaction(async (tx) => {
-    await tx
-      .update(localCredential)
-      .set({ status: 'pending_verify', approvedBy: ctx.actor.slice(0, 64), approvedAt: new Date(), updatedBy: ctx.actor })
-      .where(eq(localCredential.userId, row.userId));
-    await tx
-      .update(localAccountToken)
-      .set({ usedAt: new Date() })
-      .where(and(eq(localAccountToken.userId, row.userId), eq(localAccountToken.purpose, 'activate'), isNull(localAccountToken.usedAt)));
-    await tx.insert(localAccountToken).values({
-      userId: row.userId,
-      purpose: 'activate',
-      tokenHash: createHash('sha256').update(token).digest('hex'),
-      expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
-    });
-    await audit(tx, ctx.actor, 'local.approve', 'user', emp, {});
-  });
-  out({ employeeNo: emp, link: `${baseUrl.replace(/\/$/, '')}/register/activate?token=${token}`, expiresInHours: 72 });
+  const r = await localAdmin.approveLocalAccount(ctx, empArg, { name: ctx.actor });
+  out({ employeeNo: r.employeeNo, link: localAdmin.activationLink(baseUrl, r.token), expiresInHours: localAdmin.ACTIVATE_TTL_HOURS });
 }
 
 /** IT 重設密碼(無 Email 者,PRD §8.2.5):臨時密碼只顯示一次,首次登入須更換;撤銷所有登入 */
 async function resetLocalPassword(ctx: Ctx, empArg: string) {
-  const emp = normalizeEmpNo(empArg);
-  const [row] = await ctx.db
-    .select({ userId: user.userId, cred: localCredential })
-    .from(user)
-    .innerJoin(localCredential, eq(localCredential.userId, user.userId))
-    .where(eq(user.employeeNo, emp));
-  if (!row || !['active', 'locked'].includes(row.cred.status)) throw new CliError(`${emp} 沒有啟用中或鎖定的本機帳號`);
-  // 臨時密碼:12 碼英數,保證含英文與數字(符合 Q14)
-  const temp = `${randomBytes(9).toString('base64url').replace(/[-_]/g, 'x')}a1`;
-  await ctx.db.transaction(async (tx) => {
-    await tx
-      .update(localCredential)
-      .set({
-        passwordHash: await hashPassword(temp),
-        passwordHistory: pushHistory(row.cred.passwordHash, row.cred.passwordHistory),
-        passwordChangedAt: new Date(),
-        status: 'active',
-        failedCount: 0,
-        lockedAt: null,
-        mustChangePassword: true,
-        updatedBy: ctx.actor,
-      })
-      .where(eq(localCredential.userId, row.userId));
-    await audit(tx, ctx.actor, 'local.reset', 'user', emp, {});
+  const r = await localAdmin.resetLocalPassword(ctx, empArg, { name: ctx.actor });
+  out({
+    employeeNo: r.employeeNo,
+    temporaryPassword: r.temporaryPassword,
+    mustChangePassword: true,
+    revokedSessions: r.revokedSessions,
+    message: '臨時密碼只顯示這一次,請以安全管道交給本人',
   });
-  const revoked = await revokeUserSessions(ctx.redis, row.userId).catch(() => -1);
-  await ctx.redis.del(`gw:login:fail:${emp}`).catch(() => undefined);
-  out({ employeeNo: emp, temporaryPassword: temp, mustChangePassword: true, revokedSessions: revoked, message: '臨時密碼只顯示這一次,請以安全管道交給本人' });
 }
 
 /** 部門樹同步(PRD §8.3.1);樹結構變更時已遞增全體 perm_version,這裡清除 pv 快取 */
@@ -682,21 +600,12 @@ async function main() {
       case 'local:create':
         await createLocalAccount(ctx, need(values.emp, 'emp'), values['base-url']!);
         break;
-      case 'local:unlock': {
-        const emp = normalizeEmpNo(need(values.emp, 'emp'));
-        const [u] = await ctx.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
-        if (!u) throw new CliError(`找不到使用者 ${emp}`);
-        await ctx.db.transaction(async (tx) => {
-          await tx
-            .update(localCredential)
-            .set({ status: 'active', failedCount: 0, lockedAt: null, updatedBy: ctx.actor })
-            .where(and(eq(localCredential.userId, u.id), eq(localCredential.status, 'locked')));
-          await audit(tx, ctx.actor, 'local.unlock', 'user', emp, {});
-        });
-        await ctx.redis.del(`gw:login:fail:${emp}`);
-        out({ employeeNo: emp, unlocked: true });
+      case 'local:unlock':
+        out(await localAdmin.unlockLocalAccount(ctx, need(values.emp, 'emp'), { name: ctx.actor }));
         break;
-      }
+      case 'local:disable':
+        out(await localAdmin.disableLocalAccount(ctx, need(values.emp, 'emp'), { name: ctx.actor }));
+        break;
       case 'local:approve':
         await approveLocalAccount(ctx, need(values.emp, 'emp'), values['base-url']!);
         break;
@@ -726,7 +635,7 @@ async function main() {
 }
 
 main().catch((err: unknown) => {
-  if (err instanceof CliError || err instanceof ImportError) {
+  if (err instanceof CliError || err instanceof ImportError || err instanceof GwError) {
     console.error(`錯誤:${err.message}`);
     if (err.details) console.error(JSON.stringify(err.details, null, 2));
   } else console.error(err);

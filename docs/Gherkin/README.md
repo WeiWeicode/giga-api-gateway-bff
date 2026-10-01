@@ -20,6 +20,7 @@
 | `auth/apps.feature` | 應用登記、`me.apps`(已實作);應用切換與應用層守衛(`@e2e`)由各 SPA 實作 | §8.3.3 | P2-3a |
 | `router/dynamic-routing.feature` | 代理、路徑改寫、限流、快取、斷路器、聚合 | §8.4.1–§8.4.2 | W3-5.1–5.5 |
 | `router/release-publish.feature` | 草稿 / 發佈 / 回滾、即時生效、Redis 補償(P2-2 管理 API 已實作,E2E `07-routing-admin`) | §8.4.3、DATABASE §7 | W3-5.6–5.7、P2-2 |
+| `admin/user-admin.feature` | 使用者(停用、個別指派、強制登出)、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用(2026-10-01 已實作;人員同步紀錄待 W3-4.6b) | §8.2.5、§8.7 | P2-3 |
 | `router/route-admin.feature` | 上游、路由、聚合步驟、限流政策管理 API 與樂觀鎖(2026-10-01 已實作) | §8.7 | P2-1 |
 | `router/api-import.feature` | OpenAPI 匯入規則(含說明與行為規格) | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、W3-5.7a、P2-4 |
 | `router/service-registration.feature` | 後端自動註冊(API Key、草稿)、既有路由查詢 | §8.4.4、§8.7、BACKEND-GUIDE §7.5 | W3-5.7a |

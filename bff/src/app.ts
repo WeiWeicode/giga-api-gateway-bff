@@ -7,6 +7,7 @@ import rbacAdmin from './modules/admin/rbac.js';
 import registration from './modules/admin/registration.js';
 import releasesAdmin from './modules/admin/releases.js';
 import routingAdmin from './modules/admin/routing.js';
+import usersAdmin from './modules/admin/users.js';
 import authPlugin from './modules/auth/plugin.js';
 import authRoutes from './modules/auth/routes.js';
 import healthRoutes from './modules/health/routes.js';
@@ -60,6 +61,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(rbacAdmin);
   await app.register(routingAdmin, { config });
   await app.register(releasesAdmin, { config });
+  await app.register(usersAdmin, { config });
   await app.register(webhookRoutes, { config });
   // 資料庫檢視為 demo 用,正式區不提供
   if (config.gwEnv !== 'prod') {

@@ -6,7 +6,7 @@
   我要透過 Email 連結或 IT 協助重設密碼
 
   # 畫面與細節於入口網(W5)開發時確定(PRD Q23);以下為 API 行為
-  # IT 重設 / 解鎖目前以 CLI local:reset / local:unlock(管理 API 於 P2-3)
+  # IT 重設 / 解鎖:管理 API POST /api/admin/local-accounts/:id/reset-password、/unlock(P2-3),或 CLI local:reset / local:unlock(同一套邏輯)
 
   背景:
     假如 "V112001" 有狀態為 "active" 的本機帳號

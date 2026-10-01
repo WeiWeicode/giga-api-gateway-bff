@@ -240,7 +240,7 @@ export async function createApiKey(code: string, perms: string[]): Promise<strin
   return r.key as string;
 }
 
-/** 刪除 E2E 建立的所有資料(假工號、e2e 角色 / API Key / 權限 / 範本 / 上游 / 限流政策) */
+/** 刪除 E2E 建立的所有資料(假工號、E2E 公司、e2e 角色 / API Key / 權限 / 範本 / 上游 / 限流政策) */
 export async function cleanupE2E(): Promise<void> {
   await query(`
     DECLARE @u TABLE (id INT);
@@ -251,6 +251,13 @@ export async function cleanupE2E(): Promise<void> {
     DELETE FROM gw.user_role WHERE user_id IN (SELECT id FROM @u);
     DELETE FROM gw.notify_message WHERE user_id IN (SELECT id FROM @u);
     DELETE FROM gw.[user] WHERE user_id IN (SELECT id FROM @u);
+
+    DECLARE @c TABLE (id INT);
+    INSERT INTO @c SELECT company_id FROM gw.company WHERE comp_name LIKE 'E2E%';
+    DELETE FROM gw.company_ad_domain WHERE company_id IN (SELECT id FROM @c);
+    DELETE FROM gw.role_company WHERE company_id IN (SELECT id FROM @c);
+    DELETE FROM gw.user_company WHERE company_id IN (SELECT id FROM @c);
+    DELETE FROM gw.company WHERE company_id IN (SELECT id FROM @c);
 
     DECLARE @r TABLE (id INT);
     INSERT INTO @r SELECT role_id FROM gw.role WHERE code LIKE 'e2e-%';

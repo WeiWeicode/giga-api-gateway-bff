@@ -86,6 +86,7 @@ E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CL
 | W3-5.8 通知(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 完成(2026-10-01;目前沒有 Webhook 外部來源,BPM 不送) |
 | W3-5.12 整合週(k6 壓測、資安檢查) | 未開始 |
 | P2-1 路由設定管理 API(上游、路由、聚合步驟、限流政策,`row_ver` 樂觀鎖)、P2-2 發佈 / 預覽 / 回滾 API | 完成(2026-10-01;路由試打 `POST /api/admin/routes/:id/test` 未做) |
+| P2-3 使用者(停用、個別指派、強制登出)、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用 API | 完成(2026-10-01;人員同步紀錄與手動觸發待 W3-4.6b) |
 | P2-3a 指派規則、部門樹、權限分類、應用登記與 `me.apps` | 完成(部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀)) |
 
 注意事項:

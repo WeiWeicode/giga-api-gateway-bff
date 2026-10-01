@@ -20,11 +20,12 @@
  * - 每筆寫入與 gw.audit_log 同一交易(actor 為實際操作人)。
  */
 import { and, asc, count, eq, inArray, like, ne, or, type SQL } from 'drizzle-orm';
-import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsync } from 'fastify';
 import type { AppConfig } from '../../config.js';
-import { aggregateStep, apiRoute, auditLog, permission, rateLimitPolicy, rowVerFromHex, rowVerToHex, upstream, upstreamTarget } from '../../db/schema/index.js';
+import { aggregateStep, apiRoute, permission, rateLimitPolicy, rowVerFromHex, rowVerToHex, upstream, upstreamTarget } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
-import { createAuthorizer, type Actor } from './authorize.js';
+import { writeAudit } from './audit-log.js';
+import { createAuthorizer } from './authorize.js';
 import type { Tx } from './route-import.js';
 import {
   AUTH_MODES,
@@ -194,20 +195,6 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
   const authorize = createAuthorizer(app);
   const env = config.gwEnv === 'prod' ? 'prod' : 'test';
 
-  async function writeAudit(tx: Tx, req: FastifyRequest, actor: Actor, action: string, entityType: string, entityId: string, before: unknown, after: unknown) {
-    await tx.insert(auditLog).values({
-      actorUserId: actor.userId,
-      actorName: actor.name,
-      actorIp: req.ip,
-      action,
-      entityType,
-      entityId,
-      beforeJson: before === null ? null : JSON.stringify(before),
-      afterJson: after === null ? null : JSON.stringify(after),
-      requestId: req.id,
-    });
-  }
-
   // ───────── 上游 ─────────
 
   async function targetsOf(ids: number[]) {
@@ -318,7 +305,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ id: upstream.upstreamId })
           .values({ ...pick(b, UPSTREAM_FIELDS), code: b.code, name: b.name!, systemCode: b.systemCode!, createdBy: actor.name, updatedBy: actor.name });
         if (b.targets) await replaceTargets(tx, row!.id, b.targets, actor.name);
-        await writeAudit(tx, req, actor, 'upstream.create', 'upstream', b.code, null, { ...b, environment: env });
+        await writeAudit(tx, actor, 'upstream.create', 'upstream', b.code, null, { ...b, environment: env });
         return row!.id;
       });
       return reply.code(201).send(await upstreamDetail(id));
@@ -348,7 +335,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .where(and(eq(upstream.upstreamId, req.params.id), eq(upstream.rowVer, verOf(b.rowVer!))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
         if (b.targets) await replaceTargets(tx, req.params.id, b.targets, actor.name);
-        await writeAudit(tx, req, actor, 'upstream.update', 'upstream', before.code, before, { ...b, environment: env });
+        await writeAudit(tx, actor, 'upstream.update', 'upstream', before.code, before, { ...b, environment: env });
       });
       return upstreamDetail(req.params.id);
     },
@@ -385,7 +372,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ inserted: { id: upstream.upstreamId } })
           .where(and(eq(upstream.upstreamId, req.params.id), eq(upstream.rowVer, verOf(req.query.rowVer))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
-        await writeAudit(tx, req, actor, 'upstream.disable', 'upstream', before.code, before, { isEnabled: false });
+        await writeAudit(tx, actor, 'upstream.disable', 'upstream', before.code, before, { isEnabled: false });
       });
       return upstreamDetail(req.params.id);
     },
@@ -627,7 +614,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
             createdBy: actor.name,
             updatedBy: actor.name,
           });
-        await writeAudit(tx, req, actor, 'route.create', 'api_route', b.routeCode!, null, b);
+        await writeAudit(tx, actor, 'route.create', 'api_route', b.routeCode!, null, b);
         return row!.id;
       });
       return reply.code(201).send(await routeDetail(id));
@@ -674,7 +661,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ inserted: { id: apiRoute.routeId } })
           .where(and(eq(apiRoute.routeId, cur.routeId), eq(apiRoute.rowVer, verOf(b.rowVer!))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
-        await writeAudit(tx, req, actor, 'route.update', 'api_route', cur.routeCode, withVer(cur), { ...b, status });
+        await writeAudit(tx, actor, 'route.update', 'api_route', cur.routeCode, withVer(cur), { ...b, status });
       });
       return routeDetail(cur.routeId);
     },
@@ -694,7 +681,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ inserted: { id: apiRoute.routeId } })
           .where(and(eq(apiRoute.routeId, cur.routeId), eq(apiRoute.rowVer, verOf(req.query.rowVer))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
-        await writeAudit(tx, req, actor, 'route.disable', 'api_route', cur.routeCode, { status: cur.status }, { status: 'disabled' });
+        await writeAudit(tx, actor, 'route.disable', 'api_route', cur.routeCode, { status: cur.status }, { status: 'disabled' });
       });
       return routeDetail(cur.routeId);
     },
@@ -785,7 +772,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
             createdBy: actor.name,
             updatedBy: actor.name,
           });
-        await writeAudit(tx, req, actor, 'route.steps', 'api_route', cur.routeCode, null, { steps, status });
+        await writeAudit(tx, actor, 'route.steps', 'api_route', cur.routeCode, null, { steps, status });
       });
       return routeDetail(cur.routeId);
     },
@@ -839,7 +826,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
             createdBy: actor.name,
             updatedBy: actor.name,
           });
-        await writeAudit(tx, req, actor, 'rate_limit.create', 'rate_limit_policy', b.code!, null, b);
+        await writeAudit(tx, actor, 'rate_limit.create', 'rate_limit_policy', b.code!, null, b);
         return row!.id;
       });
       return reply.code(201).send(await policyDetail(id));
@@ -864,7 +851,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ inserted: { id: rateLimitPolicy.policyId } })
           .where(and(eq(rateLimitPolicy.policyId, req.params.id), eq(rateLimitPolicy.rowVer, verOf(req.body.rowVer!))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
-        await writeAudit(tx, req, actor, 'rate_limit.update', 'rate_limit_policy', before.code, before, req.body);
+        await writeAudit(tx, actor, 'rate_limit.update', 'rate_limit_policy', before.code, before, req.body);
       });
       return policyDetail(req.params.id);
     },
@@ -884,7 +871,7 @@ const routing: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config 
           .output({ id: rateLimitPolicy.policyId })
           .where(and(eq(rateLimitPolicy.policyId, req.params.id), eq(rateLimitPolicy.rowVer, verOf(req.query.rowVer))));
         if (!rows.length) throw new GwError('VERSION_CONFLICT');
-        await writeAudit(tx, req, actor, 'rate_limit.delete', 'rate_limit_policy', before.code, before, null);
+        await writeAudit(tx, actor, 'rate_limit.delete', 'rate_limit_policy', before.code, before, null);
       });
       return reply.code(204).send();
     },
