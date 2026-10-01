@@ -29,6 +29,9 @@ export const ERROR_MESSAGES = {
   TOKEN_USED: '連結已使用過,請重新申請',
   UPSTREAM_PORT_OUT_OF_RANGE: '上游位址的 port 不在 51200–51300',
   IMPORT_HAS_ERRORS: '匯入批次含錯誤項目,未寫入任何路由',
+  WEBHOOK_SOURCE_NOT_FOUND: '沒有此來源的 Webhook 設定',
+  WEBHOOK_SIGNATURE_INVALID: 'Webhook 簽章驗證失敗',
+  WEBHOOK_TIMESTAMP_INVALID: 'Webhook 時間戳超出允許範圍',
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
@@ -60,6 +63,9 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   TOKEN_USED: 400,
   UPSTREAM_PORT_OUT_OF_RANGE: 400,
   IMPORT_HAS_ERRORS: 400,
+  WEBHOOK_SOURCE_NOT_FOUND: 404,
+  WEBHOOK_SIGNATURE_INVALID: 401,
+  WEBHOOK_TIMESTAMP_INVALID: 401,
 };
 
 export class GwError extends Error {

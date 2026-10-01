@@ -86,6 +86,8 @@ build:
     - sh deploy/wait-healthy.sh bff-1
     - $C up -d --no-deps bff-2
     - sh deploy/wait-healthy.sh bff-2
+    # 3a. worker(BullMQ 等待執行中的工作完成後才結束,stop_grace_period 60 秒)
+    - $C up -d --no-deps worker
     # 4. Nginx(重建容器,WebSocket 會短暫斷線;正式區安排離峰)
     #    2026-10-01 起 :9443 讀 pki/agent-server.crt/key;舊 pki/ 沒有時由 server.* 補上(與 gen-temp-pki.sh 相同,只補一次)
     - S="$(sed -n 's/^GW_SECRETS_DIR=//p' "$GW_DEPLOY_DIR/$GW_ENV.env")"

@@ -2,7 +2,7 @@
  * Gateway 管理 CLI(IMPL-PLAN W3-5.7、W3-4.15):第二階段管理 API 完成前,由 Gateway 負責人以此維護設定。
  *
  *   npm run gw -- import-openapi --file <路徑或 URL> --target <http://host:512xx> [--env test|prod]
- *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)
+ *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)、Webhook 端點
  *   npm run gw -- publish [--note 說明]              發佈所有草稿(≤ 5 秒全部 BFF 生效)
  *   npm run gw -- rollback --to <版本>               以歷史版本產生新版本
  *   npm run gw -- releases                           列出最近 20 個發佈版本
@@ -43,6 +43,7 @@ import {
   rolePermission,
   upstream,
   user,
+  webhookEndpoint,
 } from '../db/schema/index.js';
 import { publishRelease, rollbackRelease } from '../db/sync/release.js';
 import { clientKey, generateApiKey } from '../modules/auth/api-key.js';
@@ -147,12 +148,23 @@ interface ApplyFile {
       permissionCode?: string;
     }[];
   }[];
+  /** Webhook 端點(PRD §8.6);密鑰實值放在 WEBHOOK_SECRETS_DIR/<secretRef>,不寫進設定檔 */
+  webhooks?: {
+    source: string;
+    verifyMethod: 'hmac_sha256' | 'none';
+    secretRef?: string;
+    signatureHeader?: string;
+    allowedIps?: string;
+    dispatchType: 'queue';
+    dispatchTarget: string;
+    enabled?: boolean;
+  }[];
 }
 
 async function applyConfig(ctx: Ctx, file: string) {
   const cfg = parseYaml(await readSource(file)) as ApplyFile;
   const result = await ctx.db.transaction(async (tx) => {
-    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, pvBumped: false };
+    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, webhooks: 0, pvBumped: false };
     for (const p of cfg.policies ?? []) {
       const [cur] = await tx.select().from(rateLimitPolicy).where(eq(rateLimitPolicy.code, p.code));
       const v = { limitCount: p.limitCount, windowSec: p.windowSec, keyBy: p.keyBy, burst: p.burst ?? null, updatedBy: ctx.actor };
@@ -276,6 +288,24 @@ async function applyConfig(ctx: Ctx, file: string) {
         });
       }
       r.routes++;
+    }
+    for (const w of cfg.webhooks ?? []) {
+      if (w.verifyMethod === 'hmac_sha256' && !w.secretRef) throw new CliError(`Webhook ${w.source} 使用 hmac_sha256 必須設定 secretRef`);
+      const v = {
+        verifyMethod: w.verifyMethod,
+        secretRef: w.secretRef ?? null,
+        signatureHeader: w.signatureHeader ?? null,
+        allowedIps: w.allowedIps ?? null,
+        dispatchType: w.dispatchType,
+        dispatchTarget: w.dispatchTarget,
+        isEnabled: w.enabled ?? true,
+        updatedBy: ctx.actor,
+      };
+      const [cur] = await tx.select({ id: webhookEndpoint.endpointId }).from(webhookEndpoint).where(eq(webhookEndpoint.sourceCode, w.source));
+      if (cur) await tx.update(webhookEndpoint).set(v).where(eq(webhookEndpoint.endpointId, cur.id));
+      else await tx.insert(webhookEndpoint).values({ sourceCode: w.source, ...v, createdBy: ctx.actor });
+      await audit(tx, ctx.actor, 'webhook.apply', 'webhook_endpoint', w.source, v);
+      r.webhooks++;
     }
     await audit(tx, ctx.actor, 'config.apply', 'file', file.slice(-100), { ...r });
     return r;

@@ -123,8 +123,8 @@ describe('Nginx :443 入口', () => {
       '-e',
       `fetch('https://nginx/webhook/bpm',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(async r=>console.log(r.status, await r.text())).catch(e=>console.log('ERR',e.cause?.code??e.message))`,
     );
-    // 通過白名單後由 BFF 回應(Webhook 模組 W3-5.10 尚未實作,BFF 回 404 JSON)
+    // 通過白名單後由 BFF 的 Webhook 模組回應:未簽章 → 401;尚未以 CLI 設定 bpm 端點 → 404(驗簽細節見 11-webhook)
     expect(out).not.toContain('IP_NOT_ALLOWED');
-    expect(out).toMatch(/^404 \{"code":"ROUTE_NOT_FOUND"/);
+    expect(out).toMatch(/^(401 \{"code":"WEBHOOK_SIGNATURE_INVALID"|404 \{"code":"WEBHOOK_SOURCE_NOT_FOUND")/);
   });
 });

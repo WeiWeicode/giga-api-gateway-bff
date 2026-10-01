@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-01**(`:443` 改用公司 `*.gigasolar.com.tw` 憑證、`:9443` 憑證分開為 `agent-server.crt`)。
+> **最後更新:2026-10-01**(W3-5.10 Webhook 驗簽:`modules/webhook/`、BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts` + `workers/`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -21,19 +21,22 @@ giga-api-gateway-bff/
 ├─ bff/                       BFF(Node.js 22 + TypeScript + Fastify 5)
 │  ├─ src/                    原始碼(建置只取這裡,tsconfig.build.json)
 │  │  ├─ server.ts            進入點:載入設定、啟動
+│  │  ├─ worker.ts            worker 進入點(BullMQ 佇列處理;compose 服務 worker,同一映像)
 │  │  ├─ app.ts               組裝 Fastify:plugins → modules;X-Request-Id
 │  │  ├─ config.ts            設定載入與驗證(zod)
 │  │  ├─ errors.ts            錯誤代碼與 AppError(PRD §8.1.1)
-│  │  ├─ plugins/             基礎設施:db(外部唯讀來源)、redis、errors(統一錯誤回應)
+│  │  ├─ plugins/             基礎設施:db(外部唯讀來源)、redis、queues(BullMQ 入列)、errors(統一錯誤回應)
 │  │  ├─ modules/             功能模組(Fastify plugin)
 │  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*
 │  │  │  ├─ rbac/             權限計算與快取
 │  │  │  ├─ router/           動態路由:路由樹、快照、同步、限流 / 快取、上游呼叫
 │  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、demo(DB 檢視、上手導覽)
 │  │  │  ├─ notify/           站內通知 WebSocket /ws/notify
+│  │  │  ├─ webhook/          /webhook/{source}:驗簽(signature.ts 純函式)、時間戳、去重、gw.webhook_log、入列
 │  │  │  └─ health/           /healthz、/readyz
 │  │  ├─ db/                  資料存取:client(連線池)、schema/(Drizzle)、external/(BPM、LOS、PortalSolar 唯讀)、
 │  │  │                       sync/release(發佈 → Redis)、migrate、seed、sql2012-guard
+│  │  ├─ workers/             佇列處理程序(由 worker.ts 啟動):webhook.worker
 │  │  └─ cli/                 管理 CLI(`npm run gw`)、OpenAPI 轉路由草稿
 │  ├─ scripts/                開發工具:SQL 2012 語法檢查、重設整合測試庫
 │  └─ test/                   測試(與 src 平行):unit/、integration/、e2e/
@@ -54,9 +57,9 @@ giga-api-gateway-bff/
 
 | 層 | 位置 | 說明 |
 | --- | --- | --- |
-| 介面 | `bff/src/modules/*/routes.ts`、`modules/router/plugin.ts`、`modules/notify/ws.ts`、`modules/health/`、`cli/` | 參數驗證、回應格式;不寫商業規則 |
-| 核心邏輯 | `modules/auth/`(login、session、identity、password、profile)、`modules/rbac/permission.ts`、`modules/router/`(table、snapshot、guards、upstream)、`modules/admin/`(registration、route-import) | 登入、權限、路由比對與轉送 |
-| 基礎設施 | `plugins/`(db、redis、errors)、`db/`(client、schema、external、sync、migrate) | 資料庫、Redis、外部唯讀來源 |
+| 介面 | `bff/src/modules/*/routes.ts`、`modules/router/plugin.ts`、`modules/notify/ws.ts`、`modules/health/`、`cli/`、`worker.ts` + `workers/`(佇列工作) | 參數驗證、回應格式;不寫商業規則 |
+| 核心邏輯 | `modules/auth/`(login、session、identity、password、profile)、`modules/rbac/permission.ts`、`modules/router/`(table、snapshot、guards、upstream)、`modules/admin/`(registration、route-import)、`modules/webhook/signature.ts` | 登入、權限、路由比對與轉送、Webhook 簽章 |
+| 基礎設施 | `plugins/`(db、redis、queues、errors)、`db/`(client、schema、external、sync、migrate) | 資料庫、Redis、外部唯讀來源 |
 | 共用設定 / 錯誤 | `config.ts`、`errors.ts` | 全專案共用 |
 | 共用套件(其他 repo 使用) | `web-kit/`、`sdk/node/` | 前端 / 下游後端依賴 |
 
@@ -68,6 +71,7 @@ giga-api-gateway-bff/
 | 登入 | `modules/auth/routes.ts` → `login.ts`(`ldap.ts` / `password.ts`)→ `profile.ts`(BPM → LOS → AD)→ `session.ts` + `keys.ts` |
 | 路由發佈 | CLI / 管理 API → `db/sync/release.ts`(SQL Server → Redis)→ 各 BFF `modules/router/sync.ts` 載入快照、原子替換路由樹 |
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
+| Webhook | Nginx `portal.conf` `/webhook/`(IP 白名單)→ `modules/webhook/routes.ts`(驗簽 → 時間戳 → 去重 → `gw.webhook_log` → BullMQ `webhook`)→ `worker.ts` → `workers/webhook.worker.ts`(依 `dispatch_target` 處理) |
 | 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt`,Rust + Axum);BFF 不經手 |
 
 ## 4. 要改什麼 → 看哪裡
@@ -79,6 +83,7 @@ giga-api-gateway-bff/
 | 新增 BFF 內建 API | `bff/src/modules/<模組>/routes.ts`,在 `app.ts` 註冊 |
 | 資料表變更 | `bff/src/db/schema/*.ts` → `npm run db:generate` → 審查 `db/migrations/` → `npm run db:check-2012` |
 | Redis 鍵 | `docs/DATABASE.md` §6 先登記 |
+| Webhook 來源 / 事件處理 | 端點以 CLI `apply` 的 `webhooks:`;處理程序登記在 `bff/src/workers/webhook.worker.ts`;簽章規格 `docs/BACKEND-GUIDE.md` §7.6 |
 | Nginx 路徑 / 標頭 | `nginx/conf.d/`、`nginx/snippets/`;依部署區的值放 `templates/`、`allowlists/` |
 | 前端共用 HTTP / 權限 | `web-kit/src/` |
 | 下游後端 SDK | `sdk/node/src/` |

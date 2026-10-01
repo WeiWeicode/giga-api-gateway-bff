@@ -141,7 +141,7 @@ flowchart LR
 | 類別 | 存放 | 說明 |
 | --- | --- | --- |
 | 環境設定(非機密) | `deploy/docker-compose.yml` + `deploy/docker-compose.test.yml` / `.prod.yml` | IP、資料庫名稱、上游位址等 |
-| 機密 | 各主機受保護目錄中的檔案,以 Docker Compose `secrets` 掛載;或 GitLab **Protected + Masked** CI 變數 | JWT 私鑰、各 AD 網域服務帳號、SQL 帳密(`giganexus_gw`、LOS、BPM、PortalSolar)、SMTP、舊單一入口演算法常數 |
+| 機密 | 各主機受保護目錄中的檔案,以 Docker Compose `secrets` 掛載;或 GitLab **Protected + Masked** CI 變數 | JWT 私鑰、各 AD 網域服務帳號、SQL 帳密(`giganexus_gw`、LOS、BPM、PortalSolar)、SMTP、舊單一入口演算法常數、Webhook 密鑰(`webhook/<secret_ref>`,[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.6) |
 | Registry 登入 | GitLab CI 內建 `CI_REGISTRY_*` 變數 | Runner 以 job token 登入 Registry |
 
 - 機密**不入版控、不寫進映像檔**;測試區與正式區使用不同的機密值。

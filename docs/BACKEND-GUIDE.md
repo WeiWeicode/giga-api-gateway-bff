@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -375,6 +375,39 @@ stateDiagram-v2
 - **只寫草稿,不自動發佈**;新權限代碼一併建立,但需系統負責人指定授權對象後才有人能呼叫。
 - 註冊失敗(Gateway 無法連線時 SDK 以 1、2、4、8、16 秒重試)不會停止服務,但以 `error` 記錄;已發佈的路由不受影響。
 - 開發者查詢:`npx gw-lookup <關鍵字> [--system mes] [--status published] [--gherkin]`(讀 `GW_BASE_URL`、`GW_API_KEY`)。
+
+### 7.6 Webhook 呼叫(外部系統 → Gateway,PRD §8.6)
+
+外部系統(本階段只有 BPM)事件發生時呼叫 `POST https://<gateway-host>/webhook/{source}`。Nginx 只放行白名單 IP(`nginx/allowlists/<區域>/webhook-bpm.conf`),BFF 驗簽、檢查時間戳與去重後寫入 `gw.webhook_log`、排入佇列,**立即回 200**,實際處理在 worker。
+
+| 標頭 | 內容 |
+| --- | --- |
+| `Content-Type` | `application/json`(body 以原始位元組驗簽,送出後不可再改寫) |
+| `X-Gw-Timestamp` | 送出時間,Unix 秒;與 Gateway 時間相差超過 ±5 分鐘視為重放 |
+| `X-Gw-Signature` | `sha256=` + 小寫 hex(`HMAC-SHA256(密鑰, X-Gw-Timestamp + "." + 原始 body)`) |
+| `Idempotency-Key` | 事件的唯一鍵(1–100 個可見 ASCII 字元),例:`bpm-LV-20261201-001-step2`;**重送時沿用同一個**,24 小時內只處理一次 |
+
+| 回應 | 意義 | 呼叫端處理 |
+| --- | --- | --- |
+| 200 `{ received: true, logId }` | 已接收並排入處理 | 完成 |
+| 200 `{ code: "DUPLICATE_REQUEST" }` | 同一個 `Idempotency-Key` 已處理過 | 完成,不需重送 |
+| 400 `VALIDATION_FAILED` | 缺少或格式錯誤的 `Idempotency-Key` | 修正後重送 |
+| 401 `WEBHOOK_SIGNATURE_INVALID` / `WEBHOOK_TIMESTAMP_INVALID` | 簽章不符 / 時間戳超出範圍 | 檢查密鑰與主機時間(NTP),**以新的時間戳重新簽章**後重送 |
+| 403 `IP_NOT_ALLOWED`(Nginx) | 來源 IP 不在白名單 | 請 Gateway 負責人更新白名單 |
+| 404 `WEBHOOK_SOURCE_NOT_FOUND` | 該來源未設定或已停用 | 聯絡 Gateway 負責人 |
+| 500 `INTERNAL_ERROR` | Gateway 暫時無法處理(密鑰、Redis、資料庫) | 以相同 `Idempotency-Key` 指數退避重送 |
+
+```js
+// Node.js 範例(其他語言同理:先算 HMAC,再以同一份位元組送出)
+const body = JSON.stringify(event);
+const ts = String(Math.floor(Date.now() / 1000));
+const sig = 'sha256=' + crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
+await fetch(`${GW}/webhook/bpm`, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-gw-timestamp': ts, 'x-gw-signature': sig, 'idempotency-key': event.id } });
+```
+
+- **密鑰**:測試區與正式區各一把,由 Gateway 負責人產生(`openssl rand -hex 32`),放在各區 `${GW_SECRETS_DIR}/webhook/<secret_ref>`(BFF 容器內 `/run/secrets/gw/webhook/`),再以安全管道交給來源系統;不寫進設定檔或版控。
+- **端點設定**:`npm run gw -- apply --file <設定.yaml>` 的 `webhooks:`(`source`、`verifyMethod: hmac_sha256`、`secretRef`、`dispatchType: queue`、`dispatchTarget`),寫入 `gw.webhook_endpoint`。
+- **事件內容**:BPM 簽核事件的格式尚未定義(Gherkin `webhook.feature`「BPM 簽核完成後通知申請人」為 `@wip`);目前事件只記錄、不處理(`gw.webhook_log.error_message` = `尚無處理程序:<dispatch_target>`)。
 
 ---
 

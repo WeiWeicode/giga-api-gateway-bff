@@ -16,6 +16,7 @@
     那麼 回應狀態為 200
     而且 "gw.webhook_log" 新增 verified 為 1 的紀錄
     而且 事件排入處理佇列
+    而且 worker 處理後 "gw.webhook_log" 的 processed_at 有值
 
   場景: 非允許來源 IP 在 Nginx 即被拒絕
     當 其他主機送出 "POST /webhook/bpm"
@@ -47,6 +48,9 @@
     而且 回應 code 為 "DUPLICATE_REQUEST"
     而且 事件不會被重複處理
 
+  # 簽章標頭:X-Gw-Timestamp、X-Gw-Signature、Idempotency-Key(BACKEND-GUIDE §7.6)
+  # BPM 事件內容格式尚未定義(2026-10-01 需求方決定先不做),事件目前只記錄不處理
+  @wip
   場景: BPM 簽核完成後通知申請人
     當 BPM 主機送出簽核完成事件,申請人為 "S112009"
     那麼 "S112009" 收到 Email 與站內通知

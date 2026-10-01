@@ -9,8 +9,10 @@ import authRoutes from './modules/auth/routes.js';
 import healthRoutes from './modules/health/routes.js';
 import notifyWs from './modules/notify/ws.js';
 import routerPlugin from './modules/router/plugin.js';
+import webhookRoutes from './modules/webhook/routes.js';
 import dbPlugin from './plugins/db.js';
 import errorsPlugin from './plugins/errors.js';
+import queuesPlugin from './plugins/queues.js';
 import redisPlugin from './plugins/redis.js';
 
 /** Nginx 產生的 X-Request-Id 為 32 位 hex($request_id) */
@@ -41,12 +43,14 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(errorsPlugin);
   await app.register(dbPlugin, { config });
   await app.register(redisPlugin, { config });
+  await app.register(queuesPlugin, { config });
   await app.register(authPlugin, { config });
   await app.register(routerPlugin, { config });
   await app.register(authRoutes, { config, routes: app.routeTable });
   await app.register(notifyWs);
   await app.register(healthRoutes);
   await app.register(registration, { config });
+  await app.register(webhookRoutes, { config });
   // 資料庫檢視為 demo 用,正式區不提供
   if (config.gwEnv !== 'prod') {
     await app.register(dbViewer);

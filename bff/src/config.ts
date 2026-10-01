@@ -110,6 +110,8 @@ const configSchema = z.object({
   syncIntervalMs: z.coerce.number().int().default(60_000),
   /** /ws/endpoint/* 需要的權限(PRD §7.4) */
   endpointWsPermission: z.string().default('endpoint.remote.operate'),
+  /** Webhook 密鑰目錄:檔名 = gw.webhook_endpoint.secret_ref(PRD §8.6) */
+  webhookSecretsDir: z.string().default('/run/secrets/gw/webhook'),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -140,6 +142,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     routeSnapshotFile: env.ROUTE_SNAPSHOT_FILE,
     syncIntervalMs: env.SYNC_INTERVAL_MS,
     endpointWsPermission: env.ENDPOINT_WS_PERMISSION,
+    webhookSecretsDir: env.WEBHOOK_SECRETS_DIR,
   });
   if (!result.success) {
     const issues = result.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');

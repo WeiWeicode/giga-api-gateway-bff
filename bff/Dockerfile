@@ -1,5 +1,6 @@
 # BFF / worker / migrate / CLI 共用映像檔(DEPLOYMENT.md §3.1),以啟動指令區分:
 #   bff:     node dist/bff/src/server.js(預設)
+#   worker:  node dist/bff/src/worker.js(佇列處理)
 #   migrate: node dist/bff/src/db/migrate.js && node dist/bff/src/db/seed.js
 #   CLI:     node dist/bff/src/cli/index.js <指令>
 # 建置(context 為 repo 根目錄,需要 db/):docker build -f bff/Dockerfile -t <registry>/gateway/bff:<SHA> .
