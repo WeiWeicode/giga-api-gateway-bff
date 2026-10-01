@@ -186,7 +186,7 @@
 | W3-5.5 | `aggregate`:步驟並行 / 串行、`required`、`_meta.errors`、步驟權限 | PRD §8.4.2 | |
 | W3-5.6 | **同步模組**:發佈(交易 → 快照 → `SET` + `PUBLISH`)、訂閱重載、60 秒版本比對補償、`gw:lock:sync` | [DATABASE.md](DATABASE.md) §7.3 | `db/sync/release.ts` |
 | W3-5.7 | MVP 發佈工具(CLI):由後端提供的 OpenAPI 檔(依 [BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6)產生草稿、檢查必填欄位、發佈(`npm run release:publish`)。測試區與正式區設定不互通(PRD Q3),不做匯出 / 匯入。完整管理 API 於第二階段 | PRD §13.2、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.4 | CLI 指令 |
-| W3-5.7a | **後端自動註冊與路由查詢**:`gw.api_route.gherkin`、OpenAPI `description` / `x-gherkin` 匯入;API Key 驗證(僅供管理端點,路由的 `api_key` 模式仍於 P2-5)與 CLI `client:create` / `client:disable`;`POST /api/admin/registrations`(寫入草稿)、`GET /api/admin/routes/catalog`;Node.js SDK(`sdk/node`)與後端樣本(`samples/node-backend`,含 AGENT.md) | PRD §8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.5 | E2E `10-service-registration`、樣本 `npm test` |
+| W3-5.7a | **後端自動註冊與路由查詢**:`gw.api_route.gherkin`、OpenAPI `description` / `x-gherkin` 匯入;API Key 驗證(僅供管理端點,路由的 `api_key` 模式仍於 P2-5)與 CLI `client:create` / `client:disable`;`POST /api/admin/registrations`(寫入草稿)、`GET /api/admin/routes/catalog`;Node.js SDK(`sdk/node`)與後端樣本(`samples/node-backend`,含 AGENT.md) | PRD §8.4.4、§8.7、[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.5 | E2E `06-service-registration`、樣本 `npm test` |
 | W3-5.8 | 通知:`/api/notify/send`、BullMQ 佇列、worker(Email + 站內)、重試與死信、`gw.notify_log` | PRD §8.5 | `workers/notify.worker.ts` |
 | W3-5.8a | **自行註冊**:LOS / BPM 查核、AD 全網域查無、有 Email 寄驗證連結、無 Email 比對到職日並通知主管、查無轉管理員審核;註冊限流 | PRD §8.2.5 | `/register` API |
 | W3-5.8b | **忘記 / 重設密碼**:寄送重設連結(30 分鐘、一次性)、IT 重設、重設後撤銷所有 Refresh Token;API 先行,畫面細節於 W5 入口網開發時確定(PRD Q23) | PRD §8.2.5 | `/reset-password` API |
@@ -227,7 +227,7 @@
 | 整合測試 | Vitest + Testcontainers(Redis)+ **SQL Server 2012 測試庫**(P-04)+ BPM / LOS 唯讀 view 測試資料 | Drizzle 存取、交易、同步與補償、人員同步合併與安全檢查、BullMQ 佇列 | 每次 MR(CI) |
 | LDAP 測試 | 測試用 AD 帳號(或 OpenLDAP 容器模擬基本流程) | 登入、群組查詢、錯誤代碼 | 每次 MR;真實 AD 於測試區驗證 |
 | 驗收行為 | Cucumber(`docs/Gherkin/*.feature`,zh-TW) | 各功能的驗收場景,標籤對應工作項目 | 每次 MR 跑 `@mvp`;整合週全跑 |
-| 端到端 | docker-compose(Nginx + BFF ×2 + Redis + 模擬上游) | 經 Nginx 的完整請求、WebSocket、webhook、mTLS | 每日 / 整合週 |
+| 端到端 | **測試區**(`npm run test:e2e`:經 `https://giganexus-test.gigasolar.com.tw`,CLI / Redis 經 `ssh host2`,假工號本機帳號) | 經 Nginx 的完整請求、工作階段、權限與指派規則、通知與 WebSocket 推播、Webhook 驗簽、自動註冊;不含 AD 帳號登入(不使用真實帳密)、上游代理與斷路器(測試區無模擬上游)、韌性(不可停止共用測試區) | 部署測試區後 / 整合週 |
 | 壓力測試 | k6 | 見 §8 效能指標 | 整合週、重大變更後 |
 | 資安檢查 | 檢查清單(OWASP ASVS L2 子集)、`npm audit`、TLS 掃描 | Cookie、CSRF、標頭淨化、限流、密鑰管理 | 整合週 |
 

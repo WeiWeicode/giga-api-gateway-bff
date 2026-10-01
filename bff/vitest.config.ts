@@ -3,7 +3,7 @@ import NameSequencer from './test/e2e/sequencer.js';
 
 export default defineConfig({
   test: {
-    // 依檔名順序執行(E2E 會中斷服務的韌性測試放在最後);sequencer 只能設定在根層
+    // E2E 依檔名順序執行;sequencer 只能設定在根層
     sequence: { sequencer: NameSequencer },
     projects: [
       {
@@ -27,14 +27,14 @@ export default defineConfig({
         },
       },
       {
-        // 經 Nginx 的端到端測試(IMPL-PLAN §6「端到端」):需先以 deploy/dev/up.sh 啟動本機完整環境(不在版控,只在家中開發主機)
+        // 對測試區的端到端測試(IMPL-PLAN §6「端到端」):經 https://giganexus-test.gigasolar.com.tw,CLI / Redis 經 ssh host2(README「測試」)
         test: {
           name: 'e2e',
           include: ['test/e2e/**/*.test.ts'],
           environment: 'node',
           fileParallelism: false,
-          testTimeout: 60_000,
-          hookTimeout: 120_000,
+          testTimeout: 180_000,
+          hookTimeout: 300_000,
         },
       },
     ],
