@@ -81,6 +81,10 @@ services:
       - "${GW_HTTP_PORT:-80}:80"
       - "${GW_HTTPS_PORT:-443}:443"
       - "${GW_AGENT_PORT:-9443}:9443"
+      # 主機 L4 轉送(PROXY protocol,保留來源 IP;DEPLOYMENT.md §6.1):只綁主機本機,區網不可直接連入,否則可偽造來源 IP
+      - "127.0.0.1:${GW_PP_HTTP_PORT:-10080}:10080"
+      - "127.0.0.1:${GW_PP_HTTPS_PORT:-10443}:10443"
+      - "127.0.0.1:${GW_PP_AGENT_PORT:-19443}:19443"
     volumes:
       - gw_www:/srv/www:ro
       - ${GW_SECRETS_DIR}/pki:/etc/nginx/pki:ro
