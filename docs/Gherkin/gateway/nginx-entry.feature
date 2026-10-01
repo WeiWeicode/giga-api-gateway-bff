@@ -52,12 +52,12 @@
     那麼 回應不包含 "Server" 版本與 "X-Powered-By" 標頭
     而且 回應包含 "X-Content-Type-Options: nosniff"
 
+  # PRD v0.10(2026-10-01)暫停 Nginx 限流:原「1 分鐘內第 6 次呼叫登入 API 回 429 RATE_LIMITED」
   @security
-  場景: 登入 API 套用較嚴格的來源 IP 限流
+  場景: 登入 API 不受 Nginx 限流
     假如 同一來源 IP 在 1 分鐘內已呼叫 "/api/auth/login" 5 次
     當 該 IP 再次呼叫 "/api/auth/login"
-    那麼 回應狀態為 429
-    而且 回應 code 為 "RATE_LIMITED"
+    那麼 回應不是 Nginx 的 429 "RATE_LIMITED"
 
   場景: 通知 WebSocket 可長時間維持
     假如 使用者已登入

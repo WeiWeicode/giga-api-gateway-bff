@@ -199,9 +199,9 @@ flowchart LR
 
 | 依賴來源 IP 的功能 | 位置 | 所有連線變成同一個 IP 時 |
 | --- | --- | --- |
-| 全站限流 `gw_ip`(50 r/s,burst 100) | `nginx/nginx.conf`、`nginx/conf.d/portal.conf`(`:443` server 層) | 全公司共用一份額度,尖峰時 SPA 與 API 回 429 |
-| 登入 / 註冊 / 密碼 API 限流 `gw_auth`(`GW_AUTH_RATE`,預設 5 r/m,burst 4) | `nginx/templates/00-env.conf.template`、`portal.conf` | 全公司每分鐘約只能登入 5 次,上班時段大量 429 |
-| BFF 登入失敗 IP 計數(15 分鐘 50 次,`LOGIN_FAIL_IP_LIMIT`) | `bff/src/modules/auth/login.ts` | 任何人累計輸錯 50 次,所有人 15 分鐘內都無法登入 |
+| ~~全站限流 `gw_ip`(50 r/s,burst 100)~~ | `nginx/nginx.conf`、`nginx/conf.d/portal.conf`(`:443` server 層) | **已取消(2026-10-01,PRD v0.10)**:Nginx 不再做請求限流 |
+| ~~登入 / 註冊 / 密碼 API 限流 `gw_auth`(`GW_AUTH_RATE`,預設 5 r/m,burst 4)~~ | `nginx/templates/00-env.conf.template`、`portal.conf` | **已取消(2026-10-01,PRD v0.10)**:`GW_AUTH_RATE` 一併移除 |
+| ~~BFF 登入失敗 IP 計數(15 分鐘 50 次,`LOGIN_FAIL_IP_LIMIT`)~~ | `bff/src/modules/auth/login.ts` | **已取消(2026-10-01,PRD v0.10)**:連同同帳號 15 分鐘 5 次暫停一起取消 |
 | ~~Agent 同時串流數 `limit_conn agent_conn 10`~~ | `nginx/nginx.conf` | **已處理(2026-09-25)**:改以裝置憑證指紋(`$ssl_client_fingerprint`)計算,每張憑證 10 條,不受來源 IP 影響。原本以 IP 計算時,200 台 Agent 會共用 10 條連線,其餘回 429 |
 | Webhook IP 白名單(PRD §7.5) | `nginx/allowlists/<區域>/webhook-sources.conf` | 來源主機 IP 永遠比對不到,一律 403;若為此加入閘道 IP,等於對所有來源開放 |
 | 內網服務白名單(JWKS、`/readyz`、`/docs`、`/metrics`) | `nginx/allowlists/<區域>/internal-services.conf` | 同上:只能全部拒絕或全部放行 |

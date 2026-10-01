@@ -322,7 +322,7 @@ erDiagram
 | `gw:rt:{familyId}` | Hash | 8h / 7d | Refresh Token 家族:目前 RT 雜湊、userId、裝置資訊 |
 | `gw:user:rt:{userId}` | Set | 同上 | 使用者所有 RT 家族(強制登出用) |
 | `gw:deny:{jti}` | String | Access Token 剩餘效期 | 已撤銷 Access Token |
-| `gw:login:fail:{user}` / `gw:login:fail:ip:{ip}` | Counter | 15 分 | 登入失敗限流 |
+| ~~`gw:login:fail:{user}` / `gw:login:fail:ip:{ip}`~~ | Counter | 15 分 | 登入失敗限流(2026-10-01 暫停,不再寫入;PRD v0.10) |
 | `gw:rl:{policy}:{key}` | Sorted Set | 視窗秒數 | 滑動視窗限流 |
 | `gw:cache:{routeCode}:{hash}` | String | `cache_ttl_sec` | GET 回應快取 |
 | `gw:cb:{upstreamCode}` | Hash | 30 秒 | 斷路器狀態 |

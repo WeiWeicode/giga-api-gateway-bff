@@ -8,10 +8,10 @@
  *              → 公司無網域或所有網域都查無 → ACCOUNT_NOT_REGISTERED(舊單一入口遷移 W3-4.16 待 P-15 就緒後接入)
  *   AD 找得到帳號但密碼錯誤 → 繼續試下一個網域(舊網域失敗改試新網域),全部失敗回 INVALID_CREDENTIALS
  *
- * 限流(DATABASE.md §6):gw:login:fail:{user} 15 分內 5 次即暫停,不再向 AD 送出驗證,避免 AD 帳號被鎖。
+ * 登入失敗不暫停(2026-10-01 取消 LOGIN_THROTTLED 與 Nginx 登入限流):輸錯密碼一律送 AD 驗證,
+ * 連續輸錯由 AD 自身的鎖定原則處理;本機帳號仍為 10 次失敗鎖定。
  */
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import type { Redis } from 'ioredis';
 import type { GwDatabase } from '../../db/client.js';
 import { authLog, company, companyAdDomain, localCredential, user, userCompany } from '../../db/schema/index.js';
 import type { ErrorCode } from '../../errors.js';
@@ -20,9 +20,6 @@ import type { AdAuthResult, AdDirectory } from './ldap.js';
 import { verifyPassword } from './password.js';
 import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo, type EmployeeLookup } from './profile.js';
 
-export const LOGIN_FAIL_LIMIT = 5;
-export const LOGIN_FAIL_WINDOW_SEC = 15 * 60;
-export const LOGIN_FAIL_IP_LIMIT = 50;
 export const LOCAL_LOCK_THRESHOLD = 10;
 
 export type LoginResult =
@@ -36,9 +33,6 @@ export interface LoginInput {
   ip: string;
   userAgent?: string;
 }
-
-export const failUserKey = (emp: string) => `gw:login:fail:${emp}`;
-export const failIpKey = (ip: string) => `gw:login:fail:ip:${ip}`;
 
 export function parseUsername(raw: string): { account: string; domainHint?: string } {
   const v = raw.trim();
@@ -69,7 +63,6 @@ export async function writeAuthLog(
 export class LoginService {
   constructor(
     private readonly db: GwDatabase,
-    private readonly redis: Redis,
     private readonly ad: AdDirectory,
     private readonly ext: { bpm?: ExternalDb; los?: ExternalDb },
     private readonly log: { warn: (o: object, msg: string) => void; info: (o: object, msg: string) => void },
@@ -78,37 +71,31 @@ export class LoginService {
   async login(input: LoginInput): Promise<LoginResult> {
     const { account, domainHint } = parseUsername(input.username);
     const emp = normalizeEmpNo(account);
-    if (!isValidEmpNo(emp) || !input.password) return this.fail(input, isValidEmpNo(emp) ? emp : '', null, 'INVALID_CREDENTIALS', 'invalid input');
-
-    const [userFails, ipFails] = await this.redis.mget(failUserKey(emp), failIpKey(input.ip)).catch(() => [null, null]);
-    if (Number(userFails) >= LOGIN_FAIL_LIMIT || Number(ipFails) >= LOGIN_FAIL_IP_LIMIT) {
-      await writeAuthLog(this.db, { username: input.username, event: 'login_fail', reason: 'throttled', ip: input.ip, userAgent: input.userAgent });
-      return { kind: 'fail', code: 'LOGIN_THROTTLED', reason: 'throttled' };
-    }
+    if (!isValidEmpNo(emp) || !input.password) return this.fail(input, null, 'INVALID_CREDENTIALS', 'invalid input');
 
     if (domainHint) {
       const code = this.ad.resolve(domainHint);
-      if (!code) return this.fail(input, emp, null, 'INVALID_CREDENTIALS', `unknown domain ${domainHint}`);
+      if (!code) return this.fail(input, null, 'INVALID_CREDENTIALS', `unknown domain ${domainHint}`);
       return this.tryDomains(input, emp, [code], null);
     }
 
     const [u] = await this.db.select({ userId: user.userId, isVirtual: user.isVirtual }).from(user).where(eq(user.employeeNo, emp));
-    if (u?.isVirtual) return this.fail(input, emp, u.userId, 'INVALID_CREDENTIALS', 'virtual account');
+    if (u?.isVirtual) return this.fail(input, u.userId, 'INVALID_CREDENTIALS', 'virtual account');
 
     if (u) {
       const [cred] = await this.db.select().from(localCredential).where(eq(localCredential.userId, u.userId));
-      if (cred && cred.status !== 'disabled') return this.loginLocal(input, emp, u.userId, cred);
+      if (cred && cred.status !== 'disabled') return this.loginLocal(input, u.userId, cred);
     }
 
     // 尚未同步的工號:先補查 LOS / BPM,判斷兼任帳號與所屬公司(結果沿用到登入成功後寫入)
     const lookup = u ? null : await lookupEmployee(this.ext, emp);
-    if (lookup?.selfVirtual) return this.fail(input, emp, null, 'INVALID_CREDENTIALS', 'virtual account');
+    if (lookup?.selfVirtual) return this.fail(input, null, 'INVALID_CREDENTIALS', 'virtual account');
     const domains = u
       ? await this.domainsForUser(u.userId)
       : await this.domainsForCompanies(lookup ? mergeProfile(lookup).companies.map((c) => c.compName) : []);
     if (domains && domains.length === 0) {
       // 所屬公司沒有 AD 網域,也沒有本機帳號
-      return this.fail(input, emp, u?.userId ?? null, 'ACCOUNT_NOT_REGISTERED', 'company has no domain', false);
+      return this.fail(input, u?.userId ?? null, 'ACCOUNT_NOT_REGISTERED', 'company has no domain');
     }
     return this.tryDomains(input, emp, domains ?? this.ad.codes, lookup);
   }
@@ -147,16 +134,16 @@ export class LoginService {
     for (const code of domains) {
       const r: AdAuthResult = await this.ad.authenticate(code, emp, input.password);
       if (r.kind === 'ok') return this.onAdSuccess(input, r, lookup);
-      if (r.kind === 'rejected') return this.fail(input, emp, null, r.code, `ad ${code} ${r.code}`, r.code !== 'ACCOUNT_DISABLED');
+      if (r.kind === 'rejected') return this.fail(input, null, r.code, `ad ${code} ${r.code}`);
       if (r.kind === 'bad_password') badPassword = true;
       if (r.kind === 'unavailable') {
         unavailable = `${code}: ${r.error}`;
         this.log.warn({ domain: code, err: r.error }, 'AD 網域無法連線');
       }
     }
-    if (badPassword) return this.fail(input, emp, null, 'INVALID_CREDENTIALS', 'bad password');
+    if (badPassword) return this.fail(input, null, 'INVALID_CREDENTIALS', 'bad password');
     if (unavailable) return { kind: 'fail', code: 'UPSTREAM_UNAVAILABLE', reason: unavailable };
-    return this.fail(input, emp, null, 'ACCOUNT_NOT_REGISTERED', 'not found in any domain', false);
+    return this.fail(input, null, 'ACCOUNT_NOT_REGISTERED', 'not found in any domain');
   }
 
   private async onAdSuccess(input: LoginInput, r: Extract<AdAuthResult, { kind: 'ok' }>, prior: EmployeeLookup | null): Promise<LoginResult> {
@@ -215,14 +202,13 @@ export class LoginService {
       return cur.userId;
     });
 
-    if (u!.isDisabled) return this.fail(input, emp, userId, 'ACCOUNT_DISABLED', 'gateway disabled', false);
-    await this.redis.del(failUserKey(emp)).catch(() => undefined);
+    if (u!.isDisabled) return this.fail(input, userId, 'ACCOUNT_DISABLED', 'gateway disabled');
     return { kind: 'ok', userId, amr: 'ad' };
   }
 
-  private async loginLocal(input: LoginInput, emp: string, userId: number, cred: typeof localCredential.$inferSelect): Promise<LoginResult> {
-    if (cred.status === 'locked') return this.fail(input, emp, userId, 'ACCOUNT_LOCKED', 'locked', false, 'local');
-    if (cred.status !== 'active') return this.fail(input, emp, userId, 'ACCOUNT_NOT_REGISTERED', `local ${cred.status}`, false, 'local');
+  private async loginLocal(input: LoginInput, userId: number, cred: typeof localCredential.$inferSelect): Promise<LoginResult> {
+    if (cred.status === 'locked') return this.fail(input, userId, 'ACCOUNT_LOCKED', 'locked', 'local');
+    if (cred.status !== 'active') return this.fail(input, userId, 'ACCOUNT_NOT_REGISTERED', `local ${cred.status}`, 'local');
 
     if (!(await verifyPassword(cred.passwordHash, input.password))) {
       const failed = cred.failedCount + 1;
@@ -240,15 +226,14 @@ export class LoginService {
           ip: input.ip,
           userAgent: input.userAgent,
         });
-      return this.fail(input, emp, userId, 'INVALID_CREDENTIALS', `bad password (${failed})`, true, 'local');
+      return this.fail(input, userId, 'INVALID_CREDENTIALS', `bad password (${failed})`, 'local');
     }
 
     const [u] = await this.db.select({ isDisabled: user.isDisabled }).from(user).where(eq(user.userId, userId));
-    if (u?.isDisabled) return this.fail(input, emp, userId, 'ACCOUNT_DISABLED', 'gateway disabled', false, 'local');
+    if (u?.isDisabled) return this.fail(input, userId, 'ACCOUNT_DISABLED', 'gateway disabled', 'local');
 
     await this.db.update(localCredential).set({ failedCount: 0, updatedBy: 'login' }).where(eq(localCredential.userId, userId));
     await this.db.update(user).set({ authType: 'local', lastLoginAt: new Date(), lastLoginIp: input.ip, updatedBy: 'login' }).where(eq(user.userId, userId));
-    await this.redis.del(failUserKey(emp)).catch(() => undefined);
     await writeAuthLog(this.db, {
       username: input.username,
       userId,
@@ -263,23 +248,11 @@ export class LoginService {
 
   private async fail(
     input: LoginInput,
-    emp: string,
     userId: number | null,
     code: ErrorCode,
     reason: string,
-    countFailure = true,
     authMethod: 'ad' | 'local' | null = null,
   ): Promise<LoginResult> {
-    if (countFailure && emp) {
-      await this.redis
-        .multi()
-        .incr(failUserKey(emp))
-        .expire(failUserKey(emp), LOGIN_FAIL_WINDOW_SEC, 'NX')
-        .incr(failIpKey(input.ip))
-        .expire(failIpKey(input.ip), LOGIN_FAIL_WINDOW_SEC, 'NX')
-        .exec()
-        .catch(() => undefined);
-    }
     await writeAuthLog(this.db, {
       username: input.username,
       userId,

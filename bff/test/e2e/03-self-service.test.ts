@@ -5,7 +5,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cleanupE2E, cli, closeAll, EMP_PREFIX, login, PASSWORD, query, redisCli, redisDelPattern, Session, sleep, waitFor } from './gw.js';
+import { cleanupE2E, cli, closeAll, EMP_PREFIX, login, PASSWORD, query, redisCli, redisDelPattern, Session, waitFor } from './gw.js';
 
 const EMP = `${EMP_PREFIX}B1`;
 const NEW_PW = 'E2eReset2026';
@@ -17,7 +17,7 @@ afterAll(async () => {
 });
 
 const register = (body: Record<string, unknown>) => new Session().post('/api/auth/register', body);
-const forgot = (employeeNo: string, noRetry = false) => new Session().post('/api/auth/password/forgot', { employeeNo }, { noRetry });
+const forgot = (employeeNo: string) => new Session().post('/api/auth/password/forgot', { employeeNo });
 
 describe('自行註冊', () => {
   it('AD 已有帳號的工號 → REGISTRATION_NOT_ALLOWED(訊息不說明原因)', async () => {
@@ -120,17 +120,10 @@ describe('忘記 / 重設密碼', () => {
     const key = (await redisCli('--scan', '--pattern', 'gw:reg:ip:*')).split('\n')[0]!;
     expect(key).toMatch(/^gw:reg:ip:/);
     await redisCli('SET', key, '10', 'EX', '3600');
-    // Nginx 也會對同一路徑限流(回應相同),以 BFF 計數器是否增加判斷請求確實到達 BFF
-    for (let i = 0; ; i++) {
-      const res = await forgot(`${EMP_PREFIX}RL1`, true);
-      if ((await redisCli('GET', key)) === '11') {
-        expect(res.status).toBe(429);
-        expect(res.json.code).toBe('RATE_LIMITED');
-        break;
-      }
-      if (i > 10) throw new Error('請求一直被 Nginx 限流');
-      await sleep(13_000);
-    }
+    const res = await forgot(`${EMP_PREFIX}RL1`);
+    expect(res.status).toBe(429);
+    expect(res.json.code).toBe('RATE_LIMITED');
+    expect(await redisCli('GET', key)).toBe('11');
     await redisDelPattern('gw:reg:*');
   });
 });

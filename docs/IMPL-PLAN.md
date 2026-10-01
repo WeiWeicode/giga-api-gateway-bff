@@ -127,7 +127,7 @@
 | W3-2.3 | SPA 託管:`/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`,History 模式、快取標頭、gzip;`/srv/www/<app>/current` symlink 結構 | PRD §7.2 | 各路徑以範例 SPA 驗證 |
 | W3-2.3a | 前端部署 CI 範本:建置 SPA 映像檔、以一次性容器發佈到 `gw_www` volume、原子切換 `current`、保留 5 版、手動回滾 job | PRD §7.2.3、[DEPLOYMENT.md](DEPLOYMENT.md) §3.4 | `ci-templates/spa-deploy.yml` |
 | W3-2.4 | `/api/` → `bff_upstream`(keepalive);清除 `X-Internal-*`、`X-User-*`;body 大小、逾時 | PRD §7.3 | |
-| W3-2.5 | 第一道限流:全域 IP 限流;`/api/auth/login` 嚴格限流 | PRD §7.3 | |
+| W3-2.5 | 第一道限流:全域 IP 限流;`/api/auth/login` 嚴格限流 | PRD §7.3 | 2026-10-01 暫停(PRD v0.10) |
 | W3-2.6 | WebSocket:`/ws/notify` → BFF;`/ws/endpoint/*` → Endpoint Server + `auth_request /_auth/verify`(BFF 端先以 stub 回 204) | PRD §7.4 | |
 | W3-2.7 | `/webhook/{source}`:IP 白名單 → BFF | PRD §7.5 | |
 | W3-2.8 | nginx-prometheus-exporter | PRD §7.7 | Prometheus 可抓到指標 |
@@ -155,7 +155,7 @@
 | --- | --- | --- | --- |
 | W3-4.1 | Plugins:`db`(Drizzle + mssql 連線池)、`redis`(ioredis)、`metrics`、請求 ID、pino 日誌 | [TECH-STACK.md](TECH-STACK.md) §2 | `bff/src/plugins/*` |
 | W3-4.2 | LDAP:**多網域設定**(PRD Q11)、服務帳號 bind → 搜尋 → 使用者 bind → 巢狀群組查詢;三種帳號格式與「碩禾 → 碩禾_新」嘗試順序;錯誤代碼 | PRD §8.2.1、[REFERENCES.md](REFERENCES.md) §1.3 | `modules/auth/ldap.ts` |
-| W3-4.3 | 登入失敗限流(帳號 + IP) | PRD §8.2.1 | |
+| W3-4.3 | 登入失敗限流(帳號 + IP) | PRD §8.2.1 | 2026-10-01 暫停(PRD v0.10) |
 | W3-4.4 | JWT(ES256、`kid` 輪替)、`gn_at` / `gn_rt` / `gn_csrf` Cookie、CSRF 檢查;「記住我」7 天(僅公司內網來源 IP) | PRD §8.2.2 | |
 | W3-4.5 | Refresh Token Rotation + 重用偵測;登出(RT 家族刪除、`jti` 黑名單) | PRD §8.2.2 | |
 | W3-4.6 | `gw.user` upsert(以工號對應)、AD 群組 → 角色對應、`perm_version` | [DATABASE.md](DATABASE.md) §3 | |

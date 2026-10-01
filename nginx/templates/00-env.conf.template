@@ -1,9 +1,6 @@
 # 由 nginx 官方映像的 envsubst 於容器啟動時產生 /etc/nginx/conf.d/00-env.conf。
 # 同一個映像檔在測試區 / 正式區以環境變數區分(DEPLOYMENT.md §2:正式區使用測試區測過的同一個映像檔)。
 
-# 登入 / 註冊 / 密碼 API 的 IP 限流(PRD §7.3:例如 5 r/min)
-limit_req_zone $binary_remote_addr zone=gw_auth:10m rate=${GW_AUTH_RATE};
-
 # Endpoint Server(W6):WebSocket 串流與 Agent gRPC;以變數指定,尚未部署時 Nginx 仍可啟動
 map $host $endpoint_ws_upstream   { default "${ENDPOINT_WS_UPSTREAM}"; }
 map $host $endpoint_grpc_upstream { default "${ENDPOINT_GRPC_UPSTREAM}"; }

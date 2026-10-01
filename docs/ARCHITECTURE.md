@@ -64,7 +64,7 @@ flowchart LR
 | --- | --- | --- | --- | --- | --- |
 | T1 | SPA 靜態檔 | `<gateway-host>/`、`/mes/`、`/hrm/`、`/fms/`、`/it/`、`/bi/`(新系統依 PRD §7.2.1 登記子路徑) | Nginx | 本機靜態目錄 `/srv/www/<app>/current` | 無(未登入由 SPA 導向 `/login`) |
 | T2 | 業務 API | `<gateway-host>/api/{system}/...` | Nginx → BFF | 依路由表轉上游 | JWT Cookie + RBAC |
-| T3 | 認證 API | `<gateway-host>/api/auth/*`(登入、註冊、忘記密碼) | Nginx(嚴格限流)→ BFF | BFF 本身 | 登入前免驗證 |
+| T3 | 認證 API | `<gateway-host>/api/auth/*`(登入、註冊、忘記密碼) | Nginx → BFF | BFF 本身 | 登入前免驗證 |
 | T4 | 管理 API | `<gateway-host>/api/admin/*` | Nginx → BFF | BFF 本身 | JWT + `gw.admin.*` 權限 |
 | T5 | 通知 WebSocket | `<gateway-host>/ws/notify` | Nginx → BFF | BFF | Cookie(握手時驗) |
 | T6 | 串流 WebSocket(螢幕串流等大流量) | `<gateway-host>/ws/endpoint/*` | Nginx(`auth_request` 問 BFF)→ | Endpoint Server(RustIt) | Cookie → BFF 驗證後放行 |

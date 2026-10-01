@@ -74,7 +74,7 @@ export default fp<{ config: AppConfig }>(
     app.decorate('ad', ad);
     app.decorate('perms', perms);
     app.decorate('sessions', new SessionService(app.redis, keys, config.cookieSecure));
-    app.decorate('logins', new LoginService(app.db, app.redis, ad, app.ext, app.log));
+    app.decorate('logins', new LoginService(app.db, ad, app.ext, app.log));
 
     const internal = buildBlockList(config.internalNetworks);
     app.decorate('isInternalIp', (ip: string) => {

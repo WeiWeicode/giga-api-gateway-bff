@@ -11,7 +11,6 @@ let admin: ReturnType<typeof apiKeyCall>;
 let companyId = 0;
 
 const detail = async (ref = EMP) => (await admin('GET', `/api/admin/users/${ref}`)).json;
-const clearFails = () => redisDelPattern(`gw:login:fail:*${EMP_PREFIX}U*`);
 
 beforeAll(async () => {
   await cleanupE2E();
@@ -89,7 +88,6 @@ describe('使用者', () => {
     expect(off.json.isDisabled).toBe(true);
     expect((await login(EMP)).res.json.code).toBe('ACCOUNT_DISABLED');
     await admin('PATCH', `/api/admin/users/${EMP}`, { rowVer: (await detail()).rowVer, isDisabled: false });
-    await clearFails();
     expect((await login(EMP)).res.status).toBe(200);
   });
 });
@@ -127,7 +125,6 @@ describe('公司', () => {
   it('公司預設角色:成員權限版本遞增,換發後帶公司角色;舊 rowVer 409', async () => {
     // 先移除個別指派,確認角色來自公司
     await admin('PATCH', `/api/admin/users/${EMP}`, { rowVer: (await detail()).rowVer, roles: [] });
-    await clearFails();
     const { s } = await login(EMP);
     const before = await company();
     const res = await admin('PUT', `/api/admin/companies/${companyId}/roles`, { rowVer: before.rowVer, roles: ['e2e-low'] });
@@ -166,7 +163,6 @@ describe('本機帳號', () => {
   it('IT 重設密碼:臨時密碼登入須先變更密碼', async () => {
     const res = await admin('POST', `/api/admin/local-accounts/${EMP}/reset-password`);
     expect(res.json.mustChangePassword).toBe(true);
-    await clearFails();
     expect((await login(EMP, res.json.temporaryPassword)).res.json.code).toBe('PASSWORD_CHANGE_REQUIRED');
   });
 
@@ -185,7 +181,6 @@ describe('本機帳號', () => {
     const res = await admin('POST', `/api/admin/local-accounts/${EMP}/disable`);
     expect(res.status).toBe(200);
     expect((await detail()).localAccount.status).toBe('disabled');
-    await clearFails();
     expect((await login(EMP)).res.status).toBe(401);
     expect((await admin('POST', `/api/admin/local-accounts/${EMP}/disable`)).status).toBe(400);
   });

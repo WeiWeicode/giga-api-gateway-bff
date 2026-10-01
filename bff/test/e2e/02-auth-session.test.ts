@@ -4,7 +4,7 @@
  */
 import { decodeJwt, decodeProtectedHeader } from 'jose';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cleanupE2E, cli, closeAll, createLocalUser, EMP_PREFIX, login, PASSWORD, query, redisDelPattern, Session } from './gw.js';
+import { cleanupE2E, cli, closeAll, createLocalUser, EMP_PREFIX, login, PASSWORD, query, Session } from './gw.js';
 
 const EMP = `${EMP_PREFIX}A1`;
 const PW2 = 'E2eNext2026';
@@ -18,7 +18,6 @@ afterAll(async () => {
   await closeAll();
 });
 
-const clearFails = () => redisDelPattern(`gw:login:fail:*${EMP}`);
 const cred = async () =>
   (
     await query<{ status: string; failed_count: number; password_history: string | null }>(
@@ -40,20 +39,16 @@ describe('本機帳號登入與 me', () => {
   });
 
   it('密碼錯誤與帳號不存在回同一代碼', async () => {
-    await clearFails();
     expect((await login(EMP, 'Wrong12345')).res.json.code).toBe('INVALID_CREDENTIALS');
     // 不存在的工號:所屬公司無網域 → 引導註冊
     expect((await login(`${EMP_PREFIX}NONE`)).res.json.code).toMatch(/INVALID_CREDENTIALS|ACCOUNT_NOT_REGISTERED/);
-    await clearFails();
   });
 
   it('連續 10 次失敗鎖定;鎖定後正確密碼也回 ACCOUNT_LOCKED;IT 解鎖後恢復', async () => {
-    // 測試區登入有 Nginx 限流(5r/m),先把失敗次數設為 9 次,再以 1 次失敗觸發鎖定
+    // 先把失敗次數設為 9 次,再以 1 次失敗觸發鎖定
     await query('UPDATE c SET failed_count = 9 FROM gw.local_credential c JOIN gw.[user] u ON u.user_id = c.user_id WHERE u.employee_no = @e', { e: EMP });
-    await clearFails();
     expect((await login(EMP, 'Wrong12345')).res.json.code).toBe('INVALID_CREDENTIALS');
     expect((await cred()).status).toBe('locked');
-    await clearFails();
     expect((await login(EMP)).res.json.code).toBe('ACCOUNT_LOCKED');
     const [log] = await query("SELECT COUNT(*) AS n FROM gw.auth_log WHERE username = @e AND event = 'account_locked'", { e: EMP });
     expect(log.n).toBeGreaterThanOrEqual(1);

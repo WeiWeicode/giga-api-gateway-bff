@@ -159,7 +159,7 @@ $IT run --rm --build spa-it
 
 | 狀況 | 原因 / 處理 |
 | --- | --- |
-| 登入頁一直 429 | 確認 Traefik 工作 `GigaNexus-Traefik` 在執行、Nginx log 的 `remote_addr` 是使用者 IP(步驟 1);Traefik 異常時可執行 `C:\traefik\rollback.ps1` 暫時還原 portproxy |
+| 註冊 / 忘記密碼一直 429 | BFF 註冊限流以來源 IP 計數(Nginx 限流已於 2026-10-01 取消):確認 Traefik 工作 `GigaNexus-Traefik` 在執行、Nginx log 的 `remote_addr` 是使用者 IP(步驟 1);Traefik 異常時可執行 `C:\traefik\rollback.ps1` 暫時還原 portproxy |
 | 登入後「沒有員工入口網使用權限」 | 步驟 7 的權限尚未套用,或套用後尚未重新整理 |
 | `bff-1` 起不來 | `docker logs giganexus-gw-bff-1-1`:多為缺密碼檔、`ldap-domains.json` 網域沒有對應密碼、資料庫連不上 |
 | `/it/` 讀 BFF 失敗 | `itapp.env` 的 `GW_CA_CERT` 未指向步驟 4 的 `ca.crt`,或服務帳號沒有權限 |

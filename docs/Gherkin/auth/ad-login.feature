@@ -41,13 +41,13 @@
     而且 回應 code 為 "INVALID_CREDENTIALS"
     而且 "gw.auth_log" 新增一筆 event 為 "login_fail" 的紀錄
 
+  # PRD v0.10(2026-10-01)暫停登入失敗限流:原「同帳號 15 分鐘內失敗 5 次回 LOGIN_THROTTLED」
   @security
-  場景: 同帳號 15 分鐘內失敗 5 次即暫停嘗試,避免 AD 帳號被鎖
+  場景: 連續輸錯密碼不暫停嘗試
     假如 "S112009" 在 15 分鐘內已登入失敗 5 次
-    當 使用者再以帳號 "S112009" 登入
-    那麼 回應狀態為 429
-    而且 回應 code 為 "LOGIN_THROTTLED"
-    而且 BFF 不會再向 AD 送出驗證
+    當 使用者再以帳號 "S112009" 與錯誤密碼登入
+    那麼 回應 code 為 "INVALID_CREDENTIALS"
+    而且 BFF 仍向 AD 送出驗證
 
   場景: 登入時同步 AD 群組並對應角色
     假如 "S112009" 屬於 AD 群組 "GN-MES-Operators"

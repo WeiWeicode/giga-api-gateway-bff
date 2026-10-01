@@ -7,9 +7,8 @@ COPY snippets/ /etc/nginx/snippets/
 COPY conf.d/ /etc/nginx/conf.d/
 COPY allowlists/ /etc/nginx/allowlists/
 COPY templates/ /etc/nginx/templates/
-# 部署區預設(可由 compose 覆寫);登入限流 PRD §7.3:5 r/min
+# 部署區預設(可由 compose 覆寫)
 ENV GW_ENV=prod \
-    GW_AUTH_RATE=5r/m \
     ENDPOINT_WS_UPSTREAM=endpoint-server:51240 \
     ENDPOINT_GRPC_UPSTREAM=endpoint-server:51241 \
     ITAPP_API_UPSTREAM=itapp-api:51291 \

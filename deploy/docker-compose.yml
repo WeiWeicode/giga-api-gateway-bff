@@ -73,7 +73,6 @@ services:
     restart: unless-stopped
     environment:
       GW_ENV: ${GW_ENV}
-      GW_AUTH_RATE: ${GW_AUTH_RATE:-5r/m}
       ENDPOINT_WS_UPSTREAM: ${ENDPOINT_WS_UPSTREAM:-endpoint-server:51240}
       ENDPOINT_GRPC_UPSTREAM: ${ENDPOINT_GRPC_UPSTREAM:-endpoint-server:51241}
       ITAPP_API_UPSTREAM: ${ITAPP_API_UPSTREAM:-itapp-api:51291}

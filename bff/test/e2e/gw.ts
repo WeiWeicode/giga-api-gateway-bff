@@ -58,24 +58,7 @@ export class Session {
     return this.cookies.get('gn_csrf')?.value;
   }
 
-  /**
-   * 送出請求。/api/auth/login|register|password 有 Nginx 限流(測試區 5r/m、burst 4),遇到 429 RATE_LIMITED 稍候重試;
-   * 驗證限流本身的測試以 noRetry 關閉。
-   */
-  async request(
-    method: string,
-    path: string,
-    opts: { body?: unknown; headers?: Record<string, string>; csrf?: boolean; noRetry?: boolean } = {},
-  ): Promise<Res> {
-    for (let attempt = 0; ; attempt++) {
-      const res = await this.send(method, path, opts);
-      const nginxLimited = res.status === 429 && res.json?.code === 'RATE_LIMITED' && /^\/api\/auth\/(login|register|password\/)/.test(path);
-      if (opts.noRetry || !nginxLimited || attempt >= 20) return res;
-      await sleep(4_000);
-    }
-  }
-
-  private async send(method: string, path: string, opts: { body?: unknown; headers?: Record<string, string>; csrf?: boolean }): Promise<Res> {
+  async request(method: string, path: string, opts: { body?: unknown; headers?: Record<string, string>; csrf?: boolean } = {}): Promise<Res> {
     const headers: Record<string, string> = { accept: 'application/json', ...opts.headers };
     const cookie = this.cookieHeader(path.split('?')[0]!);
     if (cookie) headers.cookie = cookie;
@@ -100,8 +83,7 @@ export class Session {
   }
 
   get = (path: string, headers?: Record<string, string>) => this.request('GET', path, { headers });
-  post = (path: string, body?: unknown, opts: { headers?: Record<string, string>; csrf?: boolean; noRetry?: boolean } = {}) =>
-    this.request('POST', path, { ...opts, body });
+  post = (path: string, body?: unknown, opts: { headers?: Record<string, string>; csrf?: boolean } = {}) => this.request('POST', path, { ...opts, body });
 }
 
 /** 不帶 Cookie、以 API Key 呼叫 */

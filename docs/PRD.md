@@ -9,7 +9,7 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.9**(2026-10-01) |
+| 文件版本 | **v0.10**(2026-10-01) |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / WebSocket / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
@@ -30,6 +30,7 @@
 | v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
 | v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
+| v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
 
 ---
 
@@ -177,8 +178,7 @@
 - 保留原始 `Host`、`X-Forwarded-For`、`X-Forwarded-Proto`、`X-Request-Id`;**清除用戶端送入的 `X-Internal-*`、`X-User-*` 標頭**,避免偽造。
 - 請求大小上限:預設 `client_max_body_size 10m`;檔案上傳路由(如 `/api/files/`)另設上限。
 - 逾時:`proxy_connect_timeout 3s`、`proxy_read_timeout 60s`(長報表路由可於 BFF 層細調)。
-- 第一道限流:`limit_req_zone` 以 IP 為鍵(例如 50 r/s,burst 100),防止單一來源灌爆;細緻限流由 BFF 依路由表執行。
-- `/api/auth/login`、`/api/auth/register*`、`/api/auth/password/*` 另設較嚴格 IP 限流(例如 5 r/min),保護 AD 帳號不被鎖定、防止註冊與重設密碼被濫用。
+- 限流:**v0.10 起 Nginx 不做請求限流**(2026-10-01 暫停,需求方決定)。原設計為全站 `limit_req_zone` 以 IP 為鍵(50 r/s,burst 100),`/api/auth/login`、`/api/auth/register*`、`/api/auth/password/*` 另設 5 r/min;恢復時 revert 該次變更(見 `docs/DevelopmentProcess/BackendCorrection.md` 2026-10-01)。細緻限流由 BFF 依路由表執行,註冊與忘記密碼仍有 BFF 限流(§8.2.5)。
 
 ### 7.4 WebSocket
 
@@ -264,7 +264,7 @@ sequenceDiagram
 | `IP_NOT_ALLOWED` | 403 | Nginx | Webhook 等限定來源的路徑,來源 IP 不在白名單 | — |
 | `ROUTE_NOT_FOUND` | 404 | BFF | 路由表中沒有對應的已發佈路由 | 顯示找不到資源 |
 | `PAYLOAD_TOO_LARGE` | 413 | Nginx / BFF | 請求超過大小上限(預設 10 MB) | 提示檔案過大 |
-| `RATE_LIMITED` | 429 | Nginx / BFF | 入口 IP 限流、路由限流、註冊與忘記密碼限流 | 提示稍後再試,不自動重試 |
+| `RATE_LIMITED` | 429 | BFF | 路由限流、註冊與忘記密碼限流(Nginx 入口 IP 限流 v0.10 暫停) | 提示稍後再試,不自動重試 |
 | `INTERNAL_ERROR` | 500 | BFF / 後端 | 非預期錯誤(不含堆疊或 SQL) | 顯示錯誤並附 `requestId` |
 | `UPSTREAM_ERROR` | 502 | BFF | 上游回 5xx、上游回 401(視為設定錯誤並告警)、聚合路由的必要步驟失敗 | 顯示系統暫時無法使用 |
 | `UPSTREAM_UNAVAILABLE` | 503 | BFF | 斷路器開啟,或上游沒有健康的實例 | 同上 |
@@ -281,7 +281,7 @@ sequenceDiagram
 | `ACCOUNT_LOCKED` | 401 | 本機帳號連續失敗 10 次已鎖定 | 引導忘記密碼或聯絡 IT |
 | `ACCOUNT_DISABLED` | 403 | Gateway 停用,或 AD 帳號已停用 | 顯示「帳號已停用,請聯絡 IT」 |
 | `AD_PASSWORD_EXPIRED` | 401 | AD 密碼已過期或須於下次登入時變更 | 提示至 Windows 變更 AD 密碼 |
-| `LOGIN_THROTTLED` | 429 | 同帳號 15 分鐘內失敗 5 次,暫停嘗試 | 提示 15 分鐘後再試 |
+| `LOGIN_THROTTLED` | 429 | **v0.10 暫停,目前不會回傳**(原為同帳號 15 分鐘內失敗 5 次,暫停嘗試) | 提示 15 分鐘後再試 |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | 舊單一入口帳號首次登入,或 IT 代建 / 重設後首次登入;回應只附 10 分鐘有效的限定憑證 | 導向設定新密碼畫面 |
 | `REFRESH_TOKEN_INVALID` | 401 | Refresh Token 過期、已撤銷,或偵測到重複使用(整個家族已撤銷) | 導向 `/login` |
 | `PASSWORD_POLICY_VIOLATION` | 400 | 新密碼不符政策(少於 8 碼、未英數混合、包含工號);`details` 列出未符合的規則 | 顯示規則 |
@@ -333,7 +333,6 @@ sequenceDiagram
     participant S as SQL Server(giganexus_gw)
     participant HR as BPM / LOS(人事資料,唯讀)
     U->>B: POST {username, password}
-    B->>B: 限流檢查(帳號+IP 失敗次數)
     B->>AD: 服務帳號 bind → 搜尋使用者(sAMAccountName / UPN)
     B->>AD: 以使用者 DN + 密碼 bind(驗證密碼)
     B->>AD: 查詢巢狀群組(memberOf:1.2.840.113556.1.4.1941)
@@ -354,7 +353,7 @@ sequenceDiagram
 - 帳號格式:接受 `sAMAccountName`、`DOMAIN\user`、`user@domain`。帶網域者直接到該網域驗證;只輸入工號時,先看是否有本機帳號,再依**工號字首對應的公司**取得網域清單依序嘗試(例:S → **碩禾 → 碩禾_新**,沿用既有系統的舊網域失敗改試新網域)。完整判斷流程見 §8.2.5。
 - LDAP 函式庫:`ldapts`;**目標為僅允許 LDAPS(636)或 StartTLS**,並信任企業 CA。**過渡期沿用既有系統的 `ldap://`**(內網,Q12 已決定;已取得主管與工程師同意,2026-09-24),W2 為網域控制站補發憑證後改為 LDAPS。
 - 停用/鎖定/密碼過期的 AD 帳號回覆明確但不洩漏細節的錯誤代碼。
-- **登入失敗限流**:同帳號 15 分鐘內失敗 5 次即暫停 BFF 端嘗試(低於 AD 鎖定閾值),避免有人藉 Portal 把同仁 AD 帳號鎖死。
+- **登入失敗限流:v0.10 暫停**(2026-10-01)。原為同帳號 15 分鐘內失敗 5 次即暫停 BFF 端嘗試(低於 AD 鎖定閾值),避免有人藉 Portal 把同仁 AD 帳號鎖死;目前輸錯密碼每次都送 AD 驗證(只輸入工號時依序試各網域),連續輸錯可能觸發 AD 的帳號鎖定原則。
 - 預留:Windows 整合驗證(Kerberos / SPNEGO,網域電腦免輸入密碼)列為**第三階段**(§14.2 Q5)。
 
 #### 8.2.2 Token 與 Cookie
@@ -501,7 +500,7 @@ sequenceDiagram
 | --- | --- |
 | 儲存 | 只存 **Argon2id** 雜湊(OWASP 建議參數:m = 19 MiB、t = 2、p = 1),不存明文或可逆加密 |
 | 密碼政策(Q14 已決定) | **至少 8 碼**、需含英文與數字、不可包含工號、不可與前 3 次相同;不強制定期更換 |
-| 登入失敗 | 沿用 §8.2.1 限流(同帳號 15 分鐘 5 次暫停);連續 10 次失敗鎖定帳號,需以忘記密碼或 IT 解鎖 |
+| 登入失敗 | 連續 10 次失敗鎖定帳號,需以忘記密碼或 IT 解鎖(§8.2.1 的 15 分鐘 5 次暫停 v0.10 起暫停) |
 | 忘記密碼 | 入口網 `/reset-password`,重設連結寄到 BPM / LOS 登記的 Email(30 分鐘、一次性);無 Email 者由 IT 重設,並強制首次登入更換密碼。**方向已定(Q23),畫面與細節於入口網(W5)開發時確定** |
 | 密碼變更後 | 撤銷該使用者所有 Refresh Token 家族,其他裝置須重新登入 |
 | 驗證連結 / 啟用碼 | 只存 SHA-256 雜湊、單次使用、到期失效 |
@@ -866,4 +865,4 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 ---
 
-*本文件 v0.9(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*
+*本文件 v0.10(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*
