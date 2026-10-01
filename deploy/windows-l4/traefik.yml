@@ -1,0 +1,35 @@
+# Windows 主機的 L4 轉送(Traefik,取代 netsh portproxy 80 / 443):保留使用者來源 IP(DEPLOYMENT.md §6.1 方案 H)
+#
+#   使用者 → <主機 IP>:80 / 443(Traefik,只做 TCP 轉送,不解 TLS)
+#          → PROXY protocol v2 → 127.0.0.1:10080 / 10443(WSL localhost 轉送)→ Gateway Nginx(realip 取出來源 IP)
+#
+# 安裝:install.ps1(把 __HOST_IP__ 換成主機 IP);還原:rollback.ps1
+entryPoints:
+  web:
+    address: "__HOST_IP__:80"
+    transport:
+      # TCP 轉送:WebSocket / 長連線不由 Traefik 斷線,逾時交給 Nginx
+      respondingTimeouts:
+        readTimeout: 0
+        writeTimeout: 0
+        idleTimeout: 0
+  websecure:
+    address: "__HOST_IP__:443"
+    transport:
+      respondingTimeouts:
+        readTimeout: 0
+        writeTimeout: 0
+        idleTimeout: 0
+
+providers:
+  file:
+    filename: "C:/traefik/dynamic.yml"
+    watch: true
+
+log:
+  level: INFO
+  filePath: "C:/traefik/traefik.log"
+
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false

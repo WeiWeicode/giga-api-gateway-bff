@@ -44,7 +44,8 @@ giga-api-gateway-bff/
 ├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)與 /api/auth/me
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)
-├─ deploy/                    Docker Compose(開發 / 測試 / 正式)、env 範例、健康檢查、煙霧測試、gen-temp-pki.sh(測試區臨時憑證)
+├─ deploy/                    Docker Compose(測試 / 正式)、env 範例、健康檢查、煙霧測試、gen-temp-pki.sh(測試區臨時憑證)
+│  └─ windows-l4/             Windows 主機 L4 轉送(Traefik + PROXY protocol,保留來源 IP;DEPLOYMENT §6.1)
 ├─ ci-templates/              SPA 發佈的 GitLab CI 範本
 ├─ drizzle.config.ts          Drizzle Kit 設定(migration 產生)
 └─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄);部署:DEPLOYMENT(CI/CD)、

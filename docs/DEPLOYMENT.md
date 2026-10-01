@@ -157,7 +157,7 @@ flowchart LR
 
 ## 6. Windows 主機與 Docker
 
-**現況(2026-10-01)**:主機 2 已在 WSL2 內安裝 Docker Engine(不使用 Docker Desktop),Runner 在 WSL 內以 shell executor 執行,Windows 以 `netsh interface portproxy` 將 `0.0.0.0:80 / 443` 轉到 WSL(細節見 [COMPANY-ENV-PLAN.md](COMPANY-ENV-PLAN.md) §1、[GITLAB-SETUP.md](GITLAB-SETUP.md) §3)。主機 3 目前為 Docker Desktop,**2026-12 建置正式區時改為與主機 2 相同的做法**。
+**現況(2026-10-01)**:主機 2 已在 WSL2 內安裝 Docker Engine(不使用 Docker Desktop),Runner 在 WSL 內以 shell executor 執行,Windows 以 **Traefik**(L4 轉送 + PROXY protocol,§6.1)將 `<主機 IP>:80 / 443` 轉到 WSL,保留使用者來源 IP(細節見 [COMPANY-ENV-PLAN.md](COMPANY-ENV-PLAN.md) §1、[GITLAB-SETUP.md](GITLAB-SETUP.md) §3)。主機 3 目前為 Docker Desktop,**2026-12 建置正式區時改為與主機 2 相同的做法**。
 
 | 項目 | 說明 / 設定 |
 | --- | --- |
@@ -169,9 +169,27 @@ flowchart LR
 | **資料保存** | Redis 資料、SPA 靜態檔(`gw_www`)、CRL 使用 named volume;不使用 Windows 目錄掛載 |
 | **Port 衝突** | 主機上已有其他容器(例如 `notesapp`)。部署前確認 `80`、`443`、`9443` 未被佔用 |
 | **防火牆** | Windows 防火牆開放 `80`、`443`(使用者網段)、`9443`(端點網段);`51200–51300` 只開放給 Gateway 主機 |
-| **來源 IP** | 主機 2 已確認 Nginx 看不到真實來源 IP(§6.1、PRD Q26),**開放給一般使用者前必須處理**;主機 3 改 Docker Engine 時採相同方案 |
+| **來源 IP** | 主機 2 已以 Traefik L4 轉送 + PROXY protocol 解決(§6.1);主機 3 改 Docker Engine 時採相同方案(`deploy/windows-l4/install.ps1`) |
 
 ### 6.1 來源 IP 保留
+
+**主機 2 採用的做法(2026-10-01,方案 H′:在 Windows 主機本身做 L4 轉送)**:
+
+```
+使用者 → <主機 IP>:80 / 443   Traefik(Windows 工作排程器以 SYSTEM 開機啟動;只做 TCP 轉送,不解 TLS)
+       → PROXY protocol v2 → 127.0.0.1:10080 / 10443(WSL localhost 轉送,只綁主機本機)
+       → Gateway Nginx `listen 10080 / 10443 ... proxy_protocol`,`real_ip_header proxy_protocol` 取出來源 IP
+```
+
+- 設定與腳本:`deploy/windows-l4/`(`traefik.yml`、`dynamic.yml`、`install.ps1`、`rollback.ps1`);Traefik 為 GitHub 官方 Release(主機 2 為 v3.7.13,下載後比對官方 SHA256),放在 `C:\traefik`,工作名稱 `GigaNexus-Traefik`。
+- Nginx:`nginx.conf` 的 `set_real_ip_from`(127.0.0.1、172.16.0.0/12)+ `real_ip_header proxy_protocol`,只有走 PROXY protocol 的連線會改寫 `$remote_addr`;限流、`geo` 白名單、access log、`X-Forwarded-For`(BFF `req.ip`)全部取得真實 IP。原本的 80 / 443 / 9443 保留給 CI 冒煙測試與同主機容器。
+- compose 只把 10080 / 10443 / 19443 綁在 `127.0.0.1`:區網無法直接連入 PROXY protocol 入口,不能偽造來源 IP。
+- Traefik 只綁主機 IP(不綁 0.0.0.0),避免與 WSL localhost 轉送(`127.0.0.1`、`::1`)衝突;Windows 防火牆規則「GigaNexus Gateway 80/443」為 port 規則,不需修改。
+- **`:9443` 尚未對區網開放**(防火牆與轉送皆未設定);Agent 上線時在 `dynamic.yml` 加 `agent` 入口(`<主機 IP>:9443` → `127.0.0.1:19443`)並開放端點網段的防火牆。
+- 驗證(2026-10-01):自 10.10.112.13 連入,Nginx log `remote_addr` = `10.10.112.13`、BFF `gw.auth_log.ip` 相同(E2E `01-nginx-entry`「來源 IP」)。
+- 還原:`rollback.ps1`(停用 Traefik、重建 portproxy 80 / 443 → `::1`,來源 IP 會再次遺失)。
+
+以下為原本的分析與方案比較。
 
 **主機 2 實測(2026-09-30)**:WSL2 Docker Engine(預設 NAT)+ `netsh portproxy`(即下表方案 D),自 10.10.112.13 連入,Nginx log 的 `remote_addr` 一律為 `172.19.0.1`(Docker 閘道),**來源 IP 遺失**。
 
@@ -202,13 +220,13 @@ flowchart LR
 | E. 在 WSL2 內自行安裝 Docker Engine + mirrored 模式 | 預期可以,**需實測** | WSL 直接使用主機的網卡與 IP,連入封包經 Docker 的 iptables DNAT 轉到容器,不改變來源位址;社群有改用此方式解決的案例(參考 4、5)。限制:需 **Windows 11 22H2 以上**(Windows Server 2022 不支援,Server 2025 目前無法啟用,參考 6);需設定 Hyper-V 防火牆允許連入;WSL 在沒有使用中的工作階段時會停止 VM,需以工作排程器於開機時啟動並讓 VM 常駐;GitLab Runner 需改在 WSL 內執行或以 `DOCKER_HOST` 指向;mirrored 模式較新,仍有已知問題(例如 IPv6 無法連入容器)。**不需 Docker Desktop 授權**,可一併解決 Q25 |
 | F. Hyper-V Linux VM(外部虛擬交換器)+ Docker Engine | 可以(與一般 Linux 主機相同) | VM 在區網有自己的 IP,行為與 Linux 上的 Docker 完全相同,最可預期;以 Hyper-V「自動啟動動作」在主機開機時啟動 VM,不需使用者登入(同時解決 §6「開機自動啟動」)。**不需 Docker Desktop 授權**(Q25)。代價:需 Windows Pro / Enterprise / Server 的 Hyper-V;需網管配發新 IP,Gateway IP 改變後伺服器憑證 SAN、防火牆、使用者連結與 Agent 設定都改用新 IP(Q1);多一台 VM 需要維護與更新;主機上其他系統的容器是否一併移入另行評估 |
 | G. Nginx 不放在 Docker,直接執行 nginx for Windows | 可以 | 官方標示為 beta:只有一個 worker 實際工作、只使用 `select()` / `poll()`,不應期待高效能與擴充性,且不是 Windows 服務(參考 7);與「正式區使用測試區測過的同一個映像檔」(§2)的做法不同,設定、envsubst 範本與憑證路徑需另外處理。200 條 Agent WebSocket 長連線加上瀏覽器流量,不建議 |
-| H. 前面加一台 Linux 的 L4 轉送(HAProxy 或 Nginx `stream`),以 PROXY protocol 帶入來源 IP | 可以 | Docker Desktop 只轉送 TCP 內容,PROXY protocol 標頭會原樣送到容器內的 Nginx;Nginx 改為 `listen ... proxy_protocol`,並以 `set_real_ip_from <Docker 閘道 IP>`、`real_ip_header proxy_protocol` 取出來源 IP。TLS / mTLS 仍在原 Nginx 終止,憑證不需搬移。代價:需要一台 Linux 主機(主機 1 為 GitLab,不建議混用);多一個故障點;使用者改連轉送主機的 IP;**Windows 防火牆必須只允許轉送主機連入 80 / 443 / 9443**,否則任何人都能直接連入並偽造 PROXY 標頭 |
+| H. 前面加一台 Linux 的 L4 轉送(HAProxy 或 Nginx `stream`),以 PROXY protocol 帶入來源 IP(**主機 2 採用變形 H′:L4 轉送改在 Windows 主機本身以 Traefik 執行,見本節開頭**) | 可以 | Docker Desktop 只轉送 TCP 內容,PROXY protocol 標頭會原樣送到容器內的 Nginx;Nginx 改為 `listen ... proxy_protocol`,並以 `set_real_ip_from <Docker 閘道 IP>`、`real_ip_header proxy_protocol` 取出來源 IP。TLS / mTLS 仍在原 Nginx 終止,憑證不需搬移。代價:需要一台 Linux 主機(主機 1 為 GitLab,不建議混用);多一個故障點;使用者改連轉送主機的 IP;**Windows 防火牆必須只允許轉送主機連入 80 / 443 / 9443**,否則任何人都能直接連入並偽造 PROXY 標頭 |
 | I. 接受遺失,改用其他鍵值補償 | — | (Agent `limit_conn` 已改以裝置憑證計算);登入改以 BFF 的帳號失敗鎖定為主,放寬 Nginx `gw_ip` / `gw_auth` 並停用 BFF IP 失敗計數;Webhook 只靠 HMAC 簽章與時間戳(W3-5.10);「記住我」無法判定內網(需重新決定 Q4);稽核沒有來源 IP。PRD §7.5、Q4、§12 的要求無法滿足,只適合過渡使用 |
 
 **建議**:
 
-1. 主機 2 已確認遺失(方案 D)。
-2. 優先採用 **F(Hyper-V Linux VM)**;主機為 Windows 11 22H2 以上且希望不另開 VM 時,可先以 **E** 做 PoC(同樣用下方步驟驗證)。已有可用的 Linux 主機時可考慮 **H**。B、C、D 無法解決,G 不建議。
+1. 主機 2 原為方案 D(遺失),**2026-10-01 改為 H′ 已解決**;主機 3 比照(`deploy/windows-l4/install.ps1`)。
+2. (原建議)優先採用 **F(Hyper-V Linux VM)**;主機為 Windows 11 22H2 以上且希望不另開 VM 時,可先以 **E** 做 PoC(同樣用下方步驟驗證)。已有可用的 Linux 主機時可考慮 **H**。B、C、D 無法解決,G 不建議。
 3. Agent `limit_conn` 已改以裝置憑證指紋計算(2026-09-25,`nginx/nginx.conf`),不論驗證結果都適用(子公司經 NAT 連入時同樣共用來源 IP)。
 
 #### 驗證步驟(不影響 Gateway,可在部署前執行)

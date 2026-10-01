@@ -1,0 +1,28 @@
+# Traefik 動態設定:TCP 轉送到 Gateway Nginx 的 PROXY protocol 入口(docker-compose.yml nginx 10080 / 10443,只綁主機本機)
+tcp:
+  routers:
+    gw-http:
+      entryPoints: [web]
+      rule: "HostSNI(`*`)"
+      service: gw-http
+    gw-https:
+      entryPoints: [websecure]
+      rule: "HostSNI(`*`)"
+      service: gw-https
+
+  services:
+    gw-http:
+      loadBalancer:
+        serversTransport: proxy-protocol
+        servers:
+          - address: "127.0.0.1:10080"
+    gw-https:
+      loadBalancer:
+        serversTransport: proxy-protocol
+        servers:
+          - address: "127.0.0.1:10443"
+
+  serversTransports:
+    proxy-protocol:
+      proxyProtocol:
+        version: 2

@@ -1,7 +1,8 @@
 /** docs/Gherkin/gateway/nginx-entry.feature(W3-2):測試區 Nginx 入口 */
+import { networkInterfaces } from 'node:os';
 import { connect } from 'node:tls';
 import { afterAll, describe, expect, it } from 'vitest';
-import { BASE, closeAll, GATEWAY_IP, HOST, Session } from './gw.js';
+import { BASE, closeAll, EMP_PREFIX, HOST, query, remote, Session } from './gw.js';
 
 afterAll(closeAll);
 
@@ -100,18 +101,28 @@ describe('Nginx :443 入口', () => {
 });
 
 describe('Nginx :9443 Agent 通道', () => {
-  it('沒有裝置憑證的連線不會到達 Endpoint Server', async () => {
-    // ssl_verify_client on:握手後在 HTTP 層回 400(ENDPOINT-AGENT-GUIDE §10 G2)
-    const r = await tlsHandshake({ host: GATEWAY_IP, port: 9443 });
-    if (!r.ok) return; // TLS 層直接拒絕也符合
-    const res = await new Promise<string>((resolve) => {
-      const s = connect({ host: GATEWAY_IP, port: 9443, rejectUnauthorized: false }, () => s.write('GET / HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n'));
-      let buf = '';
-      s.on('data', (d) => (buf += d.toString()));
-      s.on('close', () => resolve(buf));
-      s.on('error', () => resolve(buf));
-      s.setTimeout(10_000, () => s.destroy());
-    });
-    expect(res).toMatch(/^HTTP\/1\.1 400/);
+  it('沒有裝置憑證的連線不會到達 Endpoint Server(握手後回 400,ENDPOINT-AGENT-GUIDE §10 G2)', async () => {
+    // 測試區 :9443 尚未對區網開放(防火牆與 L4 轉送於 Agent 上線時設定),在主機上直接連 Nginx 驗證
+    const code = (await remote("curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:9443/")).trim();
+    expect(code).toBe('400');
+  });
+});
+
+describe('來源 IP(DEPLOYMENT.md §6.1)', () => {
+  it('經主機 L4 轉送(PROXY protocol)後,Nginx 與 BFF 取得的是使用者電腦的 IP', async () => {
+    const mine = Object.values(networkInterfaces())
+      .flat()
+      .filter((a) => a && a.family === 'IPv4' && !a.internal)
+      .map((a) => a!.address);
+    const probe = `ipcheck-${Date.now()}`;
+    expect((await new Session().get(`/api/auth/me?probe=${probe}`)).status).toBe(401);
+    const line = (await remote(`docker logs --since 2m giganexus-gw-nginx-1 2>&1 | grep ${probe} | tail -1`)).trim();
+    const addr = (JSON.parse(line) as { remote_addr: string }).remote_addr;
+    expect(mine).toContain(addr);
+    // BFF:登入失敗的稽核紀錄
+    const user = `${EMP_PREFIX}IP`;
+    await new Session().post('/api/auth/login', { username: user, password: 'x' });
+    const [row] = await query<{ ip: string }>('SELECT TOP 1 ip FROM gw.auth_log WHERE username = @u ORDER BY log_id DESC', { u: user });
+    expect(row?.ip).toBe(addr);
   });
 });

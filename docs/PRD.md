@@ -15,7 +15,7 @@
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
 | 對應工作流 | NexusPlan **W3. API Gateway + BFF**(時程以 NexusPlan 甘特圖為準) |
 | 規劃依據 | `GigaNexusAIPlan/docs/PRD.md`(§8 W3)、`archatlas/src/data/sample-atlas.json`(`nginx-gateway`、`node-bff` 節點與上下游) |
-| 狀態 | **測試區已上線**(2026-09-30,`giganexus-test.gigasolar.com.tw`);正式區預計 2026-12 建置。待決事項:Q6(待壓測)、Q25、Q26、Q29 |
+| 狀態 | **測試區已上線**(2026-09-30,`giganexus-test.gigasolar.com.tw`);正式區預計 2026-12 建置。待決事項:Q6(待壓測)、Q25、Q29 |
 
 ### 1.1 修訂紀錄
 
@@ -817,7 +817,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | 舊單一入口留存明文密碼 | 依備份原始碼,`LoginData.EName` 可能存有明文「確認密碼」,舊忘記密碼頁會顯示原密碼 | 舊系統不修改(Q22);Gateway 不讀取 `EName`(唯讀 view 排除此欄),遷移時強制設定新密碼;舊系統隨功能轉移逐步關閉 |
 | 並行期間新舊密碼不一致 | 遷移後新系統密碼與舊單一入口各自獨立,使用者可能混淆或在舊入口繼續使用已外洩的舊密碼 | 登入與改密碼頁明示「新入口網密碼與舊單一入口無關」;建議使用者一併更改舊入口密碼;舊入口隨功能轉移逐步關閉 |
 | 正式區(主機 3)仍使用 Docker Desktop | 授權需付費訂閱(大型企業);預設需使用者登入才啟動,主機重開後服務可能未恢復。主機 2(測試區)已改用 WSL2 內的 Docker Engine | 主機 3 預計 2026-12 建置正式區時改為 Docker Engine(與主機 2 相同,[DEPLOYMENT.md](DEPLOYMENT.md) §6);改用前沿用 Docker Desktop 的開機自動啟動與 `restart: unless-stopped` |
-| Windows 主機上 Nginx 看不到真實來源 IP | **主機 2 已確認遺失**(2026-09-30:WSL2 Docker Engine + `netsh portproxy`,`remote_addr` 一律為 Docker 閘道 `172.19.0.1`);本機(macOS Docker Desktop)所有連線的來源都是 VM 閘道 `192.168.65.1`:Docker Desktop 的 published port 由主機程序接受連線後再轉進 VM,Windows(WSL2)使用同一套機制,社群也回報看不到真實 IP。影響:全站與登入 IP 限流變成全公司共用一份額度(上班時段大量 429)、BFF 登入失敗 IP 計數會鎖住所有人、Webhook 與內網服務 IP 白名單只能全拒或全放(§7.5)、「記住我」內網判定失效(Q4)、稽核無法記錄來源 | **開放給一般使用者前**處理:改在 Hyper-V Linux VM 或 WSL2(mirrored 模式)內執行 Docker Engine,或以 Linux L4 轉送 + PROXY protocol 帶入來源 IP(Q26)。Docker Desktop 的 host networking、Docker Desktop + WSL mirrored 都無法解決;主機 3 2026-12 改 Docker Engine 時一併採用同一方案;方案確定前不修改其他 Nginx 設定;Agent `limit_conn` 已改以裝置憑證計算(2026-09-25),不受此影響 |
+| Windows 主機上 Nginx 看不到真實來源 IP | **主機 2 已解決(2026-10-01,Traefik + PROXY protocol,Q26)**;原狀況:主機 2 遺失(2026-09-30:WSL2 Docker Engine + `netsh portproxy`,`remote_addr` 一律為 Docker 閘道 `172.19.0.1`);本機(macOS Docker Desktop)所有連線的來源都是 VM 閘道 `192.168.65.1`:Docker Desktop 的 published port 由主機程序接受連線後再轉進 VM,Windows(WSL2)使用同一套機制,社群也回報看不到真實 IP。影響:全站與登入 IP 限流變成全公司共用一份額度(上班時段大量 429)、BFF 登入失敗 IP 計數會鎖住所有人、Webhook 與內網服務 IP 白名單只能全拒或全放(§7.5)、「記住我」內網判定失效(Q4)、稽核無法記錄來源 | **開放給一般使用者前**處理:改在 Hyper-V Linux VM 或 WSL2(mirrored 模式)內執行 Docker Engine,或以 Linux L4 轉送 + PROXY protocol 帶入來源 IP(Q26)。Docker Desktop 的 host networking、Docker Desktop + WSL mirrored 都無法解決;主機 3 2026-12 改 Docker Engine 時一併採用同一方案;方案確定前不修改其他 Nginx 設定;Agent `limit_conn` 已改以裝置憑證計算(2026-09-25),不受此影響 |
 | 時程重疊 | W3 與 W5 架構同時進行 | W3-4 先提供 `/api/auth/me` 與 mock 路由,W5 前端可先行 |
 
 ### 14.2 待決事項
@@ -849,7 +849,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q23 | 新入口網的忘記密碼做法 | **已決定**:IT 重設密碼 + 寄送 Email 連結到重設頁面;畫面與細節於入口網(W5)開發時確定 | 提案人 |
 | Q24 | 並行期間新進無網域員工在哪裡註冊 | **已決定**:新舊入口都可以;舊入口註冊者登入新入口網時自動遷移 | 提案人 |
 | Q25 | Windows 主機(主機 2、3)使用的 Docker Desktop 是否需付費授權 | **主機 2 已改用 Docker Engine(不需授權);主機 3 預計 2026-12 改用 Docker Engine**,之後本題結案。改用前:員工人數已確認未達 200 人(門檻 250 人),尚需確認年營收:Docker 免費使用須**同時**符合員工少於 250 人**且**年營收少於 1,000 萬美元(約新台幣 3 億元),任一超過即需付費訂閱。營收若超過,改為購買訂閱或在 WSL2 內安裝 Docker Engine | 主管 + IT |
-| Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | 主機 2(WSL2 Docker Engine 預設 NAT + `netsh portproxy`)已確認遺失,**開放給一般使用者前必須處理**;建議改為 **Hyper-V Linux VM + Docker Engine**(Gateway 改用 VM 的 IP);其次為 WSL2 mirrored 模式 + Docker Engine(需 Windows 11 22H2 以上,需 PoC)。主機 3 於 2026-12 改用 Docker Engine 時採用相同方案 | 主管 + IT + 網管 |
+| Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | **已解決(2026-10-01)**:WSL2 Docker Engine 不變,Windows 上以 Traefik 做 L4 轉送(取代 `netsh portproxy`),以 PROXY protocol 帶入來源 IP、Nginx realip 取出([DEPLOYMENT.md](DEPLOYMENT.md) §6.1);主機 2 已驗證,主機 3 於 2026-12 改用 Docker Engine 時採用相同做法 | 需求方 |
 | Q27 | IT 管理系統(GigaItApp,v0.7 前為自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Endpoint Server(RustIt);itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Rust 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
 | Q28 | 員工入口網的選單 / Tab / 按鈕權限如何依部門、職位控管 | **已決定(2026-09-26)**:以 BFF 為唯一來源;新增角色指派規則,**職位以職級為主**、職稱選配,**部門含下層**;按鈕權限 = API 權限;GigaItApp 提供設定畫面並改用單一入口(§8.3.1–§8.3.3) | 需求方 |
 | Q29 | 職級值的比較方式:規則列出職級清單,或以數值範圍(「課長以上」)表示 | 第一版列出清單;待 BPM 負責人確認 `FunctionLevel.levelValue` 大小與職位高低的對應後再評估範圍條件 | BPM 負責人 + IT |
@@ -864,4 +864,4 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 ---
 
-*本文件 v0.9(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q26、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*
+*本文件 v0.9(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*

@@ -20,7 +20,7 @@
 
 ## 1. 先做來源 IP 驗證(5 分鐘,決定能不能上線)
 
-依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1「驗證步驟」1–5。若 Nginx 看不到使用者真實 IP,登入限流(每分鐘 5 次)會變成全公司共用,上班時段大量登入失敗;結果記錄到 PRD Q26,**遺失時先別開放給一般使用者**,改依 §6.1 方案處理。
+主機 2 已以 Traefik + PROXY protocol 保留來源 IP(2026-10-01,DEPLOYMENT §6.1;新主機以 `deploy/windows-l4/install.ps1` 設定)。新主機依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1「驗證步驟」確認;若 Nginx 看不到使用者真實 IP,登入限流(每分鐘 5 次)會變成全公司共用,上班時段大量登入失敗;結果記錄到 PRD Q26,**遺失時先別開放給一般使用者**,改依 §6.1 方案處理。
 
 ## 2. 取得程式(四個 repo 並排)
 
@@ -159,7 +159,7 @@ $IT run --rm --build spa-it
 
 | 狀況 | 原因 / 處理 |
 | --- | --- |
-| 登入頁一直 429 | 來源 IP 遺失(步驟 1);暫時可在 `test.env` 放寬 `GW_AUTH_RATE` 後 `up -d nginx`,並盡快依 §6.1 處理 |
+| 登入頁一直 429 | 確認 Traefik 工作 `GigaNexus-Traefik` 在執行、Nginx log 的 `remote_addr` 是使用者 IP(步驟 1);Traefik 異常時可執行 `C:\traefik\rollback.ps1` 暫時還原 portproxy |
 | 登入後「沒有員工入口網使用權限」 | 步驟 7 的權限尚未套用,或套用後尚未重新整理 |
 | `bff-1` 起不來 | `docker logs giganexus-gw-bff-1-1`:多為缺密碼檔、`ldap-domains.json` 網域沒有對應密碼、資料庫連不上 |
 | `/it/` 讀 BFF 失敗 | `itapp.env` 的 `GW_CA_CERT` 未指向步驟 4 的 `ca.crt`,或服務帳號沒有權限 |

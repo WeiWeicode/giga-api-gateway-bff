@@ -163,7 +163,7 @@ compose 的 `GITLAB_OMNIBUS_CONFIG` 加上 `gitlab_rails["backup_keep_time"] = 6
 ## 3. 主機 2:Windows + WSL2 內的 Docker Engine 與 GitLab Runner
 
 > **2026-09-29 決定:不使用 Docker Desktop。** 專案映像皆為 Linux 容器,Windows 原生 `dockerd.exe` 只能執行 Windows 容器,因此在 WSL2(發行版 `Ubuntu`,目前為 24.04 LTS)內安裝 Docker Engine 與 Linux 版 Runner(shell executor)。CI 的 `sh` 腳本與 `docker run -v "$CI_PROJECT_DIR:/repo"` 與一般 Linux 主機相同。
-> **已知限制**(Windows 10 build 19045):WSL2 只有 NAT 網路(mirrored 模式需 Windows 11 22H2),外部連入測試區需以 `netsh portproxy` 轉發,**Nginx 看不到使用者真實 IP**(DEPLOYMENT.md §6.1、PRD Q26 仍未解決);WSL VM 需以工作排程器開機啟動並常駐。主機 3(10.10.130.122)比照辦理,Runner tag 改 `prod-deploy`(Protected)。
+> **已知限制**(Windows 10 build 19045):WSL2 只有 NAT 網路(mirrored 模式需 Windows 11 22H2),外部連入測試區需經 Windows 轉送;2026-10-01 起以 Traefik + PROXY protocol 轉送並保留使用者真實 IP(DEPLOYMENT.md §6.1);WSL VM 需以工作排程器開機啟動並常駐。主機 3(10.10.130.122)比照辦理,Runner tag 改 `prod-deploy`(Protected)。
 
 ### 3.1 VM 與 Windows 前置【你 / VMware 管理員執行】
 
@@ -228,7 +228,7 @@ Register-ScheduledTask -TaskName "WSL-GigaNexus" -Action $a -Trigger $t -Setting
 
 ### 3.6 測試區對外轉發(部署測試區時才需要)
 
-WSL 的 IP 每次開機都會變,需在 3.5 的工作啟動後執行轉發腳本(之後補上):以 `wsl -d Ubuntu hostname -I` 取得 IP,`netsh interface portproxy add v4tov4 listenaddress=0.0.0.0 listenport=<80|443|9443> connectaddress=<WSL IP> connectport=<同 port>`,並以 `New-NetFirewallRule` 開放 80 / 443 / 9443。轉發後來源 IP 一律為主機本身,見本節開頭的已知限制。
+以 Traefik 做 L4 轉送(保留來源 IP):把 `deploy/windows-l4/` 的檔案與官方 `traefik.exe`(比對 SHA256)放到 `C:\traefik`,以系統管理員執行 `install.ps1 -HostIp <主機 IP>`(建立開機工作 `GigaNexus-Traefik`、移除 portproxy 80 / 443),並以 `New-NetFirewallRule` 開放 80 / 443。轉送目標為 WSL localhost 轉送的 `127.0.0.1:10080 / 10443`,WSL IP 變動不影響。細節與還原見 DEPLOYMENT.md §6.1。
 
 ### 3.7 驗證(Claude 執行)
 

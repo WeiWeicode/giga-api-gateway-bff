@@ -59,8 +59,8 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | `/srv/giganexus/shared/` | Gateway build 複製的 `web-kit/src`、`deploy/`,與已部署映像 tag `gateway-image-tag` | CI |
 
 - **公司 SSL 憑證(2026-10-01)**:DNS `giganexus-test.gigasolar.com.tw` → 10.10.130.124 已由網通建立;`:443` 改用公司憑證,瀏覽器開 `https://giganexus-test.gigasolar.com.tw/it/login` 憑證受信任。`:9443` 仍為臨時憑證。
-- Windows 端:`netsh portproxy` 0.0.0.0:80 / 443 → `::1`(WSL localhost 轉發),防火牆規則「GigaNexus Gateway 80/443」。
-- **來源 IP 實測(2026-09-30)**:自 10.10.112.13 連入,Nginx log 的 `remote_addr` 一律為 `172.19.0.1`(Docker 閘道),真實 IP 遺失(PRD Q26、DEPLOYMENT §6.1)。影響:登入限流 `GW_AUTH_RATE`(每分鐘 5 次)全體共用、IP 限流 / 白名單 / 「記住我」內網判定失效。**開放給一般使用者前必須處理**;少數人測試時連續登入可能遇到 429。
+- Windows 端:Traefik(`C:\traefik`,工作排程器 `GigaNexus-Traefik`)`10.10.130.124:80 / 443` → PROXY protocol → `127.0.0.1:10080 / 10443`(2026-10-01 取代 `netsh portproxy`,DEPLOYMENT §6.1),防火牆規則「GigaNexus Gateway 80/443」。
+- **來源 IP 實測(2026-09-30)**:自 10.10.112.13 連入,Nginx log 的 `remote_addr` 一律為 `172.19.0.1`(Docker 閘道),真實 IP 遺失。**2026-10-01 已解決**:改以 Traefik + PROXY protocol 後,`remote_addr` 與 BFF 記錄的 IP 為 `10.10.112.13`(DEPLOYMENT §6.1)。
 - **上架結果(2026-09-30)**:三個專案 `develop` Pipeline 全部通過(Gateway `dd79914`、giga-Portal `f3ca9d2`、GigaItApp `83087c8`);自使用者網段驗證 `/`、`/login`、`/it/` 200,`/api/auth/me`、`/it/api/auth/me` 401,HTTP 301 轉 HTTPS。
 - Docker volume `giganexus-gw_gw_www`、網路 `giganexus-gw_default` 預先建立(帶 compose 標籤),GigaItApp / Portal 可先於 Gateway 部署。
 - GigaItApp 目前 `BFF_MODE=mock`:讀 BFF 的服務帳號尚未建立;建立後 `itapp.env` 改 `BFF_MODE=live`、`BFF_SERVICE_USER=<工號>`,密碼寫入 `itapp-secrets/bff_service_password`(uid 1000、400),再重跑 GigaItApp deploy-test。
@@ -108,7 +108,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | 下游後端 API Key | 每個後端服務在測試區、正式區各建一把(`gw client:create --code <服務代碼> [--ips <主機網段>]`),明文交給該服務存入 Docker secret(`GW_API_KEY_FILE`);後端的 `GW_BASE_URL` 指向該區 Gateway,且主機網段需列入 `internal-services.conf`(取 JWKS)(BACKEND-GUIDE §7.5) | P-16 |
 | 下游後端信任 Gateway 憑證 | Gateway 憑證由 AD CS 簽發(P-05);Node.js 後端以 `NODE_EXTRA_CA_CERTS` 指向企業根 CA,否則自動註冊與取 JWKS 會因憑證驗證失敗 | P-05 |
 | Windows 主機 | `GW_SECRETS_DIR` 等路徑使用 Windows 路徑;確認 80 / 443 / 9443 未被佔用;WSL2 Docker Engine 與 Runner 開機自動啟動(主機 2 已完成;主機 3 於 2026-12 由 Docker Desktop 改用) | P-11 |
-| **Windows 主機:來源 IP 驗證** | 本機 Docker Desktop 的 Nginx 看到的來源一律是 `192.168.65.1`。**部署前**依 [DEPLOYMENT.md](DEPLOYMENT.md) §6.1 在主機 2、3 以一次性容器(`-p 18080:80`)從另一台電腦連入,檢查 log 的 `remote_addr`;若遺失,Nginx 的 IP 限流(`gw_ip`、`gw_auth`)、`webhook-bpm.conf` / `internal-services.conf` 白名單、BFF「記住我」內網判定(`INTERNAL_NETWORKS`)與登入失敗 IP 計數都會失效(PRD §14.1),需依 PRD Q26 改變執行方式。結果確定前不修改這些設定(Agent `limit_conn` 已改以裝置憑證計算,不受影響) | P-11、P-17 |
+| **Windows 主機:來源 IP** | 主機 2 已以 Traefik L4 轉送 + PROXY protocol 解決(2026-10-01,DEPLOYMENT §6.1);主機 3 改 Docker Engine 後執行 `deploy/windows-l4/install.ps1`(`-HostIp 10.10.130.122`),並以 DEPLOYMENT §6.1 驗證步驟確認 | P-11 |
 
 ---
 
