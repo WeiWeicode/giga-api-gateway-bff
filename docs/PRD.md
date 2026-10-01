@@ -98,7 +98,7 @@
 | 後端服務開發者 | 不必各自實作登入;從標頭/內部 Token 取得可信任的使用者身分 |
 | IT 管理者 | 在 IT 管理介面維護 API 清單、角色權限、AD 群組對應、通知範本;查詢稽核紀錄 |
 | 端點 Agent(機器) | 以裝置憑證建立 mTLS,以 HTTPS 回報資產、以 WebSocket 維持心跳並接收指令 |
-| 外部系統(BPM;LINE 平台暫緩) | 以 Webhook 回呼,需驗證簽章 |
+| 外部系統(LINE 平台暫緩) | 以 Webhook 回呼,需驗證簽章;目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理) |
 
 ---
 
@@ -188,8 +188,8 @@
 
 ### 7.5 Webhook 入口
 
-- 路徑:`/webhook/{source}`(本階段僅 `/webhook/bpm`;`/webhook/line` 暫緩)→ BFF Webhook 模組。
-- Nginx 層:依來源設定 **IP 白名單**(`allow` / `deny`),未列入者 403;不經 JWT。
+- 路徑:`/webhook/{source}`(目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理);`/webhook/line` 暫緩)→ BFF Webhook 模組。
+- Nginx 層:**IP 白名單**(`nginx/allowlists/<區域>/webhook-sources.conf`),未列入者 403;不經 JWT。
 - BFF 層:依 `gw.webhook_endpoint` 設定驗證簽章(HMAC-SHA256;未來 LINE 使用 `X-Line-Signature`)、時間戳防重放、`Idempotency-Key` 去重(Redis 24h),通過後分派至對應上游或佇列。
 - **LINE Webhook** **(暫緩)**:未來開發時需從網際網路可達,需與網管確認 DMZ 反向代理僅開放 `/webhook/line`(見 §14.1 風險)。
 
@@ -667,6 +667,7 @@ sequenceDiagram
 
 - 依 `gw.webhook_endpoint` 設定:來源、驗簽方式、密鑰、允許 IP、分派目標(上游路由或內部 handler)。
 - 流程:驗 IP(已在 Nginx)→ 驗簽 → 時間戳 ±5 分鐘 → 去重 → 記錄 `gw.webhook_log` → 分派 → 立即回 200(耗時工作入佇列)。
+- 目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理),模組保留給日後的外部系統。
 - LINE Webhook **(暫緩)**:處理 `follow` / `message` 事件完成帳號綁定。
 
 ### 8.7 管理 API(供 IT 管理介面 W4)
@@ -725,8 +726,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 - **作為 IT 管理者**,MES 團隊上了新版 API,我在 IT 管理介面匯入它的 OpenAPI 檔,預覽 12 支新增、3 支修改,指定權限後按「發佈」,5 秒內生效。
 - **作為 IT 管理者**,有人問「誰可以核准加班?」,我在管理介面查 `hrm.overtime.approve` → 看到哪些角色、哪些 AD 群組、哪些人。
 - **作為 IT 管理者**,某台筆電遺失,我撤銷它的裝置憑證,Agent 下次連線即在 TLS 層被拒。
-- **作為 BPM 系統**,簽核完成時回呼 `/webhook/bpm`,Gateway 驗簽後通知申請人(Email + 站內通知)。
-- **作為主管**,待簽核的單據會以 Email 與站內通知提醒我,點連結直接開入口網對應頁面。(未來:綁定 LINE 後改推到 LINE)
+- **作為主管**,待簽核的單據會以 Email 與站內通知提醒我,點連結直接開入口網對應頁面。(**暫不處理**:2026-10-01 決定 BPM 不送 Webhook、BPM 簽核通知先不做;未來:綁定 LINE 後改推到 LINE)
 
 ---
 
@@ -767,7 +767,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成(未做:nginx-prometheus-exporter) |
 | ~~W3-3 Nginx gRPC + mTLS~~ | §7.6 | **v0.9 取消**:Agent 通道改為 HTTPS / WebSocket,併入 W6(RustIt)與 Endpoint Server 一起交付 |
 | W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;待外部前置:人員排程同步 Worker(P-12)、舊單一入口帳號遷移(P-15) |
-| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(僅 BPM webhook);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 進行中:路由、聚合、斷路器、發佈同步、自動註冊完成;通知 Worker、自行註冊 / 忘記密碼、Webhook 驗簽未完成 |
+| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 進行中:路由、聚合、斷路器、發佈同步、自動註冊完成;通知 Worker、自行註冊 / 忘記密碼、Webhook 驗簽未完成 |
 | ◆ 測試區 Gateway + BFF 可用 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30 |
 | ◆ 正式區 Gateway + BFF 可用 | 主機 3(10.10.130.122)、`giganexus.gigasolar.com.tw` | 2026-12 |
 

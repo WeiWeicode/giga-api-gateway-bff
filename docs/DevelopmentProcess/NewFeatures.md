@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-01 BPM 不送 Webhook:移除 bpm 端點,Webhook 模組保留為通用
+- 工作項目:W3-5.10
+- 內容:需求方決定 BPM 不做通知(不送 Webhook),BPM 簽核通知先不做;Webhook 模組保留給日後的外部系統。① 測試區刪除 `gw.webhook_endpoint` 的 `bpm`(連同 28 筆測試產生的 `gw.webhook_log`,寫入 `gw.audit_log` `webhook.remove`),刪除主機 2 `secrets/webhook/bpm` 與開發機的密鑰。② Nginx 白名單改通用名稱:`allowlists/<區域>/webhook-bpm.conf` → `webhook-sources.conf`、`$webhook_bpm_allowed` → `$webhook_allowed`(維持空白 = 全部拒絕)。③ E2E `05` 改為測試時建立臨時來源 `e2etest`(主機 2 密鑰檔與端點,結束後刪除);`01` 改打 `/webhook/e2etest`。④ Gherkin `webhook.feature` 改為通用來源 `partner`,刪除「BPM 簽核完成後通知申請人」;PRD §7.5 / §8.6 / 使用者情境、BACKEND-GUIDE §7.6、DATABASE、DEPLOYMENT、COMPANY-ENV-PLAN、IMPL-PLAN、PROJECT-MAP、README、AGENT.md 範例同步
+- 檔案:`nginx/allowlists/test|prod/webhook-sources.conf`(改名)、`nginx/templates/00-env.conf.template`、`nginx/conf.d/portal.conf`、`bff/src/workers/webhook.worker.ts`、`bff/.env.example`、`bff/test/e2e/01-nginx-entry.test.ts`、`bff/test/e2e/05-notify-webhook.test.ts`、`bff/test/e2e/gw.ts`、`docs/Gherkin/webhook/webhook.feature`、`docs/Gherkin/README.md`、`docs/PRD.md`、`docs/BACKEND-GUIDE.md`、`docs/DATABASE.md`、`docs/DEPLOYMENT.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/IMPL-PLAN.md`、`docs/PROJECT-MAP.md`、`README.md`、`AGENT.md`
+- 驗證:`nginx -t`(GW_ENV test / prod)通過;`typecheck`、`lint` 通過;E2E `05-notify-webhook` 7 項通過(臨時來源 e2etest),結束後 `gw.webhook_endpoint` / `gw.webhook_log` 皆 0、主機 2 無殘留密鑰
+
 ## 2026-10-01 部門樹改為直接讀 BPM 組織資料表(不新增 view)
 - 工作項目:P2-3a
 - 內容:主管明確表示不准在 BPM(10.10.130.190)新增 table;需求方決定改請 DBA 授權 `bpm_reader` 唯讀 `dbo.OrganizationUnit`、`dbo.Organization`(只 GRANT,不新增物件),不使用 GeneralBackend 所用的 sa 帳號。刪除 `db/dba/03-bpm-department.sql`(建 view),新增 `db/dba/03-bpm-org-grant.sql`(GRANT SELECT);`bpmDepartment` view 定義改為 `bpmOrganizationUnit`、`bpmOrganization` 兩張表(欄位同 GeneralBackend `GeneralControlle.js`),`department-sync.ts` 以 OrganizationUnit JOIN Organization、LEFT JOIN 上層單位取得部門與上層;CLI `dept:sync` 權限不足時提示執行授權腳本

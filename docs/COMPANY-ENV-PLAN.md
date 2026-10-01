@@ -116,7 +116,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 
 | 檔案 | 需要調整 | 依賴 |
 | --- | --- | --- |
-| `nginx/allowlists/test\|prod/webhook-bpm.conf` | 填入 BPM 主機 IP(目前為 TODO,等同全部拒絕) | P-14 |
+| `nginx/allowlists/test\|prod/webhook-sources.conf` | 外部系統的 Webhook 來源 IP;目前沒有來源(BPM 不送 Webhook),維持空白 = 全部拒絕 | — |
 | `nginx/allowlists/test\|prod/internal-services.conf` | 下游後端與監控主機網段(可取 JWKS、`/readyz`) | P-16 |
 | `nginx/allowlists/test\|prod/agent-issuers.conf` | AD CS「GigaNexus Agent」中繼 CA 的 Subject DN(`openssl x509 -noout -subject -nameopt RFC2253`,RDN 順序須完全一致) | P-06 |
 | `nginx/conf.d/portal.conf` | `stub_status` 的 `allow` 網段改為監控主機;新系統上線時登記 SPA 子路徑 | — |

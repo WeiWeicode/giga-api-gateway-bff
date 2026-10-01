@@ -1,15 +1,14 @@
 /**
  * docs/Gherkin/notify/notification.feature(W3-5.8、W3-5.9)、webhook/webhook.feature(W3-5.10)
- * 通知只用站內通道(不寄 Email);Webhook 的來源 IP 白名單在 Nginx(01 已驗證拒絕),簽章以下在 bff 容器內直接呼叫 BFF 驗證。
+ * 通知只用站內通道(不寄 Email);Webhook 的來源 IP 白名單在 Nginx(01 已驗證拒絕),簽章以下在 bff 容器內以臨時來源 e2etest 直接呼叫 BFF 驗證。
  */
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import WebSocket from 'ws';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   apiKeyCall,
   BASE,
   bffInternal,
-  BFF,
   cleanupE2E,
   cliApply,
   closeAll,
@@ -87,11 +86,25 @@ describe('通知', () => {
 });
 
 describe('Webhook(bff 容器內呼叫)', () => {
-  let secret = '';
+  // 目前沒有外部來源(BPM 不送 Webhook):測試時建立臨時來源 e2etest 與其密鑰,結束後刪除
+  const SOURCE = 'e2etest';
+  const secretFile = `${process.env.E2E_SECRETS_DIR ?? '/srv/giganexus/deploy/secrets'}/webhook/${SOURCE}`;
+  const secret = randomBytes(32).toString('hex');
   beforeAll(async () => {
-    secret = (await remote(`docker exec ${BFF} cat /run/secrets/gw/webhook/bpm`)).trim();
-    const [ep] = await query("SELECT verify_method FROM gw.webhook_endpoint WHERE source_code = 'bpm' AND is_enabled = 1");
-    if (!ep) throw new Error('測試區沒有 bpm Webhook 端點設定(CLI apply 的 webhooks:)');
+    await remote(
+      [
+        `mkdir -p "$(dirname ${secretFile})"`,
+        `printf '%s' '${secret}' > ${secretFile}`,
+        `chown -R 1000:1000 "$(dirname ${secretFile})"`,
+        `chmod 400 ${secretFile}`,
+      ].join('\n'),
+    );
+    await cliApply(
+      `webhooks:\n  - source: ${SOURCE}\n    verifyMethod: hmac_sha256\n    secretRef: ${SOURCE}\n    dispatchType: queue\n    dispatchTarget: ${SOURCE}\n`,
+    );
+  });
+  afterAll(async () => {
+    await remote(`rm -f ${secretFile}\nrmdir "$(dirname ${secretFile})" 2>/dev/null || true`);
   });
 
   const send = (opts: { offsetSec?: number; badSig?: boolean; key?: string; source?: string } = {}) => {
@@ -102,7 +115,7 @@ describe('Webhook(bff 容器內呼叫)', () => {
       createHmac('sha256', opts.badSig ? 'wrong-secret' : secret)
         .update(`${ts}.${body}`)
         .digest('hex');
-    return bffInternal(`/webhook/${opts.source ?? 'bpm'}`, {
+    return bffInternal(`/webhook/${opts.source ?? SOURCE}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-gw-timestamp': ts, 'x-gw-signature': sig, 'idempotency-key': opts.key ?? `e2e-${randomUUID()}` },
       body,

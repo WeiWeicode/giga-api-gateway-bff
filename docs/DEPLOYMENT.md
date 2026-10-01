@@ -203,7 +203,7 @@ flowchart LR
 | 登入 / 註冊 / 密碼 API 限流 `gw_auth`(`GW_AUTH_RATE`,預設 5 r/m,burst 4) | `nginx/templates/00-env.conf.template`、`portal.conf` | 全公司每分鐘約只能登入 5 次,上班時段大量 429 |
 | BFF 登入失敗 IP 計數(15 分鐘 50 次,`LOGIN_FAIL_IP_LIMIT`) | `bff/src/modules/auth/login.ts` | 任何人累計輸錯 50 次,所有人 15 分鐘內都無法登入 |
 | ~~Agent 同時串流數 `limit_conn agent_conn 10`~~ | `nginx/nginx.conf` | **已處理(2026-09-25)**:改以裝置憑證指紋(`$ssl_client_fingerprint`)計算,每張憑證 10 條,不受來源 IP 影響。原本以 IP 計算時,200 台 Agent 會共用 10 條連線,其餘回 429 |
-| Webhook IP 白名單(PRD §7.5) | `nginx/allowlists/<區域>/webhook-bpm.conf` | BPM 主機 IP 永遠比對不到,一律 403;若為此加入閘道 IP,等於對所有來源開放 |
+| Webhook IP 白名單(PRD §7.5) | `nginx/allowlists/<區域>/webhook-sources.conf` | 來源主機 IP 永遠比對不到,一律 403;若為此加入閘道 IP,等於對所有來源開放 |
 | 內網服務白名單(JWKS、`/readyz`、`/docs`、`/metrics`) | `nginx/allowlists/<區域>/internal-services.conf` | 同上:只能全部拒絕或全部放行 |
 | 「記住我」僅限內網(PRD Q4、IMPL-PLAN W3-4.4) | BFF `INTERNAL_NETWORKS` | 閘道 IP 落在預設值 `192.168.0.0/16` 內,所有人都被判定為內網 |
 | API Key `allowed_ips`、路由限流 `keyBy: ip` | BFF | 白名單同樣只能全拒或全放;限流共用一份額度 |

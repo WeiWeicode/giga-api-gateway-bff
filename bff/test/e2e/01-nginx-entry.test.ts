@@ -94,7 +94,7 @@ describe('Nginx :443 入口', () => {
   });
 
   it('Webhook:非允許來源 IP 在 Nginx 即被拒(403 IP_NOT_ALLOWED)', async () => {
-    const res = await new Session().post('/webhook/bpm', { event: 'approved' }, { csrf: false });
+    const res = await new Session().post('/webhook/e2etest', { event: 'approved' }, { csrf: false });
     expect(res.status).toBe(403);
     expect(res.json).toMatchObject({ code: 'IP_NOT_ALLOWED' });
   });

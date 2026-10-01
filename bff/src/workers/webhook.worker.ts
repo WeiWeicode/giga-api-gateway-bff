@@ -13,7 +13,7 @@ export type WebhookHandler = (job: WebhookJob, log: Logger) => Promise<void>;
 
 /**
  * 處理程序登記(dispatch_target → handler)。
- * BPM 簽核事件的內容格式尚未定義(Gherkin webhook.feature「BPM 簽核完成後通知申請人」@wip),目前沒有處理程序。
+ * 目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理),因此沒有處理程序;新增來源時在此登記。
  */
 export const WEBHOOK_HANDLERS: Record<string, WebhookHandler> = {};
 

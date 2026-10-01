@@ -378,7 +378,7 @@ stateDiagram-v2
 
 ### 7.6 Webhook 呼叫(外部系統 → Gateway,PRD §8.6)
 
-外部系統(本階段只有 BPM)事件發生時呼叫 `POST https://<gateway-host>/webhook/{source}`。Nginx 只放行白名單 IP(`nginx/allowlists/<區域>/webhook-bpm.conf`),BFF 驗簽、檢查時間戳與去重後寫入 `gw.webhook_log`、排入佇列,**立即回 200**,實際處理在 worker。
+外部系統事件發生時呼叫 `POST https://<gateway-host>/webhook/{source}`(目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理))。Nginx 只放行白名單 IP(`nginx/allowlists/<區域>/webhook-sources.conf`),BFF 驗簽、檢查時間戳與去重後寫入 `gw.webhook_log`、排入佇列,**立即回 200**,實際處理在 worker。
 
 | 標頭 | 內容 |
 | --- | --- |
@@ -402,12 +402,12 @@ stateDiagram-v2
 const body = JSON.stringify(event);
 const ts = String(Math.floor(Date.now() / 1000));
 const sig = 'sha256=' + crypto.createHmac('sha256', secret).update(`${ts}.${body}`).digest('hex');
-await fetch(`${GW}/webhook/bpm`, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-gw-timestamp': ts, 'x-gw-signature': sig, 'idempotency-key': event.id } });
+await fetch(`${GW}/webhook/<source>`, { method: 'POST', body, headers: { 'content-type': 'application/json', 'x-gw-timestamp': ts, 'x-gw-signature': sig, 'idempotency-key': event.id } });
 ```
 
 - **密鑰**:測試區與正式區各一把,由 Gateway 負責人產生(`openssl rand -hex 32`),放在各區 `${GW_SECRETS_DIR}/webhook/<secret_ref>`(BFF 容器內 `/run/secrets/gw/webhook/`),再以安全管道交給來源系統;不寫進設定檔或版控。
 - **端點設定**:`npm run gw -- apply --file <設定.yaml>` 的 `webhooks:`(`source`、`verifyMethod: hmac_sha256`、`secretRef`、`dispatchType: queue`、`dispatchTarget`),寫入 `gw.webhook_endpoint`。
-- **事件內容**:BPM 簽核事件的格式尚未定義(Gherkin `webhook.feature`「BPM 簽核完成後通知申請人」為 `@wip`);目前事件只記錄、不處理(`gw.webhook_log.error_message` = `尚無處理程序:<dispatch_target>`)。
+- **事件內容**:由來源系統與 Gateway 負責人約定,處理程序登記在 `bff/src/workers/webhook.worker.ts`;沒有處理程序的事件只記錄、不處理(`gw.webhook_log.error_message` = `尚無處理程序:<dispatch_target>`)。
 
 ### 7.7 發送通知(後端 → Gateway,PRD §8.5)
 

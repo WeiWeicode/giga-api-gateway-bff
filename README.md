@@ -83,7 +83,7 @@ E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CL
 | W3-4.6b 人員排程同步 Worker、W3-4.16 舊單一入口遷移 | 未開始(後者需 P-15 測試帳號) |
 | W3-5 動態路由、聚合、限流、快取、斷路器、發佈 / 回滾 / 補償、CLI 匯入 | 完成 |
 | W3-5.7a 後端自動註冊(API Key、草稿)、路由查詢、`gw.api_route.gherkin`、Node.js SDK 與樣本 | 完成 |
-| W3-5.8 通知(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 完成(2026-10-01;BPM 事件處理待事件格式定義) |
+| W3-5.8 通知(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 完成(2026-10-01;目前沒有 Webhook 外部來源,BPM 不送) |
 | W3-5.12 整合週(k6 壓測、資安檢查) | 未開始 |
 | P2-3a 指派規則、部門樹、權限分類、應用登記與 `me.apps` | 完成(部門同步待 DBA 授權 `bpm_reader` 唯讀 BPM `OrganizationUnit` / `Organization`(`db/dba/03-bpm-org-grant.sql`)) |
 

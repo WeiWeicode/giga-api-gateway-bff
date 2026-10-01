@@ -12,9 +12,9 @@ map $host $endpoint_grpc_upstream { default "${ENDPOINT_GRPC_UPSTREAM}"; }
 map $host $itapp_api_upstream { default "${ITAPP_API_UPSTREAM}"; }
 
 # Webhook 來源 IP 白名單(PRD §7.5);清單依部署區放在 allowlists/<GW_ENV>/
-geo $webhook_bpm_allowed {
+geo $webhook_allowed {
     default 0;
-    include /etc/nginx/allowlists/${GW_ENV}/webhook-bpm.conf;
+    include /etc/nginx/allowlists/${GW_ENV}/webhook-sources.conf;
 }
 
 # 內網服務(下游後端取 JWKS、監控)可存取的來源

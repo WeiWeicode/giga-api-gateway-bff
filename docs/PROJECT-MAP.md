@@ -17,7 +17,7 @@ giga-api-gateway-bff/
 │  ├─ conf.d/agent.conf       :9443 端點 Agent 專用(mTLS + HTTPS / WebSocket → Endpoint Server;現行為 gRPC 版,待改寫)
 │  ├─ snippets/               共用片段:ssl、security-headers、proxy-bff、websocket、spa-*、json-errors
 │  ├─ templates/              依部署區不同的值(envsubst)
-│  └─ allowlists/<dev|test|prod>/  Agent 簽發者、內部服務、BPM Webhook 來源
+│  └─ allowlists/<dev|test|prod>/  Agent 簽發者、內部服務、Webhook 來源(webhook-sources.conf)
 ├─ bff/                       BFF(Node.js 22 + TypeScript + Fastify 5)
 │  ├─ src/                    原始碼(建置只取這裡,tsconfig.build.json)
 │  │  ├─ server.ts            進入點:載入設定、啟動

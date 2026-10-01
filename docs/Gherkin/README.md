@@ -24,7 +24,7 @@
 | `router/service-registration.feature` | 後端自動註冊(API Key、草稿)、既有路由查詢 | §8.4.4、§8.7、BACKEND-GUIDE §7.5 | W3-5.7a |
 | `employee-sync/employee-sync.feature` | BPM / LOS 人員同步、兼任帳號、安全檢查 | DATABASE §8 | W3-4.6a–6c |
 | `notify/notification.feature` | Email / 站內通知、佇列重試、去重 | §8.5 | W3-5.8–5.9 |
-| `webhook/webhook.feature` | BPM Webhook 驗簽、防重放、去重 | §7.5、§8.6 | W3-5.10 |
+| `webhook/webhook.feature` | 外部系統 Webhook 驗簽、防重放、去重(目前沒有外部來源) | §7.5、§8.6 | W3-5.10 |
 
 ## 標籤慣例
 

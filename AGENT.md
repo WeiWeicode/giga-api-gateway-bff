@@ -17,7 +17,7 @@
 ### 範例
 ```
 ❌ 錯誤：直接開始寫 Webhook 模組
-✅ 正確：「我理解你要實作 /webhook/bpm 的驗簽（W3-5.10）。
+✅ 正確：「我理解你要實作 /webhook/{source} 的驗簽（W3-5.10）。
     我假設密鑰依 gw.webhook_endpoint.secret_ref 從 Docker secret 讀取，
     事件先寫入 gw.webhook_log 再排入佇列，不在請求內同步處理。這樣對嗎？」
 ```

@@ -276,6 +276,8 @@ export async function cleanupE2E(): Promise<void> {
     DELETE ap FROM gw.api_client_permission ap JOIN gw.permission p ON p.permission_id = ap.permission_id WHERE p.code LIKE 'e2e%.%';
     DELETE FROM gw.permission WHERE code LIKE 'e2e%.%';
     DELETE FROM gw.notify_log WHERE template_code LIKE 'E2E_%';
+    DELETE l FROM gw.webhook_log l JOIN gw.webhook_endpoint e ON e.endpoint_id = l.endpoint_id WHERE e.source_code LIKE 'e2e%';
+    DELETE FROM gw.webhook_endpoint WHERE source_code LIKE 'e2e%';
     DELETE FROM gw.notify_template WHERE code LIKE 'E2E_%';
   `);
   await redisDelPattern('gw:reg:*');
