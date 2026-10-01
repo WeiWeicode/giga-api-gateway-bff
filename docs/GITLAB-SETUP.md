@@ -116,6 +116,11 @@ sudo ufw allow from 10.10.0.0/16 to any port 80,2222,5050 proto tcp
 sudo ufw enable && sudo ufw status
 ```
 
+> **現況(2026-10-01 確認)**:主機 1 的 ufw 已啟用,INPUT 預設 DROP。已另外放行遠端桌面(xrdp):`sudo ufw allow from 10.10.0.0/16 to any port 3389 proto tcp comment 'xrdp'`。
+> - Docker 對外發布的 port(`80`、`2222`、`5050`、Portainer `9443`)經 iptables DNAT 走 FORWARD 鏈,**不受 ufw INPUT 規則限制**;主機本身的服務(`22`、`3389`)才需要 `ufw allow`。
+> - 新增主機本身的服務 port 卻連不到(用戶端逾時,但主機上 `ss -tlnp` 有監聽、連 `127.0.0.1` 正常),先查 `sudo ufw status numbered`。
+> - 開發機以 SSH 登入主機 1 請用 `Port 22`;`~/.ssh/config` 為 GitLab 設的 `Port 2222` 會把連線帶進 GitLab 容器(見工作區 `AGENT.md` §5)。
+
 ### 2.3 啟動(Claude 執行)
 
 ```bash

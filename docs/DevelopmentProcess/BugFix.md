@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-01 主機 1 SSH 金鑰登入被拒、遠端桌面連不進(只改文件)
+- 內容:① SSH:開發機 `~/.ssh/config` 的 `Host 10.10.130.123` 設 `Port 2222`(GitLab git 用),`ssh user@10.10.130.123` 因此連進 GitLab 容器的 sshd 而 `Permission denied (publickey)`;主機本身金鑰與權限皆正常。開發機新增別名 `host1`(`:22`)/ `host2`,寫入工作區 `AGENT.md` §5。② RDP:主機 1 的 ufw 已啟用(INPUT 預設 DROP)且未放行 3389,本人以 `ufw allow from 10.10.0.0/16 to any port 3389 proto tcp` 放行。`GITLAB-SETUP.md` §2.2 補防火牆現況(原記錄為「未確認」)
+- 檔案:`docs/GITLAB-SETUP.md`
+- 驗證:`ssh host1 hostname` → `user-virtual-machine`、`ssh host2 hostname` → `GSMC-Runner`;開發機連 `10.10.130.123:3389` 接通(修正前逾時),本人以遠端桌面登入成功
+
 ## 2026-09-25 範例後端 build 因未設 rootDir 失敗
 - 內容：TypeScript 6 在有 `outDir` 時要求明確設定 `rootDir`,`samples/node-backend` 的 `npm run build` 回 TS5011;`typecheck` 用 `--noEmit` 不受影響,只在建置(如 Docker image)時出錯。`tsconfig.build.json` 加上 `rootDir: "."`,輸出維持 `start` 所需的 `dist/src/server.js`。`sdk/node`(`rootDir: "src"`)與 `bff/`(`rootDir: ".."`)已明確設定,不受影響。
 - 檔案：`samples/node-backend/tsconfig.build.json`
