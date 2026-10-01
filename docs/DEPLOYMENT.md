@@ -149,7 +149,7 @@ flowchart LR
 
 ### 5.1 測試區注意事項
 
-- **Email 攔截**:測試區的 SMTP 改寄到測試信箱(或只允許白名單收件人),避免測試通知寄給真實員工。
+- **Email 攔截**:`GW_ENV` 不是 `prod` 時,worker 把所有 Email 改寄 `MAIL_REDIRECT_TO`(主旨註明原收件人);設定了 `MAIL_HOST` 卻沒有 `MAIL_REDIRECT_TO` 時 BFF / worker 啟動失敗,避免測試通知寄給真實員工。
 - **人事資料來源**:LOS、BPM、PortalSolar 沒有測試庫時,測試區以唯讀帳號讀取正式資料;測試區不寫入任何來源資料庫。
 - **AD**:測試區使用與正式區相同的網域,另建測試帳號供自動化測試。
 

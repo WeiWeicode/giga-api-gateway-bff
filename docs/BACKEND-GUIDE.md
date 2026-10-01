@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -408,6 +408,31 @@ await fetch(`${GW}/webhook/bpm`, { method: 'POST', body, headers: { 'content-typ
 - **密鑰**:測試區與正式區各一把,由 Gateway 負責人產生(`openssl rand -hex 32`),放在各區 `${GW_SECRETS_DIR}/webhook/<secret_ref>`(BFF 容器內 `/run/secrets/gw/webhook/`),再以安全管道交給來源系統;不寫進設定檔或版控。
 - **端點設定**:`npm run gw -- apply --file <設定.yaml>` 的 `webhooks:`(`source`、`verifyMethod: hmac_sha256`、`secretRef`、`dispatchType: queue`、`dispatchTarget`),寫入 `gw.webhook_endpoint`。
 - **事件內容**:BPM 簽核事件的格式尚未定義(Gherkin `webhook.feature`「BPM 簽核完成後通知申請人」為 `@wip`);目前事件只記錄、不處理(`gw.webhook_log.error_message` = `尚無處理程序:<dispatch_target>`)。
+
+### 7.7 發送通知(後端 → Gateway,PRD §8.5)
+
+後端以 **API Key** 呼叫 `POST https://<gateway-host>/api/notify/send`(標頭 `X-Api-Key`,不需 CSRF);API Key 需有權限 `notify.message.send`,由 Gateway 負責人以 `npm run gw -- client:create --code <服務代碼> --perm notify.message.send [--perm 其他權限]` 加上(再次執行即換發)。
+
+```jsonc
+{
+  "templateCode": "BPM_APPROVAL_PENDING",     // 範本由 Gateway 負責人以 CLI apply 的 notifyTemplates: 建立
+  "channels": ["email", "inapp"],             // 省略時用範本預設;line 回 400 CHANNEL_NOT_SUPPORTED
+  "to": { "users": ["S112009"], "adGroups": ["GN-HR-Managers"], "emails": [] },
+  "data": { "formNo": "LV-20261201-001", "linkUrl": "/bpm/forms/LV-20261201-001" },
+  "priority": "normal",                       // high | normal | low
+  "idempotencyKey": "bpm-LV-20261201-001-step2"
+}
+```
+
+| 回應 | 意義 |
+| --- | --- |
+| 202 `{ queued, skipped }` | 已入列;`skipped` 為查無工號、停用或沒有 Email 的收件人(記錄於 `gw.notify_log`,不重試) |
+| 200 `{ code: "DUPLICATE_REQUEST" }` | 相同 `idempotencyKey` 24 小時內已送出 |
+| 400 `VALIDATION_FAILED` / `CHANNEL_NOT_SUPPORTED` | 範本不存在、範本缺少該通道內容、收件人為空或超過 1,000 則 |
+| 401 / 403 | API Key 無效 / 沒有 `notify.message.send` |
+
+- 站內通知的 `data.linkUrl` 只接受站內路徑(`/` 開頭)或 `https://` 網址。
+- 測試區所有 Email 改寄測試信箱(DEPLOYMENT.md §5.1),不會寄給真實收件人。
 
 ---
 

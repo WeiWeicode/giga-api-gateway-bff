@@ -31,6 +31,14 @@ const userRtKey = (userId: number | string) => `gw:user:rt:${userId}`;
 export const denyKey = (jti: string) => `gw:deny:${jti}`;
 const pwchgKey = (hash: string) => `gw:pwchg:${hash}`;
 
+/** 撤銷使用者所有 Refresh Token 家族(強制登出;CLI 重設密碼也使用) */
+export async function revokeUserSessions(redis: Redis, userId: number): Promise<number> {
+  const families = await redis.smembers(userRtKey(userId));
+  if (families.length) await redis.del(...families.map(rtKey));
+  await redis.del(userRtKey(userId));
+  return families.length;
+}
+
 export type RefreshOutcome =
   { ok: true; userId: number; amr: 'ad' | 'local'; remember: boolean; familyId: string } | { ok: false; reason: 'missing' | 'expired' | 'reused' };
 
@@ -107,11 +115,8 @@ export class SessionService {
   }
 
   /** 撤銷使用者所有 Refresh Token 家族(密碼變更、強制登出) */
-  async revokeUser(userId: number): Promise<number> {
-    const families = await this.redis.smembers(userRtKey(userId));
-    if (families.length) await this.redis.del(...families.map(rtKey));
-    await this.redis.del(userRtKey(userId));
-    return families.length;
+  revokeUser(userId: number): Promise<number> {
+    return revokeUserSessions(this.redis, userId);
   }
 
   familyIdOf(cookie: string | undefined): string | undefined {

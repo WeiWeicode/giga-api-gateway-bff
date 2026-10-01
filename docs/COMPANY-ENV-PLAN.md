@@ -192,7 +192,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | --- | --- |
 | W3-4.6b 人員排程同步 Worker | P-12 |
 | W3-4.16 舊單一入口帳號遷移(DES 比對、`gw:pwchg` 流程已完成) | P-15 |
-| W3-5.8 通知 Worker(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼 | P-09 |
+| W3-5.8 通知 Worker(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼 | P-09(✅ 2026-10-01 已實作;SMTP `10.10.130.69:25`,測試區需在 `test.env` 設 `MAIL_HOST`、`MAIL_REDIRECT_TO`) |
 | W3-5.10 Webhook 驗簽 | — |
 | W3-1.6 稽核表保存排程、W3-2.8 nginx-prometheus-exporter、CRL 更新排程(ENDPOINT-AGENT-GUIDE §10 G1) | — |
 | P2-5 路由的 `api_key` 驗證模式、API Key 管理 API(目前 API Key 只用於自動註冊與路由查詢,以 CLI `client:create` / `client:disable` 管理) | — |

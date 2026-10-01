@@ -153,7 +153,7 @@ $IT run --rm --build spa-it
 - [ ] 一般員工看不到應用切換;有 `it.app.access` 的人看得到,點「IT 管理系統」到 `/it/`
 - [ ] 登出後回到 `/login`
 - [ ] Gateway log 的 `remote_addr` 是那台電腦的 IP(DEPLOYMENT.md §6.1 步驟 6)
-- 已知:註冊、忘記密碼頁會顯示 Gateway 錯誤(`/api/auth/register`、`/password/forgot`、`/password/reset` 尚未實作,W3-5.8a/b);首頁資訊區塊與各功能頁為「建置中」(giga-Portal M4 / M5)
+- 已知:`/api/auth/register`、`/password/forgot`、`/password/reset` 已實作(W3-5.8a/b,2026-10-01),Email 改寄 `test.env` 的 `MAIL_REDIRECT_TO`;giga-Portal 註冊頁尚未送出 `password`,沒有 Email 的同仁目前無法以到職日完成註冊;首頁資訊區塊與各功能頁為「建置中」(giga-Portal M4 / M5)
 
 ## 10. 常見狀況與回滾
 

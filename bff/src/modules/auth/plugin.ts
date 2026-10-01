@@ -117,6 +117,8 @@ export default fp<{ config: AppConfig }>(
       if (SAFE_METHODS.has(req.method) || !req.url.startsWith('/api/')) return;
       const path = req.url.split('?')[0]!;
       if (CSRF_EXEMPT.has(path)) return;
+      // 系統對系統以 X-Api-Key 呼叫(不帶登入 Cookie):瀏覽器跨站無法加自訂標頭,不適用 CSRF
+      if (req.headers['x-api-key'] && !req.cookies[COOKIE_AT]) return;
       if (!csrfValid(req)) throw new GwError('CSRF_INVALID');
     });
   },

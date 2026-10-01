@@ -1,6 +1,7 @@
 /**
  * Auth API(PRD §8.2.4)。這些路由是程式內建,不受動態路由表影響(PRD §14.1)。
  *   POST /api/auth/login | refresh | logout | password/change | register/verify
+ *   POST /api/auth/register | password/forgot | password/reset   自行註冊與忘記密碼(local-account.ts)
  *   GET  /api/auth/me
  *   GET  /_auth/verify               僅供 Nginx auth_request(internal location)
  *   GET  /.well-known/jwks.json      內部 Token 公鑰(僅內網)
@@ -13,6 +14,7 @@ import { localAccountToken, localCredential, user } from '../../db/schema/index.
 import { GwError } from '../../errors.js';
 import type { RouteTable } from '../router/table.js';
 import { buildIdentity } from './identity.js';
+import { FORGOT_MESSAGE, LocalAccountService } from './local-account.js';
 import { writeAuthLog } from './login.js';
 import { checkPasswordPolicy, hashPassword, isReused, POLICY_MESSAGES, pushHistory, verifyPassword } from './password.js';
 import { identityOf } from './plugin.js';
@@ -46,10 +48,47 @@ const verifyBody = {
   properties: { token: { type: 'string', minLength: 10, maxLength: 200 }, password: { type: 'string', minLength: 1, maxLength: 256 } },
 } as const;
 
+const registerBody = {
+  type: 'object',
+  required: ['employeeNo', 'name'],
+  // 自填 Email 等多餘欄位直接移除:驗證連結只寄到 LOS / BPM 登記的 Email
+  properties: {
+    employeeNo: { type: 'string', minLength: 1, maxLength: 20 },
+    name: { type: 'string', minLength: 1, maxLength: 50 },
+    hireDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+    password: { type: 'string', minLength: 1, maxLength: 256 },
+  },
+} as const;
+
+const forgotBody = {
+  type: 'object',
+  required: ['employeeNo'],
+  properties: { employeeNo: { type: 'string', minLength: 1, maxLength: 20 } },
+} as const;
+
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    localAccounts: LocalAccountService;
+  }
+}
 
 const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> = async (app, { config, routes }) => {
   const ua = (req: FastifyRequest) => String(req.headers['user-agent'] ?? '');
+  app.decorate(
+    'localAccounts',
+    new LocalAccountService({
+      db: app.db,
+      redis: app.redis,
+      ad: app.ad,
+      ext: app.ext,
+      notifier: app.notifier,
+      log: app.log,
+      publicBaseUrl: config.publicBaseUrl,
+      revokeUser: (userId) => app.sessions.revokeUser(userId),
+    }),
+  );
 
   async function startSession(req: FastifyRequest, reply: FastifyReply, userId: number, amr: 'ad' | 'local', remember: boolean) {
     const identity = await buildIdentity(app.db, app.redis, userId, amr);
@@ -161,6 +200,28 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
     await app.sessions.revokeUser(userId);
     if (p) await app.sessions.deny(p.claims.jti, p.claims.exp);
     return startSession(req, reply, userId, 'local', limited?.remember ?? false);
+  });
+
+  /** 自行註冊(W3-5.8a):有 Email 寄驗證連結 → 202;無 Email 比對到職日後直接啟用 → 200;查無轉審核 → 202 */
+  app.post<{ Body: { employeeNo: string; name: string; hireDate?: string; password?: string } }>(
+    '/api/auth/register',
+    { schema: { body: registerBody } },
+    async (req, reply) => {
+      const r = await app.localAccounts.register({ ...req.body, ip: req.ip, userAgent: ua(req) });
+      return reply.code(r.code === 'OK' ? 200 : 202).send({ code: r.code, message: r.message, requestId: req.id });
+    },
+  );
+
+  /** 忘記密碼(W3-5.8b):不論帳號是否存在都回相同內容 */
+  app.post<{ Body: { employeeNo: string } }>('/api/auth/password/forgot', { schema: { body: forgotBody } }, async (req, reply) => {
+    await app.localAccounts.forgot(req.body.employeeNo, { ip: req.ip, userAgent: ua(req) });
+    return reply.code(202).send({ code: 'VERIFICATION_SENT', message: FORGOT_MESSAGE, requestId: req.id });
+  });
+
+  /** 以重設連結設定新密碼(W3-5.8b) */
+  app.post<{ Body: { token: string; password: string } }>('/api/auth/password/reset', { schema: { body: verifyBody } }, async (req) => {
+    await app.localAccounts.reset(req.body.token, req.body.password, { ip: req.ip, userAgent: ua(req) });
+    return { code: 'OK', message: '密碼已重設,其他裝置的登入已登出,請以新密碼登入' };
   });
 
   /** 以驗證 / 啟用連結的 token 設定密碼並啟用本機帳號(IT 代建 72 小時、Email 驗證 30 分鐘) */

@@ -43,6 +43,13 @@ x-bff-env: &bff-env
   INTERNAL_NETWORKS: ${INTERNAL_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}
   TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1/8,::1/128,172.16.0.0/12,192.168.0.0/16}
   SQL2012_GUARD: "off"
+  # 註冊驗證、重設密碼連結的網址(PRD §8.2.5)
+  PUBLIC_BASE_URL: https://${GW_PUBLIC_HOST:-localhost}
+  # SMTP(PRD §8.5);GW_ENV 不是 prod 時設定 MAIL_HOST 必須同時設定 MAIL_REDIRECT_TO(所有信改寄測試信箱,DEPLOYMENT §5.1)
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-25}
+  MAIL_FROM: ${MAIL_FROM:-GigaNexus <giganexus-noreply@gigasolar.com.tw>}
+  MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-}
 
 x-bff: &bff
   image: ${REGISTRY:-localhost:5050}/gateway/bff:${IMAGE_TAG:?IMAGE_TAG 必須設定(commit SHA)}

@@ -5,6 +5,9 @@
   身為禾迅員工
   我要以工號與姓名申請註冊;LOS / BPM 找得到我就通過,找不到才由管理員審核
 
+  # API:POST /api/auth/register { employeeNo, name, hireDate?, password? }(PRD §8.2.4);
+  # 待審核由 IT 以 CLI local:approve 核准(管理 API 於 P2-3)
+
   背景:
     假如 公司 "禾迅" 沒有設定任何網域
     而且 所有 AD 網域都查無 "V112001"

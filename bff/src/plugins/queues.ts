@@ -5,6 +5,7 @@ import type { AppConfig } from '../config.js';
 
 /** BullMQ 佇列名稱(Redis 鍵 bull:<名稱>:*,DATABASE.md §6) */
 export const QUEUE_WEBHOOK = 'webhook';
+export const QUEUE_NOTIFY = 'notify';
 
 export interface WebhookJob {
   logId: number;
@@ -15,9 +16,21 @@ export interface WebhookJob {
   payload: string;
 }
 
+/** 一則通知 = 一位收件人 × 一個通道(對應一筆 gw.notify_log) */
+export interface NotifyJob {
+  logId: number;
+  channel: 'email' | 'inapp';
+  templateCode: string;
+  /** inapp 必填;email 有對應使用者時填入 */
+  userId: number | null;
+  /** email 收件地址 */
+  address: string | null;
+  data: Record<string, unknown>;
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
-    queues: { webhook: Queue<WebhookJob> };
+    queues: { webhook: Queue<WebhookJob>; notify: Queue<NotifyJob> };
   }
 }
 
@@ -30,9 +43,10 @@ export default fp<{ config: AppConfig }>(
     const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: 1, connectionName: 'giganexus-bff-queue' });
     connection.on('error', (err) => app.log.warn({ err: err.message }, 'Redis 佇列連線錯誤'));
     const webhook = new Queue<WebhookJob>(QUEUE_WEBHOOK, { connection });
-    app.decorate('queues', { webhook });
+    const notify = new Queue<NotifyJob>(QUEUE_NOTIFY, { connection });
+    app.decorate('queues', { webhook, notify });
     app.addHook('onClose', async () => {
-      await webhook.close().catch(() => undefined);
+      await Promise.all([webhook.close(), notify.close()]).catch(() => undefined);
       connection.disconnect();
     });
   },

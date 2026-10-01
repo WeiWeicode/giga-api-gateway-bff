@@ -390,10 +390,10 @@ sequenceDiagram
 | GET | `/api/auth/me` | 目前使用者(含部門、職稱、職級)、角色、權限代碼清單、**可使用的應用 `apps`**(§8.3.3);`menus` 保留為空陣列,選單由各應用依 `permissions` 過濾自己的路由定義 |
 | GET | `/_auth/verify` | **僅供 Nginx `auth_request`**(internal location),依 `X-Original-URI` 判斷權限,回 204/401/403 |
 | GET | `/.well-known/jwks.json` | 內部 Token 公鑰(僅內網) |
-| POST | `/api/auth/register` | 本機帳號註冊申請(工號 + 姓名);資格符合時寄送驗證連結或轉 IT 審核 |
+| POST | `/api/auth/register` | 本機帳號註冊申請 `{ employeeNo, name, hireDate?, password? }`:有 Email 寄驗證連結(202 `VERIFICATION_SENT`);無 Email 者附到職日(`YYYY-MM-DD`)與密碼,比對通過直接啟用(200 `OK`);查無轉 IT 審核(202 `REGISTRATION_PENDING_APPROVAL`,CLI `local:approve`)。自填 Email 等多餘欄位一律忽略 |
 | POST | `/api/auth/register/verify` | 以驗證 / 啟用連結的 token 設定密碼,啟用帳號 |
-| POST | `/api/auth/password/forgot` | 寄送重設密碼連結(僅本機帳號;AD 帳號請依公司 AD 流程) |
-| POST | `/api/auth/password/reset` | 以 token 重設密碼 |
+| POST | `/api/auth/password/forgot` | `{ employeeNo }` 寄送重設密碼連結(僅 `active` / `locked` 且有 Email 的本機帳號);**不論帳號是否存在、是否為 AD 帳號,一律回 202 `VERIFICATION_SENT` 與同一訊息**(訊息含 AD 帳號提示) |
+| POST | `/api/auth/password/reset` | `{ token, password }` 重設密碼:解除鎖定、撤銷所有 Refresh Token 家族;無 Email 者由 IT 以 CLI `local:reset` 產生臨時密碼(首次登入須更換) |
 | POST | `/api/auth/password/change` | 已登入的本機帳號變更密碼 |
 
 #### 8.2.5 本機帳號與自行註冊
@@ -656,7 +656,9 @@ sequenceDiagram
   }
   ```
 
-- **佇列**:BullMQ(Redis)。API 只負責入列,Worker 發送;失敗以指數退避重試 5 次,最終失敗進入死信並告警。
+- **回應**:202 `{ queued, skipped }`;收件人展開為「每人 × 每通道」一筆 `gw.notify_log`,查無工號、帳號停用、沒有 Email 者記為 `skipped`(不重試);單次上限 1,000 則。`adGroups` 比對 `gw.user.ad_groups`(登入時寫入),**只涵蓋登入過的使用者**。範本變數為 `{{name}}` 子集(不支援區塊與 helper),Email 內文的變數值自動跳脫。
+- **佇列**:BullMQ(Redis)。API 只負責入列,Worker 發送;失敗以指數退避重試 5 次,最終失敗進入死信並告警(目前為 `alert: true` 的 error log,接 Alertmanager 後改為告警)。
+- **測試區與開發**:`GW_ENV` 不是 `prod` 時所有 Email 改寄 `MAIL_REDIRECT_TO`(主旨註明原收件人),未設定則 BFF / worker 啟動失敗。
 - **限速**:依通道設定每秒上限(SMTP 伺服器限制;未來 LINE 另需遵守平台速率與月訊息額度)。
 - **紀錄**:每則發送寫入 `gw.notify_log`(狀態、重試次數、錯誤訊息、供應商回應 ID)。
 - **監控告警**:Prometheus Alertmanager 的 Email 告警亦可透過本服務的 webhook 端點發送。

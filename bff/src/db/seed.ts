@@ -6,8 +6,17 @@ import { pathToFileURL } from 'node:url';
 import { and, eq, inArray } from 'drizzle-orm';
 import { loadConfig } from '../config.js';
 import { createGwDb, openPool, type GwDatabase } from './client.js';
-import { company, companyAdDomain, permission, rateLimitPolicy, role, rolePermission } from './schema/index.js';
-import { ADMIN_PERMISSIONS, COMPANIES, RATE_LIMIT_POLICIES, ROLE_PERMISSIONS, ROLES, SEED_ACTOR } from '../../../db/seed/data.mjs';
+import { company, companyAdDomain, notifyTemplate, permission, rateLimitPolicy, role, rolePermission } from './schema/index.js';
+import {
+  ADMIN_PERMISSIONS,
+  COMPANIES,
+  RATE_LIMIT_POLICIES,
+  ROLE_PERMISSIONS,
+  ROLES,
+  NOTIFY_TEMPLATES,
+  SEED_ACTOR,
+  SERVICE_PERMISSIONS,
+} from '../../../db/seed/data.mjs';
 
 export interface SeedResult {
   roles: number;
@@ -16,13 +25,14 @@ export interface SeedResult {
   policies: number;
   companies: number;
   companyDomains: number;
+  notifyTemplates: number;
 }
 
 const audit = { createdBy: SEED_ACTOR, updatedBy: SEED_ACTOR };
 
 export async function runSeed(db: GwDatabase): Promise<SeedResult> {
   return db.transaction(async (tx) => {
-    const result: SeedResult = { roles: 0, permissions: 0, rolePermissions: 0, policies: 0, companies: 0, companyDomains: 0 };
+    const result: SeedResult = { roles: 0, permissions: 0, rolePermissions: 0, policies: 0, companies: 0, companyDomains: 0, notifyTemplates: 0 };
 
     // 角色
     const existingRoles = new Set((await tx.select({ code: role.code }).from(role)).map((r) => r.code));
@@ -41,7 +51,9 @@ export async function runSeed(db: GwDatabase): Promise<SeedResult> {
         }),
       );
     }
-    result.permissions = newPerms.length;
+    const newServicePerms = SERVICE_PERMISSIONS.filter((p) => !existingPerms.has(p.code));
+    if (newServicePerms.length) await tx.insert(permission).values(newServicePerms.map((p) => ({ ...p, ...audit })));
+    result.permissions = newPerms.length + newServicePerms.length;
 
     // 角色 ↔ 權限(只補缺少的)
     const roleIds = new Map((await tx.select({ id: role.roleId, code: role.code }).from(role)).map((r) => [r.code, r.id]));
@@ -99,6 +111,12 @@ export async function runSeed(db: GwDatabase): Promise<SeedResult> {
         }
       }
     }
+
+    // 系統通知範本(只新增)
+    const existingTemplates = new Set((await tx.select({ code: notifyTemplate.code }).from(notifyTemplate)).map((t) => t.code));
+    const newTemplates = NOTIFY_TEMPLATES.filter((t) => !existingTemplates.has(t.code));
+    if (newTemplates.length) await tx.insert(notifyTemplate).values(newTemplates.map((t) => ({ ...t, channels: JSON.stringify(t.channels), ...audit })));
+    result.notifyTemplates = newTemplates.length;
 
     return result;
   });

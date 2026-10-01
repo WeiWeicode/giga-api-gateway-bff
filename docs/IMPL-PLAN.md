@@ -55,7 +55,7 @@
 | W3-2 Nginx 入口 | ✅ 測試區完成(未做:W3-2.8 exporter) |
 | ~~W3-3 Agent 通道~~ | 取消,改為 Rust + WebSocket 併入 W6(§4.3) |
 | W3-4 身分與權限 | ✅ 測試區完成;待外部前置:W3-4.6b 人員同步 Worker(P-12)、W3-4.16 舊帳號遷移(P-15) |
-| W3-5 路由與通知 | 🔶 進行中:路由、聚合、斷路器、同步、自動註冊、W3-5.10 Webhook 驗簽(BPM 事件處理待事件格式定義)完成;W3-5.8 / 8a / 8b、W3-5.12 整合週未完成 |
+| W3-5 路由與通知 | 🔶 進行中:路由、聚合、斷路器、同步、自動註冊、W3-5.8 通知(Email + 站內)、W3-5.8a 自行註冊、W3-5.8b 忘記 / 重設密碼、W3-5.10 Webhook 驗簽(BPM 事件處理待事件格式定義)完成;W3-5.12 整合週未完成 |
 
 ---
 
@@ -73,7 +73,7 @@
 | P-06 | AD CS「GigaNexus Agent」憑證範本、Agent 專用中繼 CA、CRL 發佈點 | IT + W2 | 範本與 CA 鏈;CRL 下載位置 | W6 Agent 上線(可先用測試 CA,見 §9) |
 | P-07 | AD **LDAP 查詢服務帳號**(三個網域各一組,PRD Q11);企業 CA 根憑證 | IT + 資安 | 各網域服務帳號(唯讀)、baseDN、連線資訊 | W3-4 |
 | P-08 | 規劃 AD 群組:`GN-*` 系列對應內建角色 | IT | 群組清單與成員 | W3-4 |
-| P-09 | SMTP 中繼帳號(Exchange) | IT | 主機、帳號、寄件人位址 | W3-5 |
+| P-09 | SMTP 中繼帳號(Exchange) | IT | 主機、帳號、寄件人位址(✅ 2026-10-01:中繼 `10.10.130.69:25`,不需帳密) | W3-5 |
 | P-10 | ~~LINE 官方帳號申請~~ | — | **暫緩**:本階段不開發 LINE 通知(PRD Q7) | — |
 | P-11 | 主機 2(測試區)、主機 3(正式區)的 Docker 與 GitLab Runner、Registry `:5050` 登入、開機自動恢復、Port 80 / 443 / 9443 未被佔用([DEPLOYMENT.md](DEPLOYMENT.md) §6–§7)。**主機 2 已完成**(WSL2 Docker Engine + Runner,2026-09-30);主機 3 目前為 Docker Desktop,**2026-12 改為 Docker Engine 並註冊 `prod-deploy` Runner** | IT / W1 | 兩台主機可由 Pipeline 部署 Compose | 正式區 |
 | P-12 | LOS、BPM **唯讀帳號**與欄位對應(PRD Q9) | DBA、BPM 負責人 | 兩個唯讀登入帳號;BPM 依 GeneralBackend 的 EFGP 查詢建立唯讀 view([REFERENCES.md](REFERENCES.md) §1.2);LOS `EmployeeInfo` 欄位說明 | W3-4 |

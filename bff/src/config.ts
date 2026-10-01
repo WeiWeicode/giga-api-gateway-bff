@@ -112,6 +112,21 @@ const configSchema = z.object({
   endpointWsPermission: z.string().default('endpoint.remote.operate'),
   /** Webhook 密鑰目錄:檔名 = gw.webhook_endpoint.secret_ref(PRD §8.6) */
   webhookSecretsDir: z.string().default('/run/secrets/gw/webhook'),
+  /** 入口網對外網址:註冊驗證、重設密碼連結(PRD §8.2.5) */
+  publicBaseUrl: z.string().url().default('https://localhost'),
+  /** SMTP(PRD §8.5,worker 使用);未設定 host 時 Email 通道發送失敗並記錄 */
+  mail: z.object({
+    host: z.string().optional(),
+    port: z.coerce.number().int().default(25),
+    secure: bool.default(false),
+    user: z.string().optional(),
+    password: z.string().optional(),
+    from: z.string().default('GigaNexus <giganexus-noreply@gigasolar.com.tw>'),
+    /** 測試區 / 開發:所有 Email 改寄到此信箱(DEPLOYMENT.md §5.1),主旨註明原收件人 */
+    redirectTo: z.string().optional(),
+    /** 每秒寄送上限(SMTP 伺服器限制) */
+    ratePerSec: z.coerce.number().int().positive().default(10),
+  }),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -143,7 +158,22 @@ export function loadConfig(env: Env = process.env): AppConfig {
     syncIntervalMs: env.SYNC_INTERVAL_MS,
     endpointWsPermission: env.ENDPOINT_WS_PERMISSION,
     webhookSecretsDir: env.WEBHOOK_SECRETS_DIR,
+    publicBaseUrl: env.PUBLIC_BASE_URL || undefined,
+    mail: {
+      host: env.MAIL_HOST || undefined,
+      port: env.MAIL_PORT,
+      secure: env.MAIL_SECURE,
+      user: env.MAIL_USER || undefined,
+      password: readSecret(env, 'MAIL_PASSWORD'),
+      from: env.MAIL_FROM || undefined,
+      redirectTo: env.MAIL_REDIRECT_TO || undefined,
+      ratePerSec: env.MAIL_RATE_PER_SEC,
+    },
   });
+  if (result.success && result.data.gwEnv !== 'prod' && result.data.mail.host && !result.data.mail.redirectTo) {
+    // 測試區與開發不可寄給真實員工(DEPLOYMENT.md §5.1)
+    throw new Error('設定錯誤:\n  - mail.redirectTo: GW_ENV 不是 prod 時,設定 MAIL_HOST 必須同時設定 MAIL_REDIRECT_TO');
+  }
   if (!result.success) {
     const issues = result.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`設定錯誤:\n${issues}`);

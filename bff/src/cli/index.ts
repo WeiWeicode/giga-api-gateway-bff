@@ -2,12 +2,14 @@
  * Gateway 管理 CLI(IMPL-PLAN W3-5.7、W3-4.15):第二階段管理 API 完成前,由 Gateway 負責人以此維護設定。
  *
  *   npm run gw -- import-openapi --file <路徑或 URL> --target <http://host:512xx> [--env test|prod]
- *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)、Webhook 端點
+ *   npm run gw -- apply --file <設定.yaml>          上游、限流政策、權限、角色(含 AD 群組 / 公司對應)、聚合 / mock 路由(含說明與 Gherkin)、Webhook 端點、通知範本
  *   npm run gw -- publish [--note 說明]              發佈所有草稿(≤ 5 秒全部 BFF 生效)
  *   npm run gw -- rollback --to <版本>               以歷史版本產生新版本
  *   npm run gw -- releases                           列出最近 20 個發佈版本
  *   npm run gw -- local:create --emp <工號> [--base-url https://<gateway-host>]   IT 代建本機帳號,產生 72 小時啟用連結
  *   npm run gw -- local:unlock --emp <工號>
+ *   npm run gw -- local:approve --emp <工號> [--base-url ...]   核准自行註冊的待審核申請(LOS / BPM 查無者),產生 72 小時啟用連結
+ *   npm run gw -- local:reset --emp <工號>                      IT 重設本機帳號密碼(無 Email 者):產生臨時密碼,首次登入須更換
  *   npm run gw -- user:disable|user:enable --emp <工號>
  *   npm run gw -- client:create --code <服務代碼> [--name 名稱] [--perm 權限代碼 ...] [--ips CIDR,...] [--expires-days 天數]
  *                                                    建立或換發 API Key(明文只顯示一次);預設權限為自動註冊與路由查詢
@@ -35,6 +37,7 @@ import {
   configRelease,
   localAccountToken,
   localCredential,
+  notifyTemplate,
   permission,
   rateLimitPolicy,
   role,
@@ -48,7 +51,10 @@ import {
 import { publishRelease, rollbackRelease } from '../db/sync/release.js';
 import { clientKey, generateApiKey } from '../modules/auth/api-key.js';
 import { AdDirectory } from '../modules/auth/ldap.js';
+import { isChannel } from '../modules/notify/template.js';
 import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo } from '../modules/auth/profile.js';
+import { hashPassword, pushHistory } from '../modules/auth/password.js';
+import { revokeUserSessions } from '../modules/auth/session.js';
 import { audit, ensurePermissions, ImportError, importOpenApiDoc, setTargets, upsertUpstream, type Tx } from '../modules/admin/route-import.js';
 
 interface Ctx {
@@ -159,12 +165,22 @@ interface ApplyFile {
     dispatchTarget: string;
     enabled?: boolean;
   }[];
+  /** 通知範本(PRD §8.5);變數 {{name}},emailBody 為 HTML(變數值自動跳脫) */
+  notifyTemplates?: {
+    code: string;
+    name: string;
+    channels: string[];
+    emailSubject?: string;
+    emailBody?: string;
+    inappBody?: string;
+    enabled?: boolean;
+  }[];
 }
 
 async function applyConfig(ctx: Ctx, file: string) {
   const cfg = parseYaml(await readSource(file)) as ApplyFile;
   const result = await ctx.db.transaction(async (tx) => {
-    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, webhooks: 0, pvBumped: false };
+    const r = { policies: 0, upstreams: 0, permissions: 0, roles: 0, routes: 0, webhooks: 0, notifyTemplates: 0, pvBumped: false };
     for (const p of cfg.policies ?? []) {
       const [cur] = await tx.select().from(rateLimitPolicy).where(eq(rateLimitPolicy.code, p.code));
       const v = { limitCount: p.limitCount, windowSec: p.windowSec, keyBy: p.keyBy, burst: p.burst ?? null, updatedBy: ctx.actor };
@@ -307,6 +323,24 @@ async function applyConfig(ctx: Ctx, file: string) {
       await audit(tx, ctx.actor, 'webhook.apply', 'webhook_endpoint', w.source, v);
       r.webhooks++;
     }
+    for (const t of cfg.notifyTemplates ?? []) {
+      const bad = t.channels.filter((c) => !isChannel(c));
+      if (bad.length) throw new CliError(`通知範本 ${t.code} 的通道不支援:${bad.join(', ')}`);
+      const v = {
+        name: t.name,
+        channels: JSON.stringify(t.channels),
+        emailSubject: t.emailSubject ?? null,
+        emailBody: t.emailBody ?? null,
+        inappBody: t.inappBody ?? null,
+        isEnabled: t.enabled ?? true,
+        updatedBy: ctx.actor,
+      };
+      const [cur] = await tx.select({ id: notifyTemplate.templateId }).from(notifyTemplate).where(eq(notifyTemplate.code, t.code));
+      if (cur) await tx.update(notifyTemplate).set(v).where(eq(notifyTemplate.templateId, cur.id));
+      else await tx.insert(notifyTemplate).values({ code: t.code, ...v, createdBy: ctx.actor });
+      await audit(tx, ctx.actor, 'notify.template.apply', 'notify_template', t.code, { channels: t.channels });
+      r.notifyTemplates++;
+    }
     await audit(tx, ctx.actor, 'config.apply', 'file', file.slice(-100), { ...r });
     return r;
   });
@@ -379,6 +413,68 @@ async function createLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
   } finally {
     await Promise.all(pools.map((p) => p.close()));
   }
+}
+
+/** 核准自行註冊的待審核申請(PRD §8.2.5:LOS / BPM 查無者由管理員確認身分) */
+async function approveLocalAccount(ctx: Ctx, empArg: string, baseUrl: string) {
+  const emp = normalizeEmpNo(empArg);
+  const [row] = await ctx.db
+    .select({ userId: user.userId, status: localCredential.status })
+    .from(user)
+    .innerJoin(localCredential, eq(localCredential.userId, user.userId))
+    .where(eq(user.employeeNo, emp));
+  if (row?.status !== 'pending_approval') throw new CliError(`${emp} 沒有待審核的註冊申請`);
+  const token = randomBytes(32).toString('base64url');
+  await ctx.db.transaction(async (tx) => {
+    await tx
+      .update(localCredential)
+      .set({ status: 'pending_verify', approvedBy: ctx.actor.slice(0, 64), approvedAt: new Date(), updatedBy: ctx.actor })
+      .where(eq(localCredential.userId, row.userId));
+    await tx
+      .update(localAccountToken)
+      .set({ usedAt: new Date() })
+      .where(and(eq(localAccountToken.userId, row.userId), eq(localAccountToken.purpose, 'activate'), isNull(localAccountToken.usedAt)));
+    await tx.insert(localAccountToken).values({
+      userId: row.userId,
+      purpose: 'activate',
+      tokenHash: createHash('sha256').update(token).digest('hex'),
+      expiresAt: new Date(Date.now() + 72 * 3600 * 1000),
+    });
+    await audit(tx, ctx.actor, 'local.approve', 'user', emp, {});
+  });
+  out({ employeeNo: emp, link: `${baseUrl.replace(/\/$/, '')}/register/activate?token=${token}`, expiresInHours: 72 });
+}
+
+/** IT 重設密碼(無 Email 者,PRD §8.2.5):臨時密碼只顯示一次,首次登入須更換;撤銷所有登入 */
+async function resetLocalPassword(ctx: Ctx, empArg: string) {
+  const emp = normalizeEmpNo(empArg);
+  const [row] = await ctx.db
+    .select({ userId: user.userId, cred: localCredential })
+    .from(user)
+    .innerJoin(localCredential, eq(localCredential.userId, user.userId))
+    .where(eq(user.employeeNo, emp));
+  if (!row || !['active', 'locked'].includes(row.cred.status)) throw new CliError(`${emp} 沒有啟用中或鎖定的本機帳號`);
+  // 臨時密碼:12 碼英數,保證含英文與數字(符合 Q14)
+  const temp = `${randomBytes(9).toString('base64url').replace(/[-_]/g, 'x')}a1`;
+  await ctx.db.transaction(async (tx) => {
+    await tx
+      .update(localCredential)
+      .set({
+        passwordHash: await hashPassword(temp),
+        passwordHistory: pushHistory(row.cred.passwordHash, row.cred.passwordHistory),
+        passwordChangedAt: new Date(),
+        status: 'active',
+        failedCount: 0,
+        lockedAt: null,
+        mustChangePassword: true,
+        updatedBy: ctx.actor,
+      })
+      .where(eq(localCredential.userId, row.userId));
+    await audit(tx, ctx.actor, 'local.reset', 'user', emp, {});
+  });
+  const revoked = await revokeUserSessions(ctx.redis, row.userId).catch(() => -1);
+  await ctx.redis.del(`gw:login:fail:${emp}`).catch(() => undefined);
+  out({ employeeNo: emp, temporaryPassword: temp, mustChangePassword: true, revokedSessions: revoked, message: '臨時密碼只顯示這一次,請以安全管道交給本人' });
 }
 
 async function setUserDisabled(ctx: Ctx, empArg: string, disabled: boolean) {
@@ -549,6 +645,12 @@ async function main() {
         out({ employeeNo: emp, unlocked: true });
         break;
       }
+      case 'local:approve':
+        await approveLocalAccount(ctx, need(values.emp, 'emp'), values['base-url']!);
+        break;
+      case 'local:reset':
+        await resetLocalPassword(ctx, need(values.emp, 'emp'));
+        break;
       case 'user:disable':
       case 'user:enable':
         await setUserDisabled(ctx, need(values.emp, 'emp'), command === 'user:disable');

@@ -294,7 +294,7 @@ erDiagram
 | 表 | 主要欄位 |
 | --- | --- |
 | `gw.notify_template` | `template_id`、`code` UQ、`name`、`channels`(預設通道 JSON)、`email_subject`、`email_body`(HTML)、`inapp_body`、`is_enabled`、★共通 |
-| `gw.notify_log` | `log_id` BIGINT PK、`template_code`、`channel`、`recipient_user_id`、`recipient_address`、`status`(`queued`/`sent`/`failed`/`dead`)、`retry_count`、`provider_msg_id`、`error_message`、`idempotency_key`、`requested_by`、`queued_at`、`sent_at` |
+| `gw.notify_log` | `log_id` BIGINT PK、`template_code`、`channel`、`recipient_user_id`、`recipient_address`、`status`(`queued`/`sent`/`failed`/`dead`/`skipped`;`skipped` = 查無工號、帳號停用或沒有 Email,不入列)、`retry_count`、`provider_msg_id`、`error_message`、`idempotency_key`、`requested_by`、`queued_at`、`sent_at` |
 | `gw.notify_message` | `message_id` BIGINT PK、`user_id`、`title`、`body`、`link_url`、`is_read`、`read_at`、`created_at`(站內通知) |
 | `gw.webhook_endpoint` | `endpoint_id`、`source_code` UQ(本階段僅 `bpm`)、`verify_method`(`hmac_sha256`/`none`)、`secret_ref`(密鑰檔名,實值存 `WEBHOOK_SECRETS_DIR/<secret_ref>`)、`signature_header`(預設 `X-Gw-Signature`)、`allowed_ips`(僅供參考,實際由 Nginx 白名單檢查)、`dispatch_type`(`route`/`queue`/`handler`;**目前只實作 `queue`**)、`dispatch_target`、`is_enabled`、★共通 |
 | `gw.webhook_log` | `log_id` BIGINT PK、`endpoint_id`、`request_id`、`idempotency_key`、`remote_ip`、`verified`(簽章與時間戳皆通過)、`status_code`(回給來源的狀態)、`payload`(目前全部保存)、`received_at`、`processed_at`(worker 處理完成)、`error_message`(拒絕原因、`DUPLICATE_REQUEST`、處理失敗訊息) |
