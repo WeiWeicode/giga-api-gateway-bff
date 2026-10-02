@@ -50,6 +50,13 @@ x-bff-env: &bff-env
   MAIL_PORT: ${MAIL_PORT:-25}
   MAIL_FROM: ${MAIL_FROM:-GigaNexus <giganexus-noreply@gigasolar.com.tw>}
   MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-}
+  # 告警 Email(worker:通知死信、人員 / 部門同步中止、離職標記與新公司);逗號分隔,未設定只寫 error log
+  ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+  # 舊單一入口帳號遷移(W3-4.16):以現行系統測試帳號驗證密文一致(P-15)後才開啟;
+  # 開啟時在 <區域>.env 設 LEGACY_MIGRATION_ENABLED=true 與兩個 *_FILE=/run/secrets/gw/legacy_portal_key、legacy_portal_server_key(檔案放機密目錄)
+  LEGACY_MIGRATION_ENABLED: ${LEGACY_MIGRATION_ENABLED:-false}
+  LEGACY_PORTAL_KEY_FILE: ${LEGACY_PORTAL_KEY_FILE:-}
+  LEGACY_PORTAL_SERVER_KEY_FILE: ${LEGACY_PORTAL_SERVER_KEY_FILE:-}
 
 x-bff: &bff
   image: ${REGISTRY:-localhost:5050}/gateway/bff:${IMAGE_TAG:?IMAGE_TAG 必須設定(commit SHA)}
@@ -126,6 +133,16 @@ services:
     stop_grace_period: 60s
     healthcheck:
       disable: true
+
+  # Nginx 指標(W3-2.8):讀取 nginx:8081/stub_status,提供 Prometheus 抓取(預設只綁主機本機,Prometheus 建置後依其位置調整 GW_EXPORTER_BIND)
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.5.3
+    restart: unless-stopped
+    command: ["--nginx.scrape-uri=http://nginx:8081/stub_status"]
+    ports:
+      - "${GW_EXPORTER_BIND:-127.0.0.1}:${GW_EXPORTER_PORT:-9113}:9113"
+    depends_on:
+      - nginx
 
   redis:
     image: redis:7-alpine

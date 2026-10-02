@@ -2,6 +2,8 @@
  * 動態路由(PRD §8.4、ARCHITECTURE.md D1):所有未被程式內建路由處理的 /api/* 請求,依路由表處理。
  *
  *   比對(記憶體路由樹)→ auth_mode / 權限 → 限流 → GET 快取 → proxy / aggregate / mock → 回應標頭清理 → 稽核
+ *   auth_mode = api_key(系統對系統,P2-5):X-Api-Key 驗證(啟用、到期、允許 IP),路由有權限代碼時 API Key 需具備該權限;
+ *   內部 Token 的 sub = client:{clientId}、emp = client:{代碼}、amr = api_key(PRD §8.2.3)。
  */
 import type { IncomingHttpHeaders } from 'node:http';
 import fp from 'fastify-plugin';
@@ -9,6 +11,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { AppConfig } from '../../config.js';
 import { apiAccessLog } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
+import { ApiKeyService, type ApiClientPrincipal } from '../auth/api-key.js';
+import type { InternalIdentity } from '../auth/keys.js';
 import { identityOf, type Principal } from '../auth/plugin.js';
 import { allowRequest, cacheKey, getCached, setCached } from './guards.js';
 import type { SnapshotRoute, SnapshotStep } from './snapshot.js';
@@ -21,6 +25,10 @@ declare module 'fastify' {
     routeTable: RouteTable;
     routeSync: RouteSync;
     upstreams: UpstreamClient;
+  }
+  interface FastifyRequest {
+    /** auth_mode = api_key 路由驗證通過的 API Key */
+    apiClient?: ApiClientPrincipal;
   }
 }
 
@@ -122,6 +130,7 @@ export default fp<{ config: AppConfig }>(
     app.decorate('routeTable', table);
     app.decorate('routeSync', sync);
     app.decorate('upstreams', upstreams);
+    const apiKeys = new ApiKeyService(app.db, app.redis, app.log);
     app.addHook('onReady', async () => sync.start());
     app.addHook('onClose', async () => {
       await sync.stop();
@@ -139,16 +148,33 @@ export default fp<{ config: AppConfig }>(
           if (!permission || !(await app.perms.has(p.userId, p.claims.pv, permission))) throw new GwError('PERMISSION_DENIED');
           return p;
         }
+        case 'api_key': {
+          const key = req.headers['x-api-key'];
+          if (typeof key !== 'string' || !key) throw new GwError('UNAUTHENTICATED', '需要 X-Api-Key');
+          const c = await apiKeys.verify(key, req.ip);
+          if (permission && !c.permissions.has(permission)) throw new GwError('PERMISSION_DENIED');
+          req.apiClient = c;
+          return null;
+        }
         default:
-          // api_key(系統對系統)於第二階段 P2-5 實作
           throw new GwError('UNAUTHENTICATED');
       }
     }
 
+    /** 快取與限流的主體:使用者或 API Key */
+    const subjectOf = (req: FastifyRequest, p: Principal | null) => (p ? p.userId : req.apiClient ? `client:${req.apiClient.clientId}` : null);
+
     async function rateLimit(req: FastifyRequest, route: SnapshotRoute, p: Principal | null): Promise<void> {
       const policy = table.policy(route.rateLimitPolicy);
       if (!policy) return;
-      const key = policy.keyBy === 'route' ? route.routeCode : policy.keyBy === 'user' && p ? `u${p.userId}` : `ip${req.ip}`;
+      const key =
+        policy.keyBy === 'route'
+          ? route.routeCode
+          : policy.keyBy === 'user' && p
+            ? `u${p.userId}`
+            : (policy.keyBy === 'client' || policy.keyBy === 'user') && req.apiClient
+              ? `c${req.apiClient.clientId}`
+              : `ip${req.ip}`;
       try {
         const ok = await allowRequest(
           app.redis,
@@ -164,8 +190,23 @@ export default fp<{ config: AppConfig }>(
       }
     }
 
-    async function internalToken(p: Principal | null, audience: string | null): Promise<string | null> {
-      return p && audience ? app.keys.signInternal(identityOf(p.claims), audience) : null;
+    /** 內部 Token:使用者身分,或 API Key 的系統身分(sub = client:{clientId}) */
+    async function internalToken(req: FastifyRequest, p: Principal | null, audience: string | null): Promise<string | null> {
+      if (!audience) return null;
+      if (p) return app.keys.signInternal(identityOf(p.claims), audience);
+      const c = req.apiClient;
+      if (!c) return null;
+      const id: InternalIdentity = {
+        sub: `client:${c.clientId}`,
+        emp: `client:${c.code}`,
+        upn: null,
+        name: c.code,
+        dept: null,
+        cos: [],
+        amr: 'api_key',
+        roles: [],
+      };
+      return app.keys.signInternal(id, audience);
     }
 
     async function proxy(req: FastifyRequest, reply: FastifyReply, route: SnapshotRoute, params: Record<string, string>, p: Principal | null) {
@@ -175,7 +216,7 @@ export default fp<{ config: AppConfig }>(
       const res = await app.upstreams.request(up, {
         method: route.upstreamMethod ?? req.method,
         path: rewritePath(route, pathOnly, params) + query,
-        headers: upstreamRequestHeaders(req, route, up.forwardCookies, await internalToken(p, up.code)),
+        headers: upstreamRequestHeaders(req, route, up.forwardCookies, await internalToken(req, p, up.code)),
         body: req.body as Buffer | undefined,
         timeoutMs: route.timeoutMs ?? up.timeoutMs,
       });
@@ -186,7 +227,7 @@ export default fp<{ config: AppConfig }>(
         for await (const c of res.body) chunks.push(c as Buffer);
         const body = Buffer.concat(chunks);
         const contentType = (res.headers['content-type'] as string | undefined) ?? null;
-        setCached(app.redis, cacheKey(route.routeCode, req.url, route.cacheScope, p?.userId ?? null), route.cacheTtlSec, {
+        setCached(app.redis, cacheKey(route.routeCode, req.url, route.cacheScope, subjectOf(req, p)), route.cacheTtlSec, {
           status: 200,
           contentType,
           body: body.toString('base64'),
@@ -205,15 +246,19 @@ export default fp<{ config: AppConfig }>(
         const group = route.steps.filter((s) => s.stepOrder === order);
         await Promise.all(
           group.map(async (s: SnapshotStep) => {
-            // 使用者無此步驟權限時略過(同一聚合 API 依權限回傳不同內容)
-            if (s.permissionCode && !(p && (await app.perms.has(p.userId, p.claims.pv, s.permissionCode)))) return;
+            // 使用者(或 API Key)無此步驟權限時略過(同一聚合 API 依權限回傳不同內容)
+            if (s.permissionCode && !(p ? await app.perms.has(p.userId, p.claims.pv, s.permissionCode) : req.apiClient?.permissions.has(s.permissionCode)))
+              return;
             try {
               const up = table.upstream(s.upstreamCode);
               if (!up) throw new GwError('UPSTREAM_UNAVAILABLE');
               const res = await app.upstreams.request(up, {
                 method: s.method,
                 path: renderTemplate(s.pathTemplate, ctx),
-                headers: { accept: 'application/json', 'x-request-id': req.id, ...(p ? { 'x-internal-token': (await internalToken(p, up.code))! } : {}) },
+                headers: await (async () => {
+                  const token = await internalToken(req, p, up.code);
+                  return { accept: 'application/json', 'x-request-id': req.id, ...(token ? { 'x-internal-token': token } : {}) };
+                })(),
                 timeoutMs: s.timeoutMs,
               });
               const text = await res.body.text();
@@ -239,6 +284,7 @@ export default fp<{ config: AppConfig }>(
           requestId: req.id,
           routeCode: route.routeCode,
           userId: p?.userId ?? null,
+          clientId: req.apiClient?.clientId ?? null,
           method: req.method,
           path: req.url.slice(0, 1000),
           status: reply.statusCode,
@@ -276,7 +322,7 @@ export default fp<{ config: AppConfig }>(
           if (route.routeType === 'aggregate') return aggregate(req, route, params, p);
 
           if (route.cacheTtlSec && route.cacheScope && req.method === 'GET') {
-            const hit = await getCached(app.redis, cacheKey(route.routeCode, req.url, route.cacheScope, p?.userId ?? null)).catch(() => null);
+            const hit = await getCached(app.redis, cacheKey(route.routeCode, req.url, route.cacheScope, subjectOf(req, p))).catch(() => null);
             if (hit) {
               if (hit.contentType) reply.header('content-type', hit.contentType);
               return reply.code(hit.status).header('x-cache', 'HIT').send(Buffer.from(hit.body, 'base64'));

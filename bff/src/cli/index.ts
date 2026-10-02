@@ -16,6 +16,7 @@
  *                                                    建立或換發 API Key(明文只顯示一次);預設權限為自動註冊與路由查詢
  *   npm run gw -- client:disable --code <服務代碼>
  *   npm run gw -- dept:sync [--force]               由 BPM 同步部門樹(gw.department);worker 每小時自動執行
+ *   npm run gw -- employee:sync [--force]           由 BPM / LOS 同步人員(gw.user,W3-4.6b);worker 每小時自動執行;--force 略過筆數安全檢查
  *
  * 容器內:node dist/bff/src/cli/index.js <指令> ...
  * 所有寫入皆記錄 gw.audit_log(actor = --actor 或 cli:<OS 使用者>)。
@@ -54,6 +55,7 @@ import { AdDirectory } from '../modules/auth/ldap.js';
 import { GwError } from '../errors.js';
 import { isChannel } from '../modules/notify/template.js';
 import { permissionDeclError, type PermissionDecl } from './openapi.js';
+import { createSyncRun, syncEmployees } from '../modules/auth/employee-sync.js';
 import { normalizeEmpNo } from '../modules/auth/profile.js';
 import { DepartmentSyncAborted, syncDepartments } from '../modules/rbac/department-sync.js';
 import { bumpAllPermVersions } from '../modules/rbac/permission.js';
@@ -157,7 +159,8 @@ interface ApplyFile {
     secretRef?: string;
     signatureHeader?: string;
     allowedIps?: string;
-    dispatchType: 'queue';
+    /** queue = 內部處理程序代碼;route = 轉送到已發佈路由(route_code)的上游(PRD §8.6) */
+    dispatchType: 'queue' | 'route';
     dispatchTarget: string;
     enabled?: boolean;
   }[];
@@ -446,6 +449,34 @@ async function syncDepartmentTree(ctx: Ctx, force: boolean) {
   }
 }
 
+/** 人員同步(DATABASE.md §8.3);有權限變更的使用者清除 pv 快取 */
+async function syncEmployeeProfiles(ctx: Ctx, force: boolean) {
+  if (!ctx.config.bpmDb && !ctx.config.losDb) throw new CliError('未設定 BPM_DB_HOST / LOS_DB_HOST');
+  const open = async (src: AppConfig['bpmDb'], name: string) => {
+    if (!src) return { pool: undefined, error: undefined };
+    try {
+      return { pool: await openPool(src, { appName: `giganexus-cli-${name}`, poolMax: 1, requestTimeoutMs: 60_000 }), error: undefined };
+    } catch (err) {
+      return { pool: undefined, error: `${name.toUpperCase()} 無法連線:${(err as Error).message}` };
+    }
+  };
+  const [bpm, los] = await Promise.all([open(ctx.config.bpmDb, 'bpm'), open(ctx.config.losDb, 'los')]);
+  try {
+    const runId = await createSyncRun(ctx.db, 'manual', ctx.actor.slice(0, 64));
+    const r = await syncEmployees(
+      ctx.db,
+      { bpm: bpm.pool ? createExternalDb(bpm.pool) : undefined, los: los.pool ? createExternalDb(los.pool, ctx.config.sql2012Guard) : undefined },
+      { runId, actor: ctx.actor.slice(0, 64), force, unavailable: { bpm: bpm.error, los: los.error } },
+    );
+    if (r.pvBumped.length) await ctx.redis.del(...r.pvBumped.map((id) => `gw:pv:${id}`)).catch(() => undefined);
+    const { pvBumped, ...rest } = r;
+    out({ runId, ...rest, pvBumped: pvBumped.length });
+    if (r.status === 'aborted' || r.status === 'failed') throw new CliError(r.errorMessage ?? r.status);
+  } finally {
+    await Promise.all([bpm.pool?.close(), los.pool?.close()]);
+  }
+}
+
 async function setUserDisabled(ctx: Ctx, empArg: string, disabled: boolean) {
   const emp = normalizeEmpNo(empArg);
   const [u] = await ctx.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
@@ -624,6 +655,9 @@ async function main() {
         break;
       case 'dept:sync':
         await syncDepartmentTree(ctx, values.force === true);
+        break;
+      case 'employee:sync':
+        await syncEmployeeProfiles(ctx, values.force === true);
         break;
       default:
         throw new CliError(`未知的指令:${command}`);

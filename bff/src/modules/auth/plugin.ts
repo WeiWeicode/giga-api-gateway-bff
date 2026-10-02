@@ -10,6 +10,7 @@ import type { AppConfig } from '../../config.js';
 import { GwError } from '../../errors.js';
 import { PermissionService } from '../rbac/permission.js';
 import { KeyStore, type AccessClaims, type IdentityClaims } from './keys.js';
+import { LegacyMigrationService } from './legacy-migration.js';
 import { AdDirectory } from './ldap.js';
 import { LoginService } from './login.js';
 import { COOKIE_AT, csrfValid, denyKey, SessionService } from './session.js';
@@ -74,7 +75,8 @@ export default fp<{ config: AppConfig }>(
     app.decorate('ad', ad);
     app.decorate('perms', perms);
     app.decorate('sessions', new SessionService(app.redis, keys, config.cookieSecure));
-    app.decorate('logins', new LoginService(app.db, ad, app.ext, app.log));
+    app.decorate('logins', new LoginService(app.db, ad, app.ext, app.log, new LegacyMigrationService(app.db, app.ext, config.legacyPortal, app.log)));
+    if (config.legacyPortal.enabled) app.log.info('舊單一入口帳號遷移已開啟(W3-4.16)');
 
     const internal = buildBlockList(config.internalNetworks);
     app.decorate('isInternalIp', (ip: string) => {

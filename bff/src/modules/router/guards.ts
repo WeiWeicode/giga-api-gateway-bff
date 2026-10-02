@@ -33,7 +33,8 @@ export interface CachedResponse {
   body: string; // base64
 }
 
-export function cacheKey(routeCode: string, url: string, scope: 'user' | 'shared', userId: number | null): string {
+/** subject:使用者 ID,或系統對系統的 client:{clientId}(api_key 路由) */
+export function cacheKey(routeCode: string, url: string, scope: 'user' | 'shared', userId: number | string | null): string {
   const h = createHash('sha256')
     .update(`${scope === 'user' ? (userId ?? 'anon') : '*'}|${url}`)
     .digest('hex')

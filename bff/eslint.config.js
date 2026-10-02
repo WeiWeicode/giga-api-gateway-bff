@@ -16,4 +16,9 @@ export default tseslint.config(
     files: ['test/**/*.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
+  {
+    // k6 腳本(test/k6,W3-5.12)由 k6 執行,使用 k6 的全域變數
+    files: ['test/k6/**/*.js'],
+    languageOptions: { globals: { __ENV: 'readonly', __ITER: 'readonly', __VU: 'readonly', console: 'readonly' } },
+  },
 );

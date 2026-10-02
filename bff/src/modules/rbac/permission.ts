@@ -9,6 +9,7 @@
 import { and, asc, eq, gt, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { GwDatabase } from '../../db/client.js';
+import { permissionCheck } from '../../plugins/metrics.js';
 
 type Tx = Parameters<Parameters<GwDatabase['transaction']>[0]>[0];
 import {
@@ -241,8 +242,17 @@ export class PermissionService {
     return pv;
   }
 
-  /** 使用者是否具備權限(快取命中時只需一次 SISMEMBER)。 */
+  /** 使用者是否具備權限(快取命中時只需一次 SISMEMBER);判斷時間記錄於 gw_permission_check_seconds。 */
   async has(userId: number, pv: number, code: string): Promise<boolean> {
+    const end = permissionCheck.startTimer();
+    try {
+      return await this.check(userId, pv, code);
+    } finally {
+      end();
+    }
+  }
+
+  private async check(userId: number, pv: number, code: string): Promise<boolean> {
     const key = permKey(userId, pv);
     try {
       const [[, member], [, exists]] = (await this.redis.multi().sismember(key, code).exists(key).exec()) as [[null, number], [null, number]];

@@ -74,7 +74,9 @@ export function checkRouteFields(r: RouteFields, gwEnv: string): FieldError[] {
   if (r.routeType === 'mock' && r.mockResponse == null) errors.push({ field: 'mockResponse', message: 'mock 路由必須設定回應內容' });
   if (r.routeType !== 'mock' && r.mockResponse != null) errors.push({ field: 'mockResponse', message: '只有 mock 路由可設定回應內容' });
   if (r.authMode === 'permission' && !r.permissionCode) errors.push({ field: 'permissionCode', message: 'auth_mode=permission 時必須指定權限代碼' });
-  if (r.authMode !== 'permission' && r.permissionCode) errors.push({ field: 'permissionCode', message: '只有 auth_mode=permission 可指定權限代碼' });
+  // api_key:選填,指定時 API Key 須具備該權限(P2-5)
+  if (!['permission', 'api_key'].includes(r.authMode) && r.permissionCode)
+    errors.push({ field: 'permissionCode', message: '只有 auth_mode=permission 或 api_key 可指定權限代碼' });
   if (r.cacheTtlSec != null && r.method !== 'GET') errors.push({ field: 'cacheTtlSec', message: '快取僅適用 GET' });
   if ((r.cacheTtlSec == null) !== (r.cacheScope == null)) errors.push({ field: 'cacheScope', message: 'cacheTtlSec 與 cacheScope 需同時設定' });
   if (r.cacheScope === 'shared' && r.authMode === 'permission')

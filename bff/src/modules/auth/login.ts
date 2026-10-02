@@ -5,7 +5,8 @@
  *   只輸入工號 → 兼任帳號一律拒絕(Q16)
  *              → 有本機帳號 → Argon2id 驗證(10 次失敗鎖定)
  *              → 依 gw.user_company 的公司取得網域清單依序嘗試(查無工號或無公司資料時試全部網域)
- *              → 公司無網域或所有網域都查無 → ACCOUNT_NOT_REGISTERED(舊單一入口遷移 W3-4.16 待 P-15 就緒後接入)
+ *              → 公司無網域或所有網域都查無 → 舊單一入口遷移(W3-4.16,開啟時:LoginData 有此工號則比對舊密碼)
+ *                → 仍查無 → ACCOUNT_NOT_REGISTERED
  *   AD 找得到帳號但密碼錯誤 → 繼續試下一個網域(舊網域失敗改試新網域),全部失敗回 INVALID_CREDENTIALS
  *
  * 登入失敗不暫停(2026-10-01 取消 LOGIN_THROTTLED 與 Nginx 登入限流):輸錯密碼一律送 AD 驗證,
@@ -16,6 +17,7 @@ import type { GwDatabase } from '../../db/client.js';
 import { authLog, company, companyAdDomain, localCredential, user, userCompany } from '../../db/schema/index.js';
 import type { ErrorCode } from '../../errors.js';
 import type { ExternalDb } from '../../plugins/db.js';
+import type { LegacyMigrationService } from './legacy-migration.js';
 import type { AdAuthResult, AdDirectory } from './ldap.js';
 import { verifyPassword } from './password.js';
 import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo, type EmployeeLookup } from './profile.js';
@@ -66,6 +68,7 @@ export class LoginService {
     private readonly ad: AdDirectory,
     private readonly ext: { bpm?: ExternalDb; los?: ExternalDb },
     private readonly log: { warn: (o: object, msg: string) => void; info: (o: object, msg: string) => void },
+    private readonly legacy?: LegacyMigrationService,
   ) {}
 
   async login(input: LoginInput): Promise<LoginResult> {
@@ -76,7 +79,7 @@ export class LoginService {
     if (domainHint) {
       const code = this.ad.resolve(domainHint);
       if (!code) return this.fail(input, null, 'INVALID_CREDENTIALS', `unknown domain ${domainHint}`);
-      return this.tryDomains(input, emp, [code], null);
+      return this.tryDomains(input, emp, [code], null, false);
     }
 
     const [u] = await this.db.select({ userId: user.userId, isVirtual: user.isVirtual }).from(user).where(eq(user.employeeNo, emp));
@@ -95,9 +98,22 @@ export class LoginService {
       : await this.domainsForCompanies(lookup ? mergeProfile(lookup).companies.map((c) => c.compName) : []);
     if (domains && domains.length === 0) {
       // 所屬公司沒有 AD 網域,也沒有本機帳號
-      return this.fail(input, u?.userId ?? null, 'ACCOUNT_NOT_REGISTERED', 'company has no domain');
+      return this.notRegistered(input, emp, u?.userId ?? null, 'company has no domain');
     }
-    return this.tryDomains(input, emp, domains ?? this.ad.codes, lookup);
+    return this.tryDomains(input, emp, domains ?? this.ad.codes, lookup, true);
+  }
+
+  /**
+   * AD 查無此帳號(或公司無網域)且沒有本機帳號:舊單一入口遷移開啟時改比對 LoginData(PRD §8.2.5);
+   * LoginData 也查無 → ACCOUNT_NOT_REGISTERED;有此工號但密碼不符或已離職 → INVALID_CREDENTIALS(不透露原因)
+   */
+  private async notRegistered(input: LoginInput, emp: string, userId: number | null, reason: string): Promise<LoginResult> {
+    if (this.legacy?.enabled) {
+      const r = await this.legacy.tryMigrate(emp, input.password, input);
+      if (r.kind === 'migrated') return { kind: 'password_change_required', userId: r.userId };
+      if (r.kind === 'rejected') return this.fail(input, userId, 'INVALID_CREDENTIALS', r.reason);
+    }
+    return this.fail(input, userId, 'ACCOUNT_NOT_REGISTERED', reason);
   }
 
   /** 由 LOS / BPM 的公司名稱取得網域;公司尚未建立(未知)時回 null(試全部網域) */
@@ -128,7 +144,8 @@ export class LoginService {
     return [...new Set(rows.map((r) => r.domain))].filter((d) => this.ad.has(d));
   }
 
-  private async tryDomains(input: LoginInput, emp: string, domains: string[], lookup: EmployeeLookup | null): Promise<LoginResult> {
+  /** allowLegacy:只輸入工號時(未指定網域)才可改試舊單一入口 */
+  private async tryDomains(input: LoginInput, emp: string, domains: string[], lookup: EmployeeLookup | null, allowLegacy: boolean): Promise<LoginResult> {
     let badPassword = false;
     let unavailable: string | null = null;
     for (const code of domains) {
@@ -143,6 +160,7 @@ export class LoginService {
     }
     if (badPassword) return this.fail(input, null, 'INVALID_CREDENTIALS', 'bad password');
     if (unavailable) return { kind: 'fail', code: 'UPSTREAM_UNAVAILABLE', reason: unavailable };
+    if (allowLegacy) return this.notRegistered(input, emp, null, 'not found in any domain');
     return this.fail(input, null, 'ACCOUNT_NOT_REGISTERED', 'not found in any domain');
   }
 

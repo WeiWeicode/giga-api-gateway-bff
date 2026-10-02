@@ -1,23 +1,34 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { AppConfig } from './config.js';
+import accessAdmin from './modules/admin/access.js';
+import apiClientsAdmin from './modules/admin/api-clients.js';
+import auditQuery from './modules/admin/audit-query.js';
 import dbViewer from './modules/admin/db-viewer.js';
+import employeeSyncAdmin from './modules/admin/employee-sync.js';
+import importsAdmin from './modules/admin/imports.js';
+import notifyAdmin from './modules/admin/notify-admin.js';
 import onboarding from './modules/admin/onboarding.js';
 import rbacAdmin from './modules/admin/rbac.js';
 import registration from './modules/admin/registration.js';
 import releasesAdmin from './modules/admin/releases.js';
+import rolesAdmin from './modules/admin/roles.js';
+import routeTest from './modules/admin/route-test.js';
 import routingAdmin from './modules/admin/routing.js';
 import usersAdmin from './modules/admin/users.js';
 import authPlugin from './modules/auth/plugin.js';
 import authRoutes from './modules/auth/routes.js';
 import healthRoutes from './modules/health/routes.js';
+import notifyInbox from './modules/notify/inbox.js';
 import notifyPlugin from './modules/notify/plugin.js';
 import notifyRoutes from './modules/notify/routes.js';
 import notifyWs from './modules/notify/ws.js';
 import routerPlugin from './modules/router/plugin.js';
 import webhookRoutes from './modules/webhook/routes.js';
 import dbPlugin from './plugins/db.js';
+import docsPlugin from './plugins/docs.js';
 import errorsPlugin from './plugins/errors.js';
+import metricsPlugin from './plugins/metrics.js';
 import queuesPlugin from './plugins/queues.js';
 import redisPlugin from './plugins/redis.js';
 
@@ -47,6 +58,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   });
 
   await app.register(errorsPlugin);
+  // 指標 hook 與文件需在所有路由之前註冊(W3-5.11)
+  await app.register(metricsPlugin);
+  await app.register(docsPlugin, { config });
   await app.register(dbPlugin, { config });
   await app.register(redisPlugin, { config });
   await app.register(queuesPlugin, { config });
@@ -56,12 +70,21 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(authRoutes, { config, routes: app.routeTable });
   await app.register(notifyWs);
   await app.register(notifyRoutes);
+  await app.register(notifyInbox);
   await app.register(healthRoutes);
   await app.register(registration, { config });
   await app.register(rbacAdmin);
+  await app.register(rolesAdmin);
   await app.register(routingAdmin, { config });
+  await app.register(routeTest, { config });
   await app.register(releasesAdmin, { config });
   await app.register(usersAdmin, { config });
+  await app.register(accessAdmin);
+  await app.register(apiClientsAdmin);
+  await app.register(employeeSyncAdmin);
+  await app.register(importsAdmin, { config });
+  await app.register(notifyAdmin);
+  await app.register(auditQuery);
   await app.register(webhookRoutes, { config });
   // 資料庫檢視為 demo 用,正式區不提供
   if (config.gwEnv !== 'prod') {

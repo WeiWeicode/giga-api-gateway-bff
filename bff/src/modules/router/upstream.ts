@@ -9,6 +9,7 @@
 import type { IncomingHttpHeaders } from 'node:http';
 import { errors as undiciErrors, Pool, type Dispatcher } from 'undici';
 import { GwError } from '../../errors.js';
+import { upstreamDuration, upstreamRequests } from '../../plugins/metrics.js';
 import type { SnapshotUpstream } from './snapshot.js';
 
 export const CIRCUIT_OPEN_MS = 30_000;
@@ -114,7 +115,22 @@ export class UpstreamClient {
     return Object.fromEntries([...this.breakers].map(([k, b]) => [k, b.state]));
   }
 
+  /** 呼叫上游並記錄指標(gw_upstream_*,W3-5.11) */
   async request(up: SnapshotUpstream, req: UpstreamRequest): Promise<UpstreamResponse> {
+    const end = upstreamDuration.startTimer({ upstream: up.code });
+    try {
+      const res = await this.send(up, req);
+      upstreamRequests.inc({ upstream: up.code, outcome: `${Math.floor(res.status / 100)}xx` });
+      return res;
+    } catch (err) {
+      upstreamRequests.inc({ upstream: up.code, outcome: err instanceof GwError ? err.code : 'ERROR' });
+      throw err;
+    } finally {
+      end();
+    }
+  }
+
+  private async send(up: SnapshotUpstream, req: UpstreamRequest): Promise<UpstreamResponse> {
     const breaker = this.breaker(up);
     if (!breaker.allow()) throw new GwError('UPSTREAM_UNAVAILABLE');
 

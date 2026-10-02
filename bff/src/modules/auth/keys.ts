@@ -31,6 +31,9 @@ export interface IdentityClaims {
   roles: string[];
 }
 
+/** 內部 Token 的身分:使用者,或系統對系統(api_key:sub = client:{clientId})、Webhook 轉送(webhook:sub = webhook:{source}),BACKEND-GUIDE.md §4.3 */
+export type InternalIdentity = Omit<IdentityClaims, 'amr'> & { amr: IdentityClaims['amr'] | 'api_key' | 'webhook' };
+
 export interface AccessClaims extends IdentityClaims {
   pv: number;
   jti: string;
@@ -91,7 +94,7 @@ export class KeyStore {
   }
 
   /** 內部 Token(X-Internal-Token):aud = 上游服務代碼,60 秒(PRD §8.2.3) */
-  async signInternal(claims: IdentityClaims, audience: string): Promise<string> {
+  async signInternal(claims: InternalIdentity, audience: string): Promise<string> {
     const { sub, ...rest } = claims;
     return new SignJWT({ ...rest })
       .setProtectedHeader({ alg: 'ES256', kid: this.activeKid, typ: 'JWT' })

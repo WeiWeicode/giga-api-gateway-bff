@@ -127,6 +127,25 @@ const configSchema = z.object({
     /** 每秒寄送上限(SMTP 伺服器限制) */
     ratePerSec: z.coerce.number().int().positive().default(10),
   }),
+  /** 告警 Email 收件人(IT 信箱,逗號分隔;worker 使用):通知死信、人員 / 部門同步中止、離職標記與新公司。未設定時只寫 error log */
+  alertEmailTo: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  /**
+   * 舊單一入口帳號遷移(PRD §8.2.5、DATABASE.md §9):預設關閉,以現行系統的測試帳號確認密文一致(P-15)後才開啟。
+   * 金鑰字串與伺服器常數只放 Docker secret(LEGACY_PORTAL_KEY_FILE、LEGACY_PORTAL_SERVER_KEY_FILE),不入版控。
+   */
+  legacyPortal: z.object({
+    enabled: bool.default(false),
+    key: z.string().optional(),
+    serverKey: z.string().optional(),
+  }),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -169,7 +188,16 @@ export function loadConfig(env: Env = process.env): AppConfig {
       redirectTo: env.MAIL_REDIRECT_TO || undefined,
       ratePerSec: env.MAIL_RATE_PER_SEC,
     },
+    alertEmailTo: env.ALERT_EMAIL_TO,
+    legacyPortal: {
+      enabled: env.LEGACY_MIGRATION_ENABLED,
+      key: readSecret(env, 'LEGACY_PORTAL_KEY'),
+      serverKey: readSecret(env, 'LEGACY_PORTAL_SERVER_KEY'),
+    },
   });
+  if (result.success && result.data.legacyPortal.enabled && (!result.data.legacyPortal.key || !result.data.legacyPortal.serverKey || !result.data.portalDb)) {
+    throw new Error('設定錯誤:\n  - legacyPortal: LEGACY_MIGRATION_ENABLED=true 時必須設定 PORTAL_DB_*、LEGACY_PORTAL_KEY 與 LEGACY_PORTAL_SERVER_KEY');
+  }
   if (result.success && result.data.gwEnv !== 'prod' && result.data.mail.host && !result.data.mail.redirectTo) {
     // 測試區與開發不可寄給真實員工(DEPLOYMENT.md §5.1)
     throw new Error('設定錯誤:\n  - mail.redirectTo: GW_ENV 不是 prod 時,設定 MAIL_HOST 必須同時設定 MAIL_REDIRECT_TO');

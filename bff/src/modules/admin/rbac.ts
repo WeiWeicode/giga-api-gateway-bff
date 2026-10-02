@@ -12,12 +12,25 @@
  *   GET    /api/admin/departments                          部門樹(含人數)
  *   GET    /api/admin/apps                                 應用登記(維護以 CLI apply)
  *   POST   /api/admin/rbac/preview                         權限試算(與登入計算同一函式)
+ *   (角色 / 權限的新增、修改、刪除與 AD 群組對應見 roles.ts;存取反查見 access.ts)
  *
  * 寫入:同一交易寫入資料與 gw.audit_log(actor 為實際操作人),遞增全體 perm_version,提交後清除 pv 快取(DATABASE.md §7.2)。
  */
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
-import { app as appTable, company, department, permission, role, roleAdGroup, roleCompany, rolePermission, roleRule, user } from '../../db/schema/index.js';
+import {
+  app as appTable,
+  company,
+  department,
+  permission,
+  role,
+  roleAdGroup,
+  roleCompany,
+  rolePermission,
+  roleRule,
+  rowVerToHex,
+  user,
+} from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
 import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
@@ -132,17 +145,21 @@ const rbacRoutes: FastifyPluginAsync = async (app) => {
       await authorize(req, READ);
       const rows = await app.db
         .select({
+          permissionId: permission.permissionId,
           code: permission.code,
           name: permission.name,
           systemCode: permission.systemCode,
+          description: permission.description,
           kind: permission.kind,
           parentCode: permission.parentCode,
           sort: permission.sort,
+          rowVer: permission.rowVer,
         })
         .from(permission)
         .where(req.query.system ? eq(permission.systemCode, req.query.system) : undefined)
         .orderBy(asc(permission.code));
-      if (!['1', 'true'].includes(req.query.tree ?? '')) return { items: rows };
+      // 清單模式含 rowVer(修改 / 刪除權限用,roles.ts)
+      if (!['1', 'true'].includes(req.query.tree ?? '')) return { items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer) })) };
 
       const nodes = new Map<string, PermNode>(rows.map((r) => [r.code, { code: r.code, name: r.name, kind: r.kind, sort: r.sort, children: [] }]));
       const roots: PermNode[] = [];
@@ -190,6 +207,7 @@ const rbacRoutes: FastifyPluginAsync = async (app) => {
         rules: n(rules, r.roleId),
         adGroups: n(groups, r.roleId),
         companies: n(companies, r.roleId),
+        rowVer: rowVerToHex(r.rowVer),
       })),
     };
   });

@@ -23,7 +23,8 @@ export class ImportError extends Error {
   }
 }
 
-function permParts(code: string) {
+/** 權限代碼 → system / resource / action 欄位(gw.admin.route.read → gw / admin / route.read) */
+export function permParts(code: string) {
   const [system = 'gw', resource = 'default', ...rest] = code.split('.');
   return { systemCode: system.slice(0, 30), resource: resource.slice(0, 50), action: (rest.join('.') || 'use').slice(0, 30) };
 }
@@ -154,8 +155,16 @@ export interface ImportSummary {
   addedTargets: number;
 }
 
-/** 驗證 → 寫入草稿。驗證失敗時記錄失敗批次並丟出 ImportError(IMPORT_HAS_ERRORS,details 為錯誤項目) */
-export async function importOpenApiDoc(db: GwDatabase, input: ImportInput): Promise<ImportSummary> {
+/** 解析與資料庫檢查後的匯入內容(錯誤附加於 spec.errors) */
+export interface PreparedImport {
+  spec: ParsedSpec;
+  policies: Map<string, number>;
+  fileHash: string;
+  fileName: string;
+}
+
+/** 解析 OpenAPI 並做資料庫相關檢查(限流政策、上游 port、限定上游、對外路徑衝突);不寫入 */
+export async function prepareOpenApiImport(db: GwDatabase, input: ImportInput): Promise<PreparedImport> {
   const spec: ParsedSpec = parseOpenApi(input.doc);
   const policies = new Map((await db.select().from(rateLimitPolicy)).map((p) => [p.code, p.policyId]));
   for (const r of spec.routes)
@@ -195,96 +204,147 @@ export async function importOpenApiDoc(db: GwDatabase, input: ImportInput): Prom
     const hit = active.find((a) => a.method === r.method && a.path === r.publicPath && a.code !== r.routeCode);
     if (hit) spec.errors.push({ operation: r.routeCode, message: `ROUTE_PATH_CONFLICT:對外路徑與既有路由 ${hit.code} 衝突` });
   }
+  return { spec, policies, fileHash: createHash('sha256').update(input.text).digest('hex'), fileName: input.fileName.slice(-260) };
+}
 
-  const fileHash = createHash('sha256').update(input.text).digest('hex');
-  const fileName = input.fileName.slice(-260);
+/** 匯入後的路由欄位(寫入與預覽比對共用) */
+function routeValues(r: ParsedSpec['routes'][number], upstreamId: number | null, policies: Map<string, number>) {
+  return {
+    name: r.name,
+    systemCode: r.systemCode,
+    method: r.method,
+    publicPath: r.publicPath,
+    routeType: 'proxy',
+    upstreamId,
+    upstreamMethod: null,
+    upstreamPath: r.upstreamPath,
+    authMode: r.authMode,
+    permissionCode: r.permissionCode,
+    rateLimitPolicyId: r.rateLimitPolicy ? policies.get(r.rateLimitPolicy)! : null,
+    cacheTtlSec: r.cacheTtlSec,
+    cacheScope: r.cacheScope,
+    timeoutMs: r.timeoutMs,
+    auditLevel: r.auditLevel,
+    tags: r.tags,
+    description: r.description,
+    gherkin: r.gherkin,
+    source: 'openapi',
+  };
+}
 
-  if (spec.errors.length) {
-    await db.transaction(async (tx) => {
-      const [batch] = await tx.insert(apiImportBatch).output({ id: apiImportBatch.batchId }).values({
-        sourceType: 'openapi',
-        fileName,
-        fileHash,
-        status: 'failed',
-        total: spec.routes.length,
-        errors: spec.errors.length,
-        createdBy: input.actor,
-        updatedBy: input.actor,
-      });
-      for (const [i, e] of spec.errors.entries())
-        await tx
-          .insert(apiImportItem)
-          .values({ batchId: batch!.id, rowNo: i + 1, routeCode: e.operation.slice(0, 100), action: 'error', errorMessage: e.message.slice(0, 1000) });
+/** 與既有路由比較:create / update / unchanged(修改已停用的路由也算 update) */
+export function routeAction(cur: Record<string, unknown> | undefined, values: Record<string, unknown>): 'create' | 'update' | 'unchanged' {
+  if (!cur) return 'create';
+  return Object.entries(values).some(([k, v]) => cur[k] !== v) || cur.status === 'disabled' ? 'update' : 'unchanged';
+}
+
+/** 預覽:每條路由的預定動作(不寫入) */
+export async function previewOpenApiImport(db: GwDatabase, prepared: PreparedImport) {
+  const { spec, policies } = prepared;
+  const [up] = await db.select({ id: upstream.upstreamId }).from(upstream).where(eq(upstream.code, spec.upstreamCode));
+  const codes = spec.routes.map((r) => r.routeCode);
+  const existing = new Map((codes.length ? await db.select().from(apiRoute).where(inArray(apiRoute.routeCode, codes)) : []).map((r) => [r.routeCode, r]));
+  const failed = new Map<string, string[]>();
+  for (const e of spec.errors) failed.set(e.operation, [...(failed.get(e.operation) ?? []), e.message]);
+  return spec.routes.map((r) => ({
+    routeCode: r.routeCode,
+    action: failed.has(r.routeCode)
+      ? ('error' as const)
+      : routeAction(existing.get(r.routeCode) as Record<string, unknown> | undefined, routeValues(r, up?.id ?? null, policies)),
+    errors: failed.get(r.routeCode) ?? [],
+    route: r,
+  }));
+}
+
+/** 記錄失敗批次(只寫批次與錯誤項目,不寫路由) */
+export async function recordFailedImport(db: GwDatabase, prepared: PreparedImport, actor: string): Promise<number> {
+  const { spec } = prepared;
+  return db.transaction(async (tx) => {
+    const [batch] = await tx.insert(apiImportBatch).output({ id: apiImportBatch.batchId }).values({
+      sourceType: 'openapi',
+      fileName: prepared.fileName,
+      fileHash: prepared.fileHash,
+      status: 'failed',
+      total: spec.routes.length,
+      errors: spec.errors.length,
+      createdBy: actor,
+      updatedBy: actor,
     });
-    throw new ImportError('IMPORT_HAS_ERRORS', 'IMPORT_HAS_ERRORS:匯入批次含錯誤項目,未寫入任何路由', spec.errors);
-  }
+    for (const [i, e] of spec.errors.entries())
+      await tx
+        .insert(apiImportItem)
+        .values({ batchId: batch!.id, rowNo: i + 1, routeCode: e.operation.slice(0, 100), action: 'error', errorMessage: e.message.slice(0, 1000) });
+    return batch!.id;
+  });
+}
 
+/**
+ * 寫入草稿(上游 / 上游位址 / 權限代碼 / 路由 / 匯入批次與逐筆結果 / 稽核,同一交易)。
+ * batchId:管理 API 預覽後提交時沿用預覽建立的批次(清除預覽項目,改寫為結果)。
+ */
+export async function writeOpenApiImport(db: GwDatabase, input: ImportInput, prepared: PreparedImport, batchId?: number): Promise<ImportSummary> {
+  const { spec, policies } = prepared;
   return db.transaction(async (tx) => {
     const upstreamId = await upsertUpstream(tx, { code: spec.upstreamCode, systemCode: spec.systemCode, project: spec.project }, input.actor);
     const addedTargets = await setTargets(tx, upstreamId, input.env, [input.target], input.actor, input.targetMode);
     const createdPerms = await ensurePermissions(tx, spec.permissions, input.actor);
-    const [batch] = await tx.insert(apiImportBatch).output({ id: apiImportBatch.batchId }).values({
-      sourceType: 'openapi',
-      fileName,
-      fileHash,
-      upstreamId,
-      status: 'committed',
-      total: spec.routes.length,
-      createdBy: input.actor,
-      updatedBy: input.actor,
-    });
+    let id = batchId;
+    if (id === undefined) {
+      const [batch] = await tx.insert(apiImportBatch).output({ id: apiImportBatch.batchId }).values({
+        sourceType: 'openapi',
+        fileName: prepared.fileName,
+        fileHash: prepared.fileHash,
+        upstreamId,
+        status: 'committed',
+        total: spec.routes.length,
+        createdBy: input.actor,
+        updatedBy: input.actor,
+      });
+      id = batch!.id;
+    } else {
+      await tx.delete(apiImportItem).where(eq(apiImportItem.batchId, id));
+      await tx
+        .update(apiImportBatch)
+        .set({ upstreamId, status: 'committed', total: spec.routes.length, errors: 0, updatedBy: input.actor })
+        .where(eq(apiImportBatch.batchId, id));
+    }
     const counts = { created: 0, updated: 0, unchanged: 0 };
     for (const [i, r] of spec.routes.entries()) {
-      const values = {
-        name: r.name,
-        systemCode: r.systemCode,
-        method: r.method,
-        publicPath: r.publicPath,
-        routeType: 'proxy',
-        upstreamId,
-        upstreamMethod: null,
-        upstreamPath: r.upstreamPath,
-        authMode: r.authMode,
-        permissionCode: r.permissionCode,
-        rateLimitPolicyId: r.rateLimitPolicy ? policies.get(r.rateLimitPolicy)! : null,
-        cacheTtlSec: r.cacheTtlSec,
-        cacheScope: r.cacheScope,
-        timeoutMs: r.timeoutMs,
-        auditLevel: r.auditLevel,
-        tags: r.tags,
-        description: r.description,
-        gherkin: r.gherkin,
-        source: 'openapi',
-      };
+      const values = routeValues(r, upstreamId, policies);
       const [cur] = await tx.select().from(apiRoute).where(eq(apiRoute.routeCode, r.routeCode));
-      let action: 'create' | 'update' | 'unchanged';
-      if (!cur) {
+      const action = routeAction(cur as Record<string, unknown> | undefined, values);
+      if (action === 'create') {
         await tx
           .insert(apiRoute)
-          .values({ routeCode: r.routeCode, ...values, status: 'draft', importBatchId: batch!.id, createdBy: input.actor, updatedBy: input.actor });
-        action = 'create';
-      } else if (Object.entries(values).some(([k, v]) => (cur as Record<string, unknown>)[k] !== v) || cur.status === 'disabled') {
+          .values({ routeCode: r.routeCode, ...values, status: 'draft', importBatchId: id, createdBy: input.actor, updatedBy: input.actor });
+      } else if (action === 'update') {
         // 修改已發佈的路由:存為草稿,線上仍使用目前發佈版本(BACKEND-GUIDE §7.3)
         await tx
           .update(apiRoute)
-          .set({ ...values, status: 'draft', importBatchId: batch!.id, updatedBy: input.actor })
-          .where(eq(apiRoute.routeId, cur.routeId));
-        action = 'update';
-      } else action = 'unchanged';
+          .set({ ...values, status: 'draft', importBatchId: id, updatedBy: input.actor })
+          .where(eq(apiRoute.routeId, cur!.routeId));
+      }
       counts[action === 'create' ? 'created' : action === 'update' ? 'updated' : 'unchanged']++;
-      await tx.insert(apiImportItem).values({ batchId: batch!.id, rowNo: i + 1, routeCode: r.routeCode, action, payload: JSON.stringify(r) });
+      await tx.insert(apiImportItem).values({ batchId: id, rowNo: i + 1, routeCode: r.routeCode, action, payload: JSON.stringify(r) });
     }
-    await tx
-      .update(apiImportBatch)
-      .set({ created: counts.created, updated: counts.updated, skipped: counts.unchanged })
-      .where(eq(apiImportBatch.batchId, batch!.id));
-    await audit(tx, input.actor, input.auditAction ?? 'route.import', 'api_import_batch', String(batch!.id), {
+    await tx.update(apiImportBatch).set({ created: counts.created, updated: counts.updated, skipped: counts.unchanged }).where(eq(apiImportBatch.batchId, id));
+    await audit(tx, input.actor, input.auditAction ?? 'route.import', 'api_import_batch', String(id), {
       upstream: spec.upstreamCode,
       target: input.target,
       env: input.env,
       ...counts,
       createdPerms,
     });
-    return { batchId: batch!.id, upstream: spec.upstreamCode, ...counts, createdPermissions: createdPerms, addedTargets };
+    return { batchId: id, upstream: spec.upstreamCode, ...counts, createdPermissions: createdPerms, addedTargets };
   });
+}
+
+/** 驗證 → 寫入草稿(CLI import-openapi 與後端自動註冊)。驗證失敗時記錄失敗批次並丟出 ImportError(IMPORT_HAS_ERRORS,details 為錯誤項目) */
+export async function importOpenApiDoc(db: GwDatabase, input: ImportInput): Promise<ImportSummary> {
+  const prepared = await prepareOpenApiImport(db, input);
+  if (prepared.spec.errors.length) {
+    await recordFailedImport(db, prepared, input.actor);
+    throw new ImportError('IMPORT_HAS_ERRORS', 'IMPORT_HAS_ERRORS:匯入批次含錯誤項目,未寫入任何路由', prepared.spec.errors);
+  }
+  return writeOpenApiImport(db, input, prepared);
 }

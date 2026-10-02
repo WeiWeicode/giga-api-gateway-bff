@@ -93,6 +93,8 @@ build:
     - S="$(sed -n 's/^GW_SECRETS_DIR=//p' "$GW_DEPLOY_DIR/$GW_ENV.env")"
     - docker run --rm -v "$S/pki:/pki" alpine:3.20 sh -c 'cd /pki && { [ -f agent-server.crt ] || { cp server.crt agent-server.crt && cp server.key agent-server.key && chmod 600 agent-server.key && echo "已補上 pki/agent-server.crt/key"; }; }'
     - $C up -d --no-deps nginx
+    # 4a. Nginx 指標(W3-2.8;讀取 nginx:8081/stub_status)
+    - $C up -d --no-deps nginx-exporter
     # 5. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
     - echo "$CI_COMMIT_SHA" > "$(dirname "$GW_SHARED_DIR")/gateway-image-tag"
     # 6. 冒煙測試

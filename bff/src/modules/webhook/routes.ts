@@ -91,7 +91,8 @@ const webhookRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { c
 
     if (!idemKey || !KEY_PATTERN.test(idemKey)) await reject('VALIDATION_FAILED', 400, '缺少或格式錯誤的 Idempotency-Key(1–100 個可見 ASCII 字元)');
     const key = idemKey!;
-    if (ep.dispatchType !== 'queue' || !ep.dispatchTarget) {
+    // queue = 內部處理程序;route = 由 worker 轉送到已發佈路由的上游(PRD §8.6);handler 尚未實作
+    if (!['queue', 'route'].includes(ep.dispatchType) || !ep.dispatchTarget) {
       req.log.error({ source, dispatchType: ep.dispatchType }, 'Webhook 分派方式不支援');
       await log(true, 500, `不支援的分派方式:${ep.dispatchType}`);
       throw new GwError('INTERNAL_ERROR');
@@ -117,7 +118,7 @@ const webhookRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { c
       [{ id: logId }] = (await log(true, 200, null)) as [{ id: number }];
       await app.queues.webhook.add(
         source,
-        { logId, source, target: ep.dispatchTarget, idempotencyKey: key, payload },
+        { logId, source, dispatchType: ep.dispatchType as 'queue' | 'route', target: ep.dispatchTarget, idempotencyKey: key, payload },
         { jobId: `wh-${logId}`, attempts: 5, backoff: { type: 'exponential', delay: 2_000 }, removeOnComplete: { age: IDEM_TTL_SEC }, removeOnFail: false },
       );
       return { received: true, logId, requestId: req.id };

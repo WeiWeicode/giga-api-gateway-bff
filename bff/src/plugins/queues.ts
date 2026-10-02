@@ -6,13 +6,20 @@ import type { AppConfig } from '../config.js';
 /** BullMQ 佇列名稱(Redis 鍵 bull:<名稱>:*,DATABASE.md §6) */
 export const QUEUE_WEBHOOK = 'webhook';
 export const QUEUE_NOTIFY = 'notify';
-/** 人事同步排程(DATABASE.md §6 bull:employee-sync:*):目前有部門樹(departments) */
+/** 人事同步排程(DATABASE.md §6 bull:employee-sync:*):部門樹(departments)、人員(employees),各每小時;人員同步可由管理 API 手動觸發 */
 export const QUEUE_EMPLOYEE_SYNC = 'employee-sync';
+
+/** 人員同步工作:手動觸發時由管理 API 先建立 gw.employee_sync_run(queued)並帶入 runId */
+export interface EmployeeSyncJob {
+  runId?: number;
+}
 
 export interface WebhookJob {
   logId: number;
   source: string;
-  /** gw.webhook_endpoint.dispatch_target:worker 依此選擇處理程序 */
+  /** gw.webhook_endpoint.dispatch_type:queue = 內部處理程序;route = 轉送到已發佈路由的上游(PRD §8.6) */
+  dispatchType?: 'queue' | 'route';
+  /** gw.webhook_endpoint.dispatch_target:queue 為處理程序代碼,route 為 route_code */
   target: string;
   idempotencyKey: string;
   payload: string;
@@ -32,7 +39,7 @@ export interface NotifyJob {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    queues: { webhook: Queue<WebhookJob>; notify: Queue<NotifyJob> };
+    queues: { webhook: Queue<WebhookJob>; notify: Queue<NotifyJob>; employeeSync: Queue<EmployeeSyncJob> };
   }
 }
 
@@ -46,9 +53,10 @@ export default fp<{ config: AppConfig }>(
     connection.on('error', (err) => app.log.warn({ err: err.message }, 'Redis 佇列連線錯誤'));
     const webhook = new Queue<WebhookJob>(QUEUE_WEBHOOK, { connection });
     const notify = new Queue<NotifyJob>(QUEUE_NOTIFY, { connection });
-    app.decorate('queues', { webhook, notify });
+    const employeeSync = new Queue<EmployeeSyncJob>(QUEUE_EMPLOYEE_SYNC, { connection });
+    app.decorate('queues', { webhook, notify, employeeSync });
     app.addHook('onClose', async () => {
-      await Promise.all([webhook.close(), notify.close()]).catch(() => undefined);
+      await Promise.all([webhook.close(), notify.close(), employeeSync.close()]).catch(() => undefined);
       connection.disconnect();
     });
   },

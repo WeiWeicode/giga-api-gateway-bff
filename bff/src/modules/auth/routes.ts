@@ -12,6 +12,7 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import type { AppConfig } from '../../config.js';
 import { localAccountToken, localCredential, user } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
+import { loginTotal } from '../../plugins/metrics.js';
 import type { RouteTable } from '../router/table.js';
 import { buildIdentity } from './identity.js';
 import { FORGOT_MESSAGE, LocalAccountService } from './local-account.js';
@@ -100,6 +101,7 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
 
   app.post<{ Body: { username: string; password: string; remember: boolean } }>('/api/auth/login', { schema: { body: loginBody } }, async (req, reply) => {
     const result = await app.logins.login({ username: req.body.username, password: req.body.password, ip: req.ip, userAgent: ua(req) });
+    loginTotal.inc({ result: result.kind === 'ok' ? 'success' : result.kind === 'password_change_required' ? result.kind : result.code });
     if (result.kind === 'ok') return startSession(req, reply, result.userId, result.amr, req.body.remember);
     if (result.kind === 'password_change_required') {
       // 只發 10 分鐘有效、只能變更密碼的限定憑證,不發正式 Token(PRD §8.2.5)

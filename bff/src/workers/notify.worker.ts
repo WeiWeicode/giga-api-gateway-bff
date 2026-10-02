@@ -78,14 +78,14 @@ export function createNotifyProcessor(deps: { db: GwDatabase; pub: Redis; mailer
   };
 }
 
-/** 每次失敗:未用盡 → failed;用盡 → dead(死信,保留在 BullMQ 失敗清單)並發出告警 */
-export async function recordNotifyFailure(db: GwDatabase, log: Logger, job: Job<NotifyJob>, err: Error): Promise<void> {
+/** 每次失敗:未用盡 → failed;用盡 → dead(死信,保留在 BullMQ 失敗清單)。回傳是否為死信,由呼叫端告警(workers/alert.ts) */
+export async function recordNotifyFailure(db: GwDatabase, log: Logger, job: Job<NotifyJob>, err: Error): Promise<boolean> {
   const dead = job.attemptsMade >= (job.opts.attempts ?? 1);
   await db
     .update(notifyLog)
     // retry_count = 已重試次數(第 1 次執行不算重試)
     .set({ status: dead ? 'dead' : 'failed', retryCount: job.attemptsMade - 1, errorMessage: err.message.slice(0, 2000) })
     .where(eq(notifyLog.logId, job.data.logId));
-  if (dead)
-    log.error({ alert: true, logId: job.data.logId, channel: job.data.channel, templateCode: job.data.templateCode, err: err.message }, '通知最終失敗(死信)');
+  if (dead) log.warn({ logId: job.data.logId, channel: job.data.channel, templateCode: job.data.templateCode, err: err.message }, '通知最終失敗(死信)');
+  return dead;
 }

@@ -164,11 +164,48 @@ type Tx = Parameters<Parameters<GwDatabase['transaction']>[0]>[0];
 /**
  * 寫入人事資料。部門、職稱、在職狀態或公司變更時 perm_version + 1(DATABASE.md §7.2)。
  * 來源都查無時(ad_only)不清空既有欄位。
+ * keepExisting:排程同步時某一來源讀取失敗(DATABASE.md §8.3「來源停機」),只以另一來源有值的欄位更新、不改所屬公司;
+ *               profile_hash 清空,下一次兩個來源都成功時重新比對寫入。
  */
-export async function applyProfile(tx: Tx, userId: number, p: MergedProfile, actor: string): Promise<{ pvBumped: boolean }> {
+export async function applyProfile(
+  tx: Tx,
+  userId: number,
+  p: MergedProfile,
+  actor: string,
+  opts: { keepExisting?: boolean } = {},
+): Promise<{ pvBumped: boolean; changed: boolean }> {
   const [cur] = await tx.select().from(user).where(eq(user.userId, userId));
   if (!cur) throw new Error(`找不到使用者 ${userId}`);
-  if (p.profileSource === 'ad_only') return { pvBumped: false };
+  if (p.profileSource === 'ad_only') return { pvBumped: false, changed: false };
+
+  if (opts.keepExisting) {
+    const next = {
+      displayName: p.displayName ?? cur.displayName,
+      email: p.email ?? cur.email,
+      deptCode: p.deptCode ?? cur.deptCode,
+      department: p.department ?? cur.department,
+      orgName: p.orgName ?? cur.orgName,
+      title: p.title ?? cur.title,
+      jobLevel: p.jobLevel ?? cur.jobLevel,
+      managerEmployeeNo: p.managerEmployeeNo ?? cur.managerEmployeeNo,
+      employmentStatus: p.employmentStatus ?? cur.employmentStatus,
+    };
+    const differs = (Object.keys(next) as (keyof typeof next)[]).some((k) => next[k] !== cur[k]);
+    if (!differs) return { pvBumped: false, changed: false };
+    const affects =
+      next.deptCode !== cur.deptCode || next.title !== cur.title || next.jobLevel !== cur.jobLevel || next.employmentStatus !== cur.employmentStatus;
+    await tx
+      .update(user)
+      .set({
+        ...next,
+        profileHash: null,
+        profileSyncedAt: new Date(),
+        updatedBy: actor,
+        ...(affects ? { permVersion: sql`${user.permVersion} + 1` } : {}),
+      })
+      .where(eq(user.userId, userId));
+    return { pvBumped: affects, changed: true };
+  }
 
   const hash = profileHash(p);
   const changed = cur.profileHash !== hash;
@@ -220,5 +257,5 @@ export async function applyProfile(tx: Tx, userId: number, p: MergedProfile, act
       }
     }
   }
-  return { pvBumped: changed && affectsAuthz };
+  return { pvBumped: changed && affectsAuthz, changed };
 }
