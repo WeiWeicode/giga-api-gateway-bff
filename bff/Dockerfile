@@ -7,7 +7,8 @@
 FROM node:22-alpine AS build
 WORKDIR /repo/bff
 COPY bff/package.json bff/package-lock.json ./
-RUN npm ci
+# 建置需要 devDependencies(typescript);明確 --include=dev,不受基底映像的 NODE_ENV 影響
+RUN npm ci --include=dev
 COPY bff/tsconfig.json bff/tsconfig.build.json ./
 COPY bff/src ./src
 COPY db/seed /repo/db/seed

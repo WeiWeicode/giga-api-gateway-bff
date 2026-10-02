@@ -64,8 +64,9 @@ build:
       if docker manifest inspect --insecure "$BFF_IMAGE:$CI_COMMIT_SHA" >/dev/null 2>&1; then
         echo "映像檔已存在,略過建置"; exit 0
       fi
-    - docker build -f bff/Dockerfile -t "$BFF_IMAGE:$CI_COMMIT_SHA" .
-    - docker build -t "$NGINX_IMAGE:$CI_COMMIT_SHA" nginx/
+    # --pull:一律以 Registry 的官方基底映像建置;主機上的 node:22-alpine 等標籤可能被其他專案覆寫(2026-10-02 發生,NODE_ENV=production 導致 tsc 不存在)
+    - docker build --pull -f bff/Dockerfile -t "$BFF_IMAGE:$CI_COMMIT_SHA" .
+    - docker build --pull -t "$NGINX_IMAGE:$CI_COMMIT_SHA" nginx/
     - docker push "$BFF_IMAGE:$CI_COMMIT_SHA"
     - docker push "$NGINX_IMAGE:$CI_COMMIT_SHA"
 
