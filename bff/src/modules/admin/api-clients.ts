@@ -10,11 +10,14 @@
  * - 金鑰以 Argon2id 雜湊儲存,資料庫只存前 8 碼(key_prefix)辨識;明文不寫入 log 與稽核。
  * - 權限範圍不可超過操作人本身的權限(防止以 API Key 取得自己沒有的權限)。
  * - 修改需帶 rowVer;提交後刪除 Redis 快取 gw:client:{keyPrefix}(DATABASE.md §7.2)。
+ *   rowVer 為「設定版本」(名稱、權限範圍、允許 IP、到期、啟用、金鑰前綴的雜湊),不是資料表的 ROWVERSION:
+ *   每次使用金鑰都會更新 last_used_at 而改變 ROWVERSION,常用的金鑰會永遠 409(2026-10-02 測試區 E2E 發現)。
  * - CLI client:create / client:disable 仍可使用(後端服務的自動註冊金鑰)。
  */
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { createHash } from 'node:crypto';
+import { asc, eq, inArray } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
-import { apiClient, apiClientPermission, permission, rowVerFromHex, rowVerToHex } from '../../db/schema/index.js';
+import { apiClient, apiClientPermission, permission } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { clientKey, generateApiKey } from '../auth/api-key.js';
 import { buildBlockList } from '../auth/plugin.js';
@@ -44,12 +47,10 @@ interface ClientBody {
   rowVer?: string;
 }
 
-function verOf(hex: string): Buffer {
-  try {
-    return rowVerFromHex(hex);
-  } catch {
-    throw new GwError('VALIDATION_FAILED', undefined, [{ field: 'rowVer', message: '格式錯誤' }]);
-  }
+/** 設定版本(16 碼 hex):只隨管理者可修改的欄位改變,不受 last_used_at 影響 */
+function configVersion(c: typeof apiClient.$inferSelect, perms: string[]): string {
+  const fields = [c.name, c.allowedIps, c.expiresAt?.toISOString() ?? null, c.isEnabled, c.keyPrefix, [...perms].sort()];
+  return createHash('sha256').update(JSON.stringify(fields)).digest('hex').slice(0, 16);
 }
 
 /** 允許 IP:逗號分隔的 IP 或 CIDR;空字串視為不限 */
@@ -104,8 +105,15 @@ const apiClients: FastifyPluginAsync = async (app) => {
     createdBy: c.createdBy,
     updatedAt: c.updatedAt,
     updatedBy: c.updatedBy,
-    rowVer: rowVerToHex(c.rowVer),
+    rowVer: configVersion(c, perms),
   });
+
+  /** 樂觀鎖:比對設定版本,不符回 409 */
+  async function checkVersion(c: typeof apiClient.$inferSelect, rowVer: string) {
+    const perms = (await permsOf([c.clientId])).map((p) => p.code);
+    if (configVersion(c, perms).toLowerCase() !== rowVer.toLowerCase()) throw new GwError('VERSION_CONFLICT');
+    return perms;
+  }
 
   /** 權限代碼須存在,且操作人本身具備(API Key 操作人同樣受限於自己的權限範圍) */
   async function resolvePermissions(actor: Actor, codes: string[]) {
@@ -224,6 +232,7 @@ const apiClients: FastifyPluginAsync = async (app) => {
       const actor = await authorize(req, WRITE);
       const b = req.body;
       const cur = await findClient(req.params.id);
+      await checkVersion(cur, b.rowVer);
       const perms = b.permissions ? await resolvePermissions(actor, b.permissions) : null;
       const allowedIps = normalizeIps(b.allowedIps);
       const set = {
@@ -234,12 +243,7 @@ const apiClients: FastifyPluginAsync = async (app) => {
         updatedBy: actor.name.slice(0, 64),
       };
       await app.db.transaction(async (tx) => {
-        const updated = await tx
-          .update(apiClient)
-          .set(set)
-          .output({ inserted: { id: apiClient.clientId } })
-          .where(and(eq(apiClient.clientId, cur.clientId), eq(apiClient.rowVer, verOf(b.rowVer))));
-        if (!updated.length) throw new GwError('VERSION_CONFLICT');
+        await tx.update(apiClient).set(set).where(eq(apiClient.clientId, cur.clientId));
         if (perms) {
           await tx.delete(apiClientPermission).where(eq(apiClientPermission.clientId, cur.clientId));
           for (const p of perms) await tx.insert(apiClientPermission).values({ clientId: cur.clientId, permissionId: p.id });
@@ -271,18 +275,13 @@ const apiClients: FastifyPluginAsync = async (app) => {
       const actor = await authorize(req, WRITE);
       const cur = await findClient(req.params.id);
       // 換發不改變權限範圍,但操作人仍須具備該 API Key 的全部權限
-      await resolvePermissions(
-        actor,
-        (await permsOf([cur.clientId])).map((p) => p.code),
-      );
+      await resolvePermissions(actor, await checkVersion(cur, req.body.rowVer));
       const { key, keyPrefix, keyHash } = await generateApiKey();
       await app.db.transaction(async (tx) => {
-        const updated = await tx
+        await tx
           .update(apiClient)
           .set({ keyPrefix, keyHash, updatedBy: actor.name.slice(0, 64) })
-          .output({ inserted: { id: apiClient.clientId } })
-          .where(and(eq(apiClient.clientId, cur.clientId), eq(apiClient.rowVer, verOf(req.body.rowVer))));
-        if (!updated.length) throw new GwError('VERSION_CONFLICT');
+          .where(eq(apiClient.clientId, cur.clientId));
         await writeAudit(tx, actor, 'client.rotate', 'api_client', cur.code, { keyPrefix: cur.keyPrefix }, { keyPrefix });
       });
       await dropCache(cur.keyPrefix);

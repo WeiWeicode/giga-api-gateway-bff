@@ -689,7 +689,7 @@ sequenceDiagram
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
 | 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
-| API Key | `GET/POST /api/admin/api-clients`、`GET/PATCH /api/admin/api-clients/:id`、`POST /:id/rotate`(建立與換發時只顯示一次明文;權限範圍不可超過操作人) | `gw.admin.client.*` |
+| API Key | `GET/POST /api/admin/api-clients`、`GET/PATCH /api/admin/api-clients/:id`、`POST /:id/rotate`(建立與換發時只顯示一次明文;權限範圍不可超過操作人;`rowVer` 為設定版本,不受金鑰使用時更新 `last_used_at` 影響) | `gw.admin.client.*` |
 | 後端自動註冊 | `POST /api/admin/registrations`(**僅接受 `X-Api-Key`**,只能註冊 API Key 代碼 = `x-gateway.upstream` 的服務,寫入草稿) | `gw.admin.route.register` |
 | 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明、Gherkin 與開發專案;API Key 或登入者皆可) | `gw.admin.route.read` |
 | 限流政策 | `/api/admin/rate-limit-policies` | `gw.admin.route.write` |

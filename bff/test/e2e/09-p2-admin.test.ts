@@ -96,9 +96,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // 路由參照匯入批次(import_batch_id):先刪路由再刪批次
+  await query("DELETE FROM gw.api_route WHERE route_code LIKE 'e2ez.%'");
   await query("DELETE i FROM gw.api_import_item i JOIN gw.api_import_batch b ON b.batch_id = i.batch_id WHERE b.file_name LIKE 'e2e-%'");
   await query("DELETE FROM gw.api_import_batch WHERE file_name LIKE 'e2e-%'");
-  await query("DELETE FROM gw.api_route WHERE route_code LIKE 'e2ez.%'");
   await cli('publish', '--note', 'E2E P2 測試移除');
   await cleanupE2E();
   await closeAll();
@@ -132,10 +133,15 @@ describe('角色、權限與 AD 群組(P2-3)', () => {
     expect((await admin('DELETE', `/api/admin/roles/employee?rowVer=${employee.rowVer}`)).status).toBe(403);
   });
 
-  it('AD 群組:需為 DN;gw-super-admin 不開放;取代後可查詢', async () => {
+  it('AD 群組:需為 DN;gw-super-admin 不開放;角色含操作人沒有的權限時拒絕;取代後可查詢', async () => {
     expect((await admin('PUT', '/api/admin/roles/e2e-p2-role/ad-groups', { groups: ['not a dn'] })).status).toBe(400);
     expect((await admin('PUT', '/api/admin/roles/gw-super-admin/ad-groups', { groups: [] })).status).toBe(403);
     const dn = 'CN=GN-E2E-P2,OU=Groups,DC=gsmc,DC=com,DC=tw';
+    // 角色含 e2ez.p2.menu(操作的 API Key 沒有)→ 403 防止提權
+    const denied = await admin('PUT', '/api/admin/roles/e2e-p2-role/ad-groups', { groups: [dn] });
+    expect(denied.status).toBe(403);
+    expect(denied.json.message).toContain('e2ez.p2.menu');
+    expect((await admin('PUT', '/api/admin/roles/e2e-p2-role/permissions', { permissions: ['e2ez.p2.read'] })).status).toBe(200);
     expect((await admin('PUT', '/api/admin/roles/e2e-p2-role/ad-groups', { groups: [dn] })).json.groups).toEqual([dn]);
     expect((await admin('GET', '/api/admin/roles/e2e-p2-role/ad-groups')).json.items.map((g: any) => g.dn)).toEqual([dn]);
   });
