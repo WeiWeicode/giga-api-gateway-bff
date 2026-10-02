@@ -127,6 +127,8 @@ const configSchema = z.object({
     /** 每秒寄送上限(SMTP 伺服器限制) */
     ratePerSec: z.coerce.number().int().positive().default(10),
   }),
+  /** 忘記密碼時本人在 Gateway、BPM、LOS 都沒有 Email:重設連結改寄此 IT 信箱,由 IT 確認本人後轉交(2026-10-02 需求方決定) */
+  passwordResetFallbackTo: z.string().email().default('S1800@gigasolar.com.tw'),
   /** 告警 Email 收件人(IT 信箱,逗號分隔;worker 使用):通知死信、人員 / 部門同步中止、離職標記與新公司。未設定時只寫 error log */
   alertEmailTo: z
     .string()
@@ -188,6 +190,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
       redirectTo: env.MAIL_REDIRECT_TO || undefined,
       ratePerSec: env.MAIL_RATE_PER_SEC,
     },
+    passwordResetFallbackTo: env.PASSWORD_RESET_FALLBACK_TO || undefined,
     alertEmailTo: env.ALERT_EMAIL_TO,
     legacyPortal: {
       enabled: env.LEGACY_MIGRATION_ENABLED,

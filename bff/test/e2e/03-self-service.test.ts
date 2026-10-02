@@ -5,7 +5,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { cleanupE2E, cli, closeAll, EMP_PREFIX, login, PASSWORD, query, redisCli, redisDelPattern, Session, waitFor } from './gw.js';
+import { cleanupE2E, cli, closeAll, createLocalUser, EMP_PREFIX, login, PASSWORD, query, redisCli, redisDelPattern, Session, waitFor } from './gw.js';
 
 const EMP = `${EMP_PREFIX}B1`;
 const NEW_PW = 'E2eReset2026';
@@ -112,6 +112,25 @@ describe('忘記 / 重設密碼', () => {
     );
     expect((await new Session().post('/api/auth/password/reset', { token, password: 'E2eLate2026x' })).json.code).toBe('TOKEN_EXPIRED');
     expect((await new Session().post('/api/auth/password/reset', { token: `x${token}`, password: 'E2eLate2026x' })).json.code).toBe('TOKEN_INVALID');
+  });
+
+  it('Gateway、BPM、LOS 都沒有 Email:重設連結改寄 IT 信箱轉交(24 小時)', async () => {
+    const emp = `${EMP_PREFIX}B9`;
+    const id = await createLocalUser(emp);
+    await redisDelPattern('gw:reg:*');
+    expect((await forgot(emp)).status).toBe(202);
+    const log = await waitFor(async () => {
+      const [l] = await query<{ log_id: string; recipient_address: string }>(
+        "SELECT TOP 1 log_id, recipient_address FROM gw.notify_log WHERE template_code = 'AUTH_PASSWORD_RESET_IT' AND requested_by = @r ORDER BY log_id DESC",
+        { r: `self-service:${emp}` },
+      );
+      return l;
+    });
+    expect(log.recipient_address).toBe('S1800@gigasolar.com.tw');
+    const job = JSON.parse(await redisCli('HGET', `bull:notify:nt-${log.log_id}`, 'data')) as { data: { expiresMinutes: number; employeeNo: string } };
+    expect(job.data).toMatchObject({ expiresMinutes: 1440, employeeNo: emp });
+    const [a] = await query("SELECT TOP 1 reason FROM gw.auth_log WHERE user_id = @id AND event = 'pw_reset_requested' ORDER BY log_id DESC", { id });
+    expect(a.reason).toBe('it_fallback');
   });
 
   it('註冊與忘記密碼同一來源每小時 10 次,超過回 429', async () => {

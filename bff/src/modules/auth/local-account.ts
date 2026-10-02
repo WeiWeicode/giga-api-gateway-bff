@@ -6,7 +6,9 @@
  *             LOS / BPM 有 Email → 寄驗證連結(30 分鐘)到登記的 Email(不接受自填)→ VERIFICATION_SENT
  *             LOS / BPM 無 Email → 比對 LOS 到職日 → 直接啟用並通知主管
  *             LOS / BPM 都查無 → pending_approval,由 IT 審核(CLI local:approve)→ REGISTRATION_PENDING_APPROVAL
- *   forgot    本機帳號且有 Email → 寄重設連結(30 分鐘);其餘情況回應相同、不寄信
+ *   forgot    本機帳號 → 寄重設連結;收件人依序:gw.user.email → BPM / LOS 本人與兼任帳號登記的 Email(可能多個,都寄)
+ *             → 都沒有則寄 IT 信箱(PASSWORD_RESET_FALLBACK_TO,預設 S1800@gigasolar.com.tw)由 IT 確認本人後轉交(連結 24 小時)
+ *             其餘情況(查無、AD 帳號、停用)回應相同、不寄信
  *   reset     以重設連結設定新密碼,解除鎖定並撤銷所有 Refresh Token 家族
  *
  * 限流(DATABASE.md §6):gw:reg:ip:{ip} 每小時 10 次、gw:reg:emp:{工號} 每小時 3 次,註冊與忘記密碼共用。
@@ -23,9 +25,11 @@ import type { NotifyService } from '../notify/send.js';
 import type { AdDirectory } from './ldap.js';
 import { writeAuthLog } from './login.js';
 import { checkPasswordPolicy, hashPassword, isReused, POLICY_MESSAGES, pushHistory } from './password.js';
-import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo, parseLosDate } from './profile.js';
+import { applyProfile, findHrEmails, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo, parseLosDate } from './profile.js';
 
 export const TOKEN_TTL_MIN = 30;
+/** 寄 IT 信箱轉交的重設連結:IT 需先確認本人,效期較長 */
+export const IT_RESET_TTL_MIN = 24 * 60;
 const REG_IP_LIMIT = 10;
 const REG_EMP_LIMIT = 3;
 const REG_WINDOW_SEC = 60 * 60;
@@ -35,9 +39,11 @@ const ACTOR = 'self-service';
 export const TEMPLATE_REGISTER_VERIFY = 'AUTH_REGISTER_VERIFY';
 export const TEMPLATE_REGISTER_MANAGER = 'AUTH_REGISTER_MANAGER_NOTICE';
 export const TEMPLATE_PASSWORD_RESET = 'AUTH_PASSWORD_RESET';
+export const TEMPLATE_PASSWORD_RESET_IT = 'AUTH_PASSWORD_RESET_IT';
 
 /** 忘記密碼:不論帳號是否存在、是否為 AD 帳號,回應相同(PRD §8.2.5) */
-export const FORGOT_MESSAGE = '若帳號存在且有登記 Email,重設連結已寄出,請於 30 分鐘內完成設定;AD 帳號請依公司 AD 流程變更密碼';
+export const FORGOT_MESSAGE =
+  '若帳號存在,重設連結已寄到人事資料登記的 Email,請於 30 分鐘內完成設定;沒有登記 Email 者由 IT 確認後轉交;AD 帳號請依公司 AD 流程變更密碼';
 
 export const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 /** 姓名比對:去除所有空白 */
@@ -71,6 +77,8 @@ export class LocalAccountService {
       /** 入口網網址(連結用),例 https://giganexus-test.gigasolar.com.tw */
       publicBaseUrl: string;
       revokeUser: (userId: number) => Promise<unknown>;
+      /** 忘記密碼時本人沒有任何 Email:改寄此 IT 信箱轉交 */
+      resetFallbackTo: string;
     },
   ) {}
 
@@ -90,15 +98,14 @@ export class LocalAccountService {
     userId: number,
     purpose: 'verify_email' | 'reset_password',
     ip: string,
+    ttlMin = TOKEN_TTL_MIN,
   ) {
     const token = randomBytes(32).toString('base64url');
     await tx
       .update(localAccountToken)
       .set({ usedAt: new Date() })
       .where(and(eq(localAccountToken.userId, userId), eq(localAccountToken.purpose, purpose), isNull(localAccountToken.usedAt)));
-    await tx
-      .insert(localAccountToken)
-      .values({ userId, purpose, tokenHash: sha256(token), expiresAt: new Date(Date.now() + TOKEN_TTL_MIN * 60_000), createdIp: ip });
+    await tx.insert(localAccountToken).values({ userId, purpose, tokenHash: sha256(token), expiresAt: new Date(Date.now() + ttlMin * 60_000), createdIp: ip });
     return token;
   }
 
@@ -270,9 +277,12 @@ export class LocalAccountService {
     }
   }
 
-  /** 忘記密碼:回應一律相同;只有本機帳號(active / locked)且有 Email 才寄送 */
+  /**
+   * 忘記密碼:回應一律相同;只有本機帳號(active / locked)才寄送。
+   * 收件人:gw.user.email → BPM / LOS 本人與兼任帳號的 Email(都寄)→ IT 信箱轉交(2026-10-02 需求方決定)
+   */
   async forgot(employeeNo: string, ctx: Ctx): Promise<void> {
-    const { db, notifier, log } = this.deps;
+    const { db, notifier, log, ext, resetFallbackTo } = this.deps;
     const emp = normalizeEmpNo(employeeNo);
     await this.throttle(ctx.ip, emp);
     if (!isValidEmpNo(emp)) return;
@@ -281,31 +291,44 @@ export class LocalAccountService {
       .from(user)
       .innerJoin(localCredential, eq(localCredential.userId, user.userId))
       .where(eq(user.employeeNo, emp));
-    if (!row || row.isDisabled || !['active', 'locked'].includes(row.status) || !row.email) {
+    if (!row || row.isDisabled || !['active', 'locked'].includes(row.status)) {
       await writeAuthLog(db, {
         username: emp,
         authMethod: 'local',
         event: 'pw_reset_skipped',
-        reason: row ? (row.email ? row.status : 'no_email') : 'not_local',
+        reason: row ? (row.isDisabled ? 'disabled' : row.status) : 'not_local',
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
       return;
     }
+    // 收件人:gw.user.email → BPM / LOS(本人與兼任帳號,可能多個)→ IT 信箱
+    const hrEmails = row.email ? [] : await findHrEmails(ext, emp, row.name).catch(() => []);
+    const route = row.email ? 'user_email' : hrEmails.length ? `hr_email:${hrEmails.length}` : 'it_fallback';
+    const ttlMin = route === 'it_fallback' ? IT_RESET_TTL_MIN : TOKEN_TTL_MIN;
     const token = await db.transaction(async (tx) => {
-      const token = await this.issueToken(tx, row.userId, 'reset_password', ctx.ip);
-      await writeAuthLog(tx, { username: emp, userId: row.userId, authMethod: 'local', event: 'pw_reset_requested', ip: ctx.ip, userAgent: ctx.userAgent });
+      const token = await this.issueToken(tx, row.userId, 'reset_password', ctx.ip, ttlMin);
+      await writeAuthLog(tx, {
+        username: emp,
+        userId: row.userId,
+        authMethod: 'local',
+        event: 'pw_reset_requested',
+        reason: route,
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
       return token;
     });
+    const data = { name: row.name, employeeNo: emp, link: this.link('/reset-password', token), expiresMinutes: ttlMin };
     await notifier.send({
-      templateCode: TEMPLATE_PASSWORD_RESET,
+      templateCode: route === 'it_fallback' ? TEMPLATE_PASSWORD_RESET_IT : TEMPLATE_PASSWORD_RESET,
       channels: ['email'],
-      to: { users: [emp] },
-      data: { name: row.name, employeeNo: emp, link: this.link('/reset-password', token), expiresMinutes: TOKEN_TTL_MIN },
+      to: row.email ? { users: [emp] } : { emails: hrEmails.length ? hrEmails : [resetFallbackTo] },
+      data,
       priority: 'high',
       requestedBy: `${ACTOR}:${emp}`,
     });
-    log.info({ emp }, '忘記密碼:已寄送重設連結');
+    log.info({ emp, route }, '忘記密碼:已寄送重設連結');
   }
 
   /** 以重設連結設定新密碼:解除鎖定、清除失敗次數、撤銷所有 Refresh Token 家族 */

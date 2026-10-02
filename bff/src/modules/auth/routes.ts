@@ -87,6 +87,7 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
       notifier: app.notifier,
       log: app.log,
       publicBaseUrl: config.publicBaseUrl,
+      resetFallbackTo: config.passwordResetFallbackTo,
       revokeUser: (userId) => app.sessions.revokeUser(userId),
     }),
   );

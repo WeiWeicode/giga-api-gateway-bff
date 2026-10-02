@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkSourceCount, groupEmployees } from '../../src/modules/auth/employee-sync.js';
+import { pickHrEmails } from '../../src/modules/auth/profile.js';
 import type { bpmEmployee, losEmployee } from '../../src/db/external/index.js';
 
 type Bpm = typeof bpmEmployee.$inferSelect;
@@ -99,5 +100,25 @@ describe('groupEmployees:實際資料的情況(2026-10-02 測試區首次同步)
     expect(g.virtuals).toHaveLength(1);
     expect(g.virtuals[0]!.row.compName).toBe('芯和');
     expect(g.people.get('105133')!.virtuals.map((v) => v.compName)).toEqual(['國碩', '芯和']);
+  });
+});
+
+describe('pickHrEmails(忘記密碼,本人沒有 Email 時)', () => {
+  const rows = [
+    { id: '105133', name: '鄭凱育', email: 'a@gigasolar.com.tw' },
+    { id: 'Q105133', name: '鄭 凱育', email: 'q@gigasolar.com.tw' },
+    { id: 'EG105133', name: '鄭凱育', email: 'A@gigasolar.com.tw' },
+    { id: '2105133', name: '鄭凱育', email: 'other@gigasolar.com.tw' },
+    { id: 'TG105133', name: '別人', email: 'tg@gigasolar.com.tw' },
+    { id: 'M105133', name: '鄭凱育', email: 'not an email' },
+    { id: 'F105133', name: '鄭凱育', email: null },
+  ];
+
+  it('本人與兼任帳號(英文字首 + 工號、同姓名)的 Email 都寄,不分大小寫去重;排除其他人與格式錯誤', () => {
+    expect(pickHrEmails('105133', '鄭凱育', rows)).toEqual(['a@gigasolar.com.tw', 'q@gigasolar.com.tw']);
+  });
+
+  it('不知道姓名時只採用工號完全相同的帳號', () => {
+    expect(pickHrEmails('105133', null, rows)).toEqual(['a@gigasolar.com.tw']);
   });
 });

@@ -54,7 +54,7 @@ export interface MergedProfile {
   }[];
 }
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`逾時 ${ms} ms`)), ms).unref())]);
 }
 
@@ -258,4 +258,67 @@ export async function applyProfile(
     }
   }
   return { pvBumped: changed && affectsAuthz, changed };
+}
+
+/** BPM / LOS 中可能屬於同一人的帳號:工號本身,或「英文字首 + 工號」的兼任帳號(例 105133 → Q105133、EG105133) */
+export interface HrAccountRow {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+}
+
+const EMAIL_PATTERN = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
+
+/**
+ * 由 BPM / LOS 的帳號挑出本人的 Email(忘記密碼,gw.user 沒有 Email 時;可能多個,都寄):
+ *   - 工號相同者一律採用;兼任帳號須字首為英文字母,且姓名與本人相同(去空白比對),避免 2105133 之類的其他人
+ *   - 去除格式不符的值,不分大小寫去重
+ */
+export function pickHrEmails(employeeNo: string, name: string | null, rows: HrAccountRow[]): string[] {
+  const emp = normalizeEmpNo(employeeNo);
+  const strip = (v: string | null | undefined) => (v ?? '').replace(/\s+/g, '');
+  const out = new Map<string, string>();
+  for (const r of rows) {
+    const id = normalizeEmpNo(r.id ?? '');
+    const self = id === emp;
+    const virtual = id.length > emp.length && id.endsWith(emp) && /^[A-Z]+$/.test(id.slice(0, id.length - emp.length));
+    if (!self && !(virtual && !!name && strip(r.name) === strip(name))) continue;
+    const email = (r.email ?? '').trim();
+    if (EMAIL_PATTERN.test(email) && !out.has(email.toLowerCase())) out.set(email.toLowerCase(), email);
+  }
+  return [...out.values()];
+}
+
+/** 以工號查 BPM 與 LOS 的本人與兼任帳號 Email(各逾時 3 秒;來源失敗視為查無) */
+export async function findHrEmails(
+  ext: { bpm?: ExternalDb; los?: ExternalDb },
+  employeeNo: string,
+  name: string | null,
+  timeoutMs = LOOKUP_TIMEOUT_MS,
+): Promise<string[]> {
+  const emp = normalizeEmpNo(employeeNo);
+  if (!isValidEmpNo(emp)) return [];
+  const pat = `%${emp}`;
+  const [bpm, los] = await Promise.allSettled([
+    ext.bpm
+      ? withTimeout(
+          ext.bpm
+            .select({ id: bpmEmployee.employeeNo, name: bpmEmployee.displayName, email: bpmEmployee.email })
+            .from(bpmEmployee)
+            .where(like(bpmEmployee.employeeNo, pat)),
+          timeoutMs,
+        )
+      : Promise.resolve([]),
+    ext.los
+      ? withTimeout(
+          ext.los
+            .select({ id: losEmployee.userId, name: losEmployee.userName, email: losEmployee.email })
+            .from(losEmployee)
+            .where(like(losEmployee.userId, pat)),
+          timeoutMs,
+        )
+      : Promise.resolve([]),
+  ]);
+  const rows = [...(bpm.status === 'fulfilled' ? bpm.value : []), ...(los.status === 'fulfilled' ? los.value : [])];
+  return pickHrEmails(emp, name, rows);
 }
