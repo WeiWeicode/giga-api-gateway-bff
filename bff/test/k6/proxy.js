@@ -12,8 +12,8 @@ export const options = {
       executor: 'constant-arrival-rate',
       rate: RATE,
       timeUnit: '1s',
-      duration: __ENV.DURATION || '1m',
-      preAllocatedVUs: Math.ceil(RATE / 10),
+      duration: __ENV.DURATION || '30s',
+      preAllocatedVUs: Math.ceil(RATE / 4),
       maxVUs: RATE,
     },
   },
@@ -25,9 +25,14 @@ export const options = {
   },
 };
 
-export default function () {
-  // 每個 VU 第一次執行時登入一次(Cookie 存在 VU 自己的 jar)
-  if (__ITER === 0) login();
-  const res = http.get(`${BASE}${PATH}`, { tags: { name: 'route' } });
+export function setup() {
+  return login();
+}
+
+export default function (data) {
+  const res = http.get(`${BASE}${PATH}`, {
+    headers: { Cookie: data.cookie },
+    tags: { name: 'route' },
+  });
   check(res, { 200: (r) => r.status === 200 });
 }

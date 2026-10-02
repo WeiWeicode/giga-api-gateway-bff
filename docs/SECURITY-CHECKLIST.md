@@ -64,7 +64,7 @@
 | --- | --- | --- | --- | --- |
 | 8.3 | 機密不入版控與映像檔 | Docker secret(`*_FILE`);`.env` 只在開發機 | 程式審查 | ✅ |
 | 9.1.1 | TLS 1.2 以上 | Nginx `ssl_protocols TLSv1.2 TLSv1.3`;公司萬用憑證 | E2E `01` | ✅ |
-| 9.1 | TLS 弱加密掃描 | testssl.sh / SSL Labs 類工具 | — | ❌ 待執行(測試區 :443) |
+| 9.1 | TLS 弱加密掃描 | OpenSSL / ciphers 掃描:拒絕 SSLv3/TLS1.0/1.1 與 RC4/3DES/NULL/EXP | 2026-10-02 OpenSSL 測試區掃描通過 | ✅ |
 | 9.2 | 內網連線加密 | BFF ↔ SQL Server 2012 不加密、AD 過渡期 `ldap://` | — | ⚠️ 已取得主管與工程師同意(2026-09-24),補償控制見 TECH-STACK §4 |
 | 9.2 | Agent 雙向 TLS | `:9443` mTLS、簽發者白名單、CRL | E2E `01`(無憑證拒絕) | 🔶 W6(G0–G3) |
 
@@ -89,7 +89,7 @@
 
 ## 待辦
 
-1. TLS 掃描(測試區 `:443`,正式區上線前再做一次)。
-2. `PUT /api/admin/roles/:id/permissions` 加上提權檢查(與 AD 群組、個別指派一致)。
-3. 測試區設定 `ALERT_EMAIL_TO` 後,以 SMTP 暫時失敗模擬死信,確認告警信與 `gw_queue_jobs{queue="notify",state="failed"}`。
-4. 正式區上線前安排滲透測試;Nginx 限流是否恢復由需求方決定(PRD v0.10)。
+1. `PUT /api/admin/roles/:id/permissions` 加上提權檢查(與 AD 群組、個別指派一致)。
+2. 測試區設定 `ALERT_EMAIL_TO` 後,以 SMTP 暫時失敗模擬死信,確認告警信與 `gw_queue_jobs{queue="notify",state="failed"}`。
+3. 正式區上線前安排滲透測試;Nginx 限流是否恢復由需求方決定(PRD v0.10)。
+4. 正式區上線前再做一次 TLS 掃描驗證。

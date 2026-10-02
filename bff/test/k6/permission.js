@@ -4,18 +4,31 @@ import http from 'k6/http';
 import { check } from 'k6';
 import { BASE, login } from './lib.js';
 
-const PATH = __ENV.PATH_UNDER_TEST || '/api/k6/ping';
+const PATH = __ENV.PATH_UNDER_TEST || '/api/k6/perm';
 
-export const options = { vus: Number(__ENV.VUS || 20), duration: __ENV.DURATION || '30s' };
+export const options = {
+  vus: Number(__ENV.VUS || 20),
+  duration: __ENV.DURATION || '30s',
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+  },
+};
 
-export default function () {
-  if (__ITER === 0) login();
-  check(http.get(`${BASE}${PATH}`), { 200: (r) => r.status === 200 });
+export function setup() {
+  return login();
+}
+
+export default function (data) {
+  const res = http.get(`${BASE}${PATH}`, {
+    headers: { Cookie: data.cookie },
+  });
+  check(res, { 200: (r) => r.status === 200 });
 }
 
 /** 由累積直方圖估計 p95(取第一個累積比例 ≥ 95% 的桶上限) */
 export function teardown() {
-  const res = http.get(`${BASE}/metrics`);
+  const metricsUrl = __ENV.METRICS_URL || `${BASE}/metrics`;
+  const res = http.get(metricsUrl);
   if (res.status !== 200) {
     console.warn(`無法讀取 /metrics(${res.status}),請在內網服務白名單內的主機執行`);
     return;
