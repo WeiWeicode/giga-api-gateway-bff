@@ -30,7 +30,7 @@
 | v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
 | v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
-| v0.11 | 2026-10-02 | 補齊未實作項目(程式已完成,待部署測試區驗證):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
+| v0.11 | 2026-10-02 | 補齊未實作項目(2026-10-02 測試區完成,E2E 01–09 通過):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
 | v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
 
 ---
@@ -768,16 +768,16 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | 子任務 | 範圍 | 狀態(2026-10-01) |
 | --- | --- | --- |
 | W3-1 架構規劃 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 | ✅ 完成(PoC 本機預驗通過;migration 已套用至公司 SQL Server 2012 測試庫、測試區以 2012 運作中;`test:int` 正式複驗待 P-04,[TECH-STACK.md](TECH-STACK.md) §4.1);稽核表保存排程腳本 `db/dba/04-retention-job.sql` 待 DBA 建立(v0.11) |
-| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成;nginx-prometheus-exporter 已加入 Compose(v0.11,待部署) |
+| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成;nginx-prometheus-exporter 已上測試區(v0.11) |
 | ~~W3-3 Nginx gRPC + mTLS~~ | §7.6 | **v0.9 取消**:Agent 通道改為 HTTPS / WebSocket,併入 W6(RustIt)與 Endpoint Server 一起交付 |
-| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;人員排程同步 Worker 與舊單一入口遷移程式完成(v0.11,待部署;遷移預設關閉,待 P-15 驗證後開啟) |
-| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 功能完成(v0.11 補 `/metrics`、`/docs`、收件匣、死信告警、Webhook 路由分派,待部署);整合週:k6 腳本與資安檢查清單已備,**壓測與 TLS 掃描待執行** |
+| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;人員排程同步 Worker 測試區完成(v0.11);舊單一入口遷移程式完成,預設關閉,待 P-15 驗證後開啟 |
+| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 功能完成(v0.11 補 `/metrics`、`/docs`、收件匣、死信告警、Webhook 路由分派,已上測試區);整合週:k6 腳本與資安檢查清單已備,**壓測與 TLS 掃描待執行** |
 | ◆ 測試區 Gateway + BFF 可用 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30 |
 | ◆ 正式區 Gateway + BFF 可用 | 主機 3(10.10.130.122)、`giganexus.gigasolar.com.tw` | 2026-12 |
 
 ### 13.2 第二階段(配合 W4 IT 管理介面)
 
-- [x] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾(v0.11:程式完成,待部署測試區)
+- [x] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾(v0.11:測試區完成,E2E 09)
 - [x] OpenAPI / Excel / CSV 匯入與預覽
 - [x] 「誰能存取」反查、有效權限檢視
 - [x] 角色指派規則、部門樹、應用登記與 `/api/auth/me` 的 `apps`、UI 權限分類、權限試算(P2-3a,配合員工入口網與 GigaItApp)

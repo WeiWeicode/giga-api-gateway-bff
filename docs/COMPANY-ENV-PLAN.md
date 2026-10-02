@@ -151,9 +151,9 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 
 | 工作項目 | 依賴 |
 | --- | --- |
-| W3-4.6b 人員排程同步 Worker | ✅ 2026-10-02 程式完成(待部署測試區;BPM `vw_gn_employee`、LOS view 已可讀) |
+| W3-4.6b 人員排程同步 Worker | ✅ 2026-10-02 測試區完成(首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人(資料待 HR 確認)) |
 | W3-4.16 舊單一入口帳號遷移(2026-10-02 程式完成,預設關閉) | P-15:以現行系統測試帳號驗證密文一致後設 `LEGACY_MIGRATION_ENABLED=true` 並放入兩個金鑰 secret |
 | W3-5.8 通知 Worker(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼 | P-09(✅ 2026-10-01 已實作;SMTP `10.10.130.69:25`,測試區需在 `test.env` 設 `MAIL_HOST`、`MAIL_REDIRECT_TO`) |
 | W3-5.10 Webhook 驗簽 | — |
 | W3-1.6 稽核表保存排程(腳本 `db/dba/04-retention-job.sql` 待 DBA 建立)、W3-2.8 nginx-prometheus-exporter(已加入 Compose)、CRL 更新排程(ENDPOINT-AGENT-GUIDE §10 G1,隨 W6) | DBA、W6 |
-| P2-5 路由的 `api_key` 驗證模式、API Key 管理 API | ✅ 2026-10-02 程式完成(待部署測試區) |
+| P2-5 路由的 `api_key` 驗證模式、API Key 管理 API | ✅ 2026-10-02 測試區完成(E2E 09) |

@@ -47,15 +47,15 @@
 | M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
 | **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
 | M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
-| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 P2-1–P2-7 程式完成(P2-1–P2-3a 已上測試區;2026-10-02 新增的試打、角色 / 權限 / AD 群組、匯入、API Key、反查、通知範本、稽核查詢、同步紀錄**待部署測試區並跑 E2E `09-p2-admin`**);P2-8 既有系統遷移未開始(需逐一評估 `notesapp`、`bpm`) |
+| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 P2-1–P2-7 測試區完成(2026-10-02 新增的試打、角色 / 權限 / AD 群組、匯入、API Key、反查、通知範本、稽核查詢、同步紀錄:E2E `09-p2-admin` 16 項通過);P2-8 既有系統遷移未開始(需逐一評估 `notesapp`、`bpm`) |
 
 | 子任務 | 狀態 |
 | --- | --- |
 | W3-1 架構規劃 | ✅ 完成;W3-1.6 保存排程腳本 `db/dba/04-retention-job.sql` 已寫好,待 DBA 於兩區建立 SQL Agent 作業 |
-| W3-2 Nginx 入口 | ✅ 測試區完成;W3-2.8 exporter 已加入 Compose(待部署) |
+| W3-2 Nginx 入口 | ✅ 測試區完成;W3-2.8 exporter 已上測試區(2026-10-02) |
 | ~~W3-3 Agent 通道~~ | 取消,改為 Rust + WebSocket 併入 W6(§4.3) |
-| W3-4 身分與權限 | ✅ 測試區完成;W3-4.6b 人員同步 Worker 程式完成(待部署);W3-4.16 舊帳號遷移程式完成、**預設關閉**,待 P-15 測試帳號驗證密文一致後開啟;W3-4.1 `metrics` plugin 於 2026-10-02 補上(原標完成但未實作) |
-| W3-5 路由與通知 | 🔶 功能完成:路由、聚合、斷路器、同步、自動註冊、通知、自行註冊、忘記密碼、Webhook 驗簽;2026-10-02 補 W3-5.11 `/metrics`、`/docs`(原標完成但未實作)、W3-5.13 收件匣 / 死信告警 / Webhook 路由分派(待部署)。W3-5.12 整合週:k6 腳本(`bff/test/k6`)、資安檢查清單([SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md))、Gherkin 對照表已備,**壓測與 TLS 掃描待執行** |
+| W3-4 身分與權限 | ✅ 測試區完成;W3-4.6b 人員同步 Worker 測試區完成(2026-10-02,首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人(資料待 HR 確認));W3-4.16 舊帳號遷移程式完成、**預設關閉**,待 P-15 測試帳號驗證密文一致後開啟;W3-4.1 `metrics` plugin 於 2026-10-02 補上(原標完成但未實作) |
+| W3-5 路由與通知 | 🔶 功能完成:路由、聚合、斷路器、同步、自動註冊、通知、自行註冊、忘記密碼、Webhook 驗簽;2026-10-02 補 W3-5.11 `/metrics`、`/docs`(原標完成但未實作)、W3-5.13 收件匣 / 死信告警 / Webhook 路由分派(已上測試區;死信告警待設定 `ALERT_EMAIL_TO` 實測)。W3-5.12 整合週:k6 腳本(`bff/test/k6`)、資安檢查清單([SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md))、Gherkin 對照表已備,**壓測與 TLS 掃描待執行** |
 
 ---
 
@@ -204,14 +204,14 @@
 
 | # | 工作項目 | 文件 |
 | --- | --- | --- |
-| P2-1 | ✅(2026-10-01;試打 `POST /api/admin/routes/:id/test` 2026-10-02 補上,`modules/admin/route-test.ts`,待部署)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
+| P2-1 | ✅(2026-10-01;試打 `POST /api/admin/routes/:id/test` 2026-10-02 補上,`modules/admin/route-test.ts`,測試區 E2E 09 通過)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
 | P2-2 | ✅(2026-10-01;CLI `publish` / `rollback` 保留)草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3;Gherkin `router/release-publish.feature` |
-| P2-3 | ✅(2026-10-01:使用者、公司、本機帳號;2026-10-02:角色 / 權限 CRUD 與 AD 群組對應 `modules/admin/roles.ts`、人員同步紀錄與手動觸發 `employee-sync.ts`,待部署)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
+| P2-3 | ✅(2026-10-01:使用者、公司、本機帳號;2026-10-02:角色 / 權限 CRUD 與 AD 群組對應 `modules/admin/roles.ts`、人員同步紀錄與手動觸發 `employee-sync.ts`,測試區 E2E 09 通過)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
 | P2-3a | ✅(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀);`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
-| P2-4 | ✅(2026-10-02,待部署)OpenAPI / Excel / CSV 匯入:解析、驗證、預覽、提交(`modules/admin/imports.ts`、`route-table.ts`;exceljs) | PRD §8.4.4 |
-| P2-5 | ✅(2026-10-02,待部署)API Key 管理(Argon2id、IP 限制、權限範圍、換發)與路由 `api_key` 驗證模式(`modules/admin/api-clients.ts`、`router/plugin.ts`) | PRD §8.7 |
-| P2-6 | ✅(2026-10-02,待部署)「誰能存取」反查(依路由或權限代碼)、有效權限檢視(`modules/admin/access.ts`) | PRD §8.7 |
-| P2-7 | ✅(2026-10-02,待部署)通知範本管理與發送紀錄查詢 API、稽核查詢 API(`modules/admin/notify-admin.ts`、`audit-query.ts`) | PRD §8.7 |
+| P2-4 | ✅(2026-10-02,測試區 E2E 09 通過)OpenAPI / Excel / CSV 匯入:解析、驗證、預覽、提交(`modules/admin/imports.ts`、`route-table.ts`;exceljs) | PRD §8.4.4 |
+| P2-5 | ✅(2026-10-02,測試區 E2E 09 通過)API Key 管理(Argon2id、IP 限制、權限範圍、換發)與路由 `api_key` 驗證模式(`modules/admin/api-clients.ts`、`router/plugin.ts`) | PRD §8.7 |
+| P2-6 | ✅(2026-10-02,測試區 E2E 09 通過)「誰能存取」反查(依路由或權限代碼)、有效權限檢視(`modules/admin/access.ts`) | PRD §8.7 |
+| P2-7 | ✅(2026-10-02,測試區 E2E 09 通過)通知範本管理與發送紀錄查詢 API、稽核查詢 API(`modules/admin/notify-admin.ts`、`audit-query.ts`) | PRD §8.7 |
 | P2-8 | 未開始:既有系統遷移(`notesapp`、`bpm` 等):逐一評估 PRD §7.2.4 方式 A / B / C,完成後關閉舊對外 port(各系統 repo 不在本工作區,需逐一確認改造方式) | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §10 |
 
 > W4 前端與管理 API 並行開發:每項管理 API 完成即部署測試區,W4 依 OpenAPI 文件(`/docs`)串接。
