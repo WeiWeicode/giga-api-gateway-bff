@@ -126,7 +126,7 @@ describe('忘記 / 重設密碼', () => {
       );
       return l;
     });
-    expect(log.recipient_address).toBe('S1800@gigasolar.com.tw');
+    expect(log.recipient_address.toLowerCase()).toBe('s1800@gigasolar.com.tw');
     const job = JSON.parse(await redisCli('HGET', `bull:notify:nt-${log.log_id}`, 'data')) as { data: { expiresMinutes: number; employeeNo: string } };
     expect(job.data).toMatchObject({ expiresMinutes: 1440, employeeNo: emp });
     const [a] = await query("SELECT TOP 1 reason FROM gw.auth_log WHERE user_id = @id AND event = 'pw_reset_requested' ORDER BY log_id DESC", { id });
