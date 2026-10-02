@@ -7,18 +7,37 @@
 
   # 畫面與細節於入口網(W5)開發時確定(PRD Q23);以下為 API 行為
   # IT 重設 / 解鎖:管理 API POST /api/admin/local-accounts/:id/reset-password、/unlock(P2-3),或 CLI local:reset / local:unlock(同一套邏輯)
+  # 重設連結收件人(2026-10-02 需求方決定):gw.user.email → BPM / LOS 本人與兼任帳號的 Email(可能多個,都寄)→ IT 信箱轉交
 
   背景:
     假如 "V112001" 有狀態為 "active" 的本機帳號
 
   場景: 有 Email 時寄送重設連結
-    假如 LOS 記錄 "V112001" 的 Email 為 "wang@example.com"
+    假如 "V112001" 在 Gateway 的 Email 為 "wang@example.com"
     當 使用者以工號 "V112001" 申請忘記密碼
     那麼 系統寄送 30 分鐘有效的重設連結到 "wang@example.com"
     當 使用者開啟連結並設定新密碼 "newpass99"
     那麼 密碼更新成功
     而且 "V112001" 所有 Refresh Token 家族皆失效
     而且 該連結再次使用時回應 code 為 "TOKEN_USED"
+
+  場景: Gateway 沒有 Email 時改寄 BPM / LOS 登記的 Email,本人與兼任帳號都寄
+    假如 "V112001" 在 Gateway 沒有 Email
+    而且 BPM 記錄 "V112001" 的 Email 為 "wang@example.com"
+    而且 LOS 記錄同姓名的兼任帳號 "GV112001" 的 Email 為 "wang.gsmc@example.com"
+    而且 LOS 記錄 "2V112001"(不是英文字首)的 Email 為 "other@example.com"
+    當 使用者以工號 "V112001" 申請忘記密碼
+    那麼 系統寄送 30 分鐘有效的重設連結到 "wang@example.com" 與 "wang.gsmc@example.com"
+    而且 不寄到 "other@example.com"
+    而且 "gw.auth_log" 的 pw_reset_requested 原因為 "hr_email:2"
+
+  場景: Gateway、BPM、LOS 都沒有 Email 時寄 IT 信箱轉交
+    假如 "V112001" 在 Gateway、BPM、LOS 都沒有 Email
+    當 使用者以工號 "V112001" 申請忘記密碼
+    那麼 系統以範本 "AUTH_PASSWORD_RESET_IT" 寄送 24 小時有效的重設連結到 "S1800@gigasolar.com.tw"
+    而且 信件請 IT 確認本人申請後再轉交
+    而且 "gw.auth_log" 的 pw_reset_requested 原因為 "it_fallback"
+    而且 回應訊息與有 Email 時相同
 
   場景: 重設連結過期
     假如 重設連結已產生超過 30 分鐘
@@ -39,8 +58,8 @@
     那麼 不寄送重設連結
     而且 回應提示依公司 AD 流程處理
 
-  場景: 沒有 Email 由 IT 重設並強制首次登入改密碼
-    假如 LOS 與 BPM 都沒有 "V112001" 的 Email
+  場景: IT 重設密碼並強制首次登入改密碼
+    假如 "V112001" 聯絡 IT 協助重設
     當 IT 為 "V112001" 重設密碼
     那麼 "must_change_password" 為 1
     當 使用者以 IT 提供的密碼登入

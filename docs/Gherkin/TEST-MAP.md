@@ -85,10 +85,12 @@
 | 場景 | 測試 |
 | --- | --- |
 | 有 Email 時寄送重設連結 | E:03 |
+| Gateway 沒有 Email 時改寄 BPM / LOS 登記的 Email,本人與兼任帳號都寄 | U:employee-sync(pickHrEmails);E2E 不涵蓋(假工號在 BPM / LOS 查無) |
+| Gateway、BPM、LOS 都沒有 Email 時寄 IT 信箱轉交 | E:03 |
 | 重設連結過期 | E:03 |
 | 查無帳號時回應與成功時相同 | E:03 |
 | AD 帳號不走本機忘記密碼 | E:03 |
-| 沒有 Email 由 IT 重設並強制首次登入改密碼 | E:02、E:08 |
+| IT 重設密碼並強制首次登入改密碼 | E:02、E:08 |
 | IT 解鎖被鎖定的帳號 | E:02、E:08 |
 | 已登入者變更密碼 | E:02 |
 

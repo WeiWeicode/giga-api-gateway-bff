@@ -52,6 +52,8 @@ x-bff-env: &bff-env
   MAIL_REDIRECT_TO: ${MAIL_REDIRECT_TO:-}
   # 告警 Email(worker:通知死信、人員 / 部門同步中止、離職標記與新公司);逗號分隔,未設定只寫 error log
   ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+  # 忘記密碼時本人沒有任何 Email:重設連結改寄此 IT 信箱轉交(空白 = 預設 S1800@gigasolar.com.tw)
+  PASSWORD_RESET_FALLBACK_TO: ${PASSWORD_RESET_FALLBACK_TO:-}
   # 舊單一入口帳號遷移(W3-4.16):以現行系統測試帳號驗證密文一致(P-15)後才開啟;
   # 開啟時在 <區域>.env 設 LEGACY_MIGRATION_ENABLED=true 與兩個 *_FILE=/run/secrets/gw/legacy_portal_key、legacy_portal_server_key(檔案放機密目錄)
   LEGACY_MIGRATION_ENABLED: ${LEGACY_MIGRATION_ENABLED:-false}
