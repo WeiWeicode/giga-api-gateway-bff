@@ -770,7 +770,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | W3-1 架構規劃 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 | ✅ 完成(PoC 本機預驗通過;migration 已套用至公司 SQL Server 2012 測試庫、測試區以 2012 運作中;`test:int` 正式複驗待 P-04,[TECH-STACK.md](TECH-STACK.md) §4.1);稽核表保存排程腳本 `db/dba/04-retention-job.sql` 待 DBA 建立(v0.11) |
 | W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成;nginx-prometheus-exporter 已上測試區(v0.11) |
 | ~~W3-3 Nginx gRPC + mTLS~~ | §7.6 | **v0.9 取消**:Agent 通道改為 HTTPS / WebSocket,併入 W6(RustIt)與 Endpoint Server 一起交付 |
-| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;人員排程同步 Worker 測試區完成(v0.11);舊單一入口遷移程式完成,預設關閉,待 P-15 驗證後開啟 |
+| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;人員排程同步 Worker 測試區完成(v0.11);舊單一入口帳號**不遷移**(2026-10-02 決定:正式區由使用者自行重新申請;遷移程式保留、維持關閉) |
 | W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 功能完成(v0.11 補 `/metrics`、`/docs`、收件匣、死信告警、Webhook 路由分派,已上測試區);整合週:k6 腳本與資安檢查清單已備,**壓測與 TLS 掃描待執行** |
 | ◆ 測試區 Gateway + BFF 可用 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30 |
 | ◆ 正式區 Gateway + BFF 可用 | 主機 3(10.10.130.122)、`giganexus.gigasolar.com.tw` | 2026-12 |

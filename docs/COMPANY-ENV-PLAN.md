@@ -70,7 +70,7 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 | 檔案 / 項目 | 需要調整 | 依賴 |
 | --- | --- | --- |
 | ~~DBA 建立 `giganexus_gw`、`giganexus_gw_test`、schema `gw`、`gw_app` / `gw_migrate` 帳號、`gw_app_role`~~ **已完成(2026-09-30,見 §1.0)** | — | P-01 |
-| **M0:Drizzle × SQL Server 2012 複驗** | 複製 `bff/.env.example` 為 `bff/.env`,填入公司 2012 測試庫(`GW_DB_HOST`、密碼、`GW_TEST_DB_NAME`)後執行 `npm run test:int`,結果記錄於 [TECH-STACK.md](TECH-STACK.md) §4.1。**`test:int` 會清空 `GW_TEST_DB_NAME` 的 schema `gw` 再重建**:測試區(主機 2)使用 `giganexus_gw_test`,上線後整合測試必須改用 DBA 另建的專用庫(名稱須含 `_test`),或在測試區上線前完成 M0 | P-04 |
+| ~~M0:Drizzle × SQL Server 2012 複驗~~ | ✅ 2026-10-02 完成:DBA 另建整合測試專用庫 `giganexus_gw_poc_test`(`db/dba/05-poc-test-db.sql`),`test:int` 15 項全數通過([TECH-STACK.md](TECH-STACK.md) §4.1)。`bff/.env` 的 `GW_TEST_DB_NAME` 一律指向此庫,**不可指向 `giganexus_gw_test`**(會清空測試區) | P-04 |
 | migration 套用 | 三個 migration(`20260924114259_init`、`20260925021314_api_route_gherkin`:`gw.api_route.gherkin NVARCHAR(MAX)`、`20260926011642_upstream_project`:`gw.upstream.project VARCHAR(100)`)需在 2012 測試庫以 `npm run db:migrate` 實際套用一次。**已完成(2026-09-30)**:以 `gw_migrate` 套用至 `10.10.130.220` `giganexus_gw_test`,schema `gw` 共 31 張表,`drizzle.__drizzle_migrations` 3 筆;`gw_app` 對 `audit_log` / `auth_log` / `api_access_log` 僅有 SELECT、INSERT(DENY 生效) | P-04 |
 | `bff/src/db/external/bpm.ts` | 欄位依 BPM 負責人實際提供的唯讀 view 調整(目前依本機模擬 view `dbo.vw_gn_employee`) | P-12 |
 | `bff/src/db/external/los.ts` | 欄位與型別依 DBA 提供的 LOS view 調整;確認日期欄位確實為 `d/M/yyyy` 字串 | P-12 |
@@ -151,9 +151,9 @@ SQL Server 2012 主機:`10.10.130.220`(`11.00.2100`,Navicat 連線名稱「開�
 
 | 工作項目 | 依賴 |
 | --- | --- |
-| W3-4.6b 人員排程同步 Worker | ✅ 2026-10-02 測試區完成(首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人(資料待 HR 確認)) |
-| W3-4.16 舊單一入口帳號遷移(2026-10-02 程式完成,預設關閉) | P-15:以現行系統測試帳號驗證密文一致後設 `LEGACY_MIGRATION_ENABLED=true` 並放入兩個金鑰 secret |
+| W3-4.6b 人員排程同步 Worker | ✅ 2026-10-02 測試區完成(首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人,兼任帳號不用於登入,不追查) |
+| ~~W3-4.16 舊單一入口帳號遷移~~ | **不實施**(2026-10-02 需求方決定:正式區由使用者自行重新申請帳號);`LEGACY_MIGRATION_ENABLED` 維持關閉,P-15 不需要 |
 | W3-5.8 通知 Worker(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼 | P-09(✅ 2026-10-01 已實作;SMTP `10.10.130.69:25`,測試區需在 `test.env` 設 `MAIL_HOST`、`MAIL_REDIRECT_TO`) |
 | W3-5.10 Webhook 驗簽 | — |
-| W3-1.6 稽核表保存排程(腳本 `db/dba/04-retention-job.sql` 待 DBA 建立)、W3-2.8 nginx-prometheus-exporter(已加入 Compose)、CRL 更新排程(ENDPOINT-AGENT-GUIDE §10 G1,隨 W6) | DBA、W6 |
+| W3-1.6 稽核表保存排程(✅ 2026-10-02 兩區 SQL Agent 作業已建立)、W3-2.8 nginx-prometheus-exporter(已加入 Compose)、CRL 更新排程(ENDPOINT-AGENT-GUIDE §10 G1,隨 W6) | DBA、W6 |
 | P2-5 路由的 `api_key` 驗證模式、API Key 管理 API | ✅ 2026-10-02 測試區完成(E2E 09) |

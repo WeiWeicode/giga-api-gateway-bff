@@ -43,7 +43,7 @@
 
 | 里程碑 | 判定條件 | 狀態(2026-10-01) |
 | --- | --- | --- |
-| M0 ORM Go / No-Go | PoC 檢查表(§4.1)全部通過 → Drizzle;否則改 Kysely;Kysely 也不通過 → Sequelize(第三條路) | **實質 Go(Drizzle)**:本機預驗全數通過;migration 已套用至公司 SQL Server 2012 `giganexus_gw_test`,測試區 BFF 以 2012 運作。`test:int` 對 2012 的正式複驗待執行([COMPANY-ENV-PLAN.md](COMPANY-ENV-PLAN.md) §6) |
+| M0 ORM Go / No-Go | PoC 檢查表(§4.1)全部通過 → Drizzle;否則改 Kysely;Kysely 也不通過 → Sequelize(第三條路) | ✅ **Go(Drizzle)**:2026-10-02 `test:int` 對公司 SQL Server 2012 RTM(`10.10.130.220`,整合測試專用庫 `giganexus_gw_poc_test`,`db/dba/05-poc-test-db.sql`)15 項全數通過;測試區 BFF 亦以 2012 運作 |
 | M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
 | **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
 | M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
@@ -51,10 +51,10 @@
 
 | 子任務 | 狀態 |
 | --- | --- |
-| W3-1 架構規劃 | ✅ 完成;W3-1.6 保存排程腳本 `db/dba/04-retention-job.sql` 已寫好,待 DBA 於兩區建立 SQL Agent 作業 |
+| W3-1 架構規劃 | ✅ 完成;W3-1.6 保存排程(`db/dba/04-retention-job.sql`)已於兩區建立 SQL Agent 作業(2026-10-02,每天 02:30) |
 | W3-2 Nginx 入口 | ✅ 測試區完成;W3-2.8 exporter 已上測試區(2026-10-02) |
 | ~~W3-3 Agent 通道~~ | 取消,改為 Rust + WebSocket 併入 W6(§4.3) |
-| W3-4 身分與權限 | ✅ 測試區完成;W3-4.6b 人員同步 Worker 測試區完成(2026-10-02,首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人(資料待 HR 確認));W3-4.16 舊帳號遷移程式完成、**預設關閉**,待 P-15 測試帳號驗證密文一致後開啟;W3-4.1 `metrics` plugin 於 2026-10-02 補上(原標完成但未實作) |
+| W3-4 身分與權限 | ✅ 測試區完成;W3-4.6b 人員同步 Worker 測試區完成(2026-10-02,首次同步 BPM 7,264 / LOS 8,434 筆,建立 1,043、更新 267 人;507 個兼任帳號找不到本人,兼任帳號不用於登入,不追查);W3-4.16 **不實施**(2026-10-02 需求方決定:正式區由使用者自行重新申請帳號,遷移程式保留但維持關閉);W3-4.1 `metrics` plugin 於 2026-10-02 補上(原標完成但未實作) |
 | W3-5 路由與通知 | 🔶 功能完成:路由、聚合、斷路器、同步、自動註冊、通知、自行註冊、忘記密碼、Webhook 驗簽;2026-10-02 補 W3-5.11 `/metrics`、`/docs`(原標完成但未實作)、W3-5.13 收件匣 / 死信告警 / Webhook 路由分派(已上測試區;死信告警待設定 `ALERT_EMAIL_TO` 實測)。W3-5.12 整合週:k6 腳本(`bff/test/k6`)、資安檢查清單([SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md))、Gherkin 對照表已備,**壓測與 TLS 掃描待執行** |
 
 ---
@@ -207,7 +207,7 @@
 | P2-1 | ✅(2026-10-01;試打 `POST /api/admin/routes/:id/test` 2026-10-02 補上,`modules/admin/route-test.ts`,測試區 E2E 09 通過)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
 | P2-2 | ✅(2026-10-01;CLI `publish` / `rollback` 保留)草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3;Gherkin `router/release-publish.feature` |
 | P2-3 | ✅(2026-10-01:使用者、公司、本機帳號;2026-10-02:角色 / 權限 CRUD 與 AD 群組對應 `modules/admin/roles.ts`、人員同步紀錄與手動觸發 `employee-sync.ts`,測試區 E2E 09 通過)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
-| P2-3a | ✅(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀);`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
+| P2-3a | ✅(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀);`itapp-api` 上游與 `/api/it/dashboard/*` 路由於 2026-10-02 由 GigaItApp「服務與路由」畫面登記至測試區(草稿,待新版 itapp-api 部署後發佈;設定檔 `GigaItApp/deploy/gateway-routes.yaml`);GigaItApp 已改單一入口並以使用者身分呼叫管理 API)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
 | P2-4 | ✅(2026-10-02,測試區 E2E 09 通過)OpenAPI / Excel / CSV 匯入:解析、驗證、預覽、提交(`modules/admin/imports.ts`、`route-table.ts`;exceljs) | PRD §8.4.4 |
 | P2-5 | ✅(2026-10-02,測試區 E2E 09 通過)API Key 管理(Argon2id、IP 限制、權限範圍、換發)與路由 `api_key` 驗證模式(`modules/admin/api-clients.ts`、`router/plugin.ts`) | PRD §8.7 |
 | P2-6 | ✅(2026-10-02,測試區 E2E 09 通過)「誰能存取」反查(依路由或權限代碼)、有效權限檢視(`modules/admin/access.ts`) | PRD §8.7 |

@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-02 M0 正式複驗、P2-3a itapp-api 上游登記、待辦狀態整理
+- 工作項目:M0、P2-3a、W3-1.6、W3-4.16
+- 內容:① **M0 正式複驗**:DBA 依新增的 `db/dba/05-poc-test-db.sql` 建立整合測試專用庫 `giganexus_gw_poc_test`(SQL Server 2012 RTM,相容層級 110,沿用 `gw_app` / `gw_migrate`),`test:int` 15 項全數通過 → M0 Go(Drizzle)。第 10 項(外部唯讀來源)原寫死 S112009 在 BPM / LOS 的職稱、主管、部門、離職日,人事異動後失敗,改為只驗欄位對應與格式;`bff/.env.example` 的 `GW_TEST_DB_NAME` 改為此庫。② **P2-3a**:GigaItApp 改用單一入口、各管理頁以使用者身分呼叫 `/api/admin/*`(GigaItApp 2026-10-02 新增功能紀錄);測試區以本機 CLI `apply` 套用 `GigaItApp/deploy/gateway-rbac.yaml`(`it.*` 選單權限、`it-admin` 角色;本機無 Redis,pv 快取未清除,不影響),經需求方同意以 SQL 指派 S112009 `gw-super-admin` + `it-admin`(寫入 `gw.audit_log`);再由 GigaItApp 畫面新增上游 `itapp-api`(`http://itapp-api:51291`,健康檢查 200)與路由 `it.dashboard.overview` / `work`(草稿)。③ 狀態:W3-1.6 兩區 SQL Agent 作業已建立;W3-4.16 **不實施**(正式區由使用者自行重新申請帳號);507 個兼任帳號不追查。IMPL-PLAN §2 / §5、PRD §13 W3-4、COMPANY-ENV-PLAN §6–§7、TECH-STACK §4.1 同步;甘特圖 W3-1.6、W3-4.16 標為完成,新增 P2-3c。
+- 檔案:`db/dba/05-poc-test-db.sql`(新增)、`bff/test/integration/poc-drizzle.test.ts`、`bff/.env.example`、`docs/IMPL-PLAN.md`、`docs/PRD.md`、`docs/COMPANY-ENV-PLAN.md`、`docs/TECH-STACK.md`
+- 驗證:`GW_TEST_DB_NAME=giganexus_gw_poc_test npm run test:int` → 15 passed;GigaItApp 畫面操作結果見其新增功能紀錄
+
 ## 2026-10-01 使用者、公司與本機帳號管理 API(P2-3)
 - 工作項目:P2-3
 - 內容:① `modules/admin/users.ts`:使用者清單(工號 / 姓名 / Email 搜尋、公司、部門、停用、驗證方式篩選、分頁)與明細(所屬公司、個別指派角色、本機帳號狀態、登入工作階段數);`PATCH /api/admin/users/:id` 停用 / 啟用與取代個別指派角色(可設到期、原因;**新增或移除的角色所含權限須是操作人具備的**,否則 403,防止 `gw-it-admin` 自行取得 `gw-super-admin`;不可停用自己);強制登出(遞增 pv + 撤銷 Refresh Token 家族)。公司清單(網域、預設角色、成員數、可用網域代碼)、`PATCH` 全名 / 字首 / 啟用、`PUT …/ad-domains`(陣列順序即嘗試順序,只接受 `LDAP_DOMAINS` 登記的代碼)、`PUT …/roles`(公司預設角色,成員 pv 遞增)。本機帳號清單(依狀態、新到舊)、代建、核准、重設、解鎖、停用。`:id` 可為 `user_id` 或工號;修改使用者與公司需帶 `rowVer`。② 本機帳號邏輯由 CLI 抽到 `admin/local-account-admin.ts`,CLI `local:create` / `local:approve` / `local:reset` / `local:unlock` 改為呼叫同一套,新增 `local:disable`(停用、撤銷登入、遞增 pv、作廢未使用的連結);**代建時 AD 查詢失敗改為中止**(原 CLI 視為查無,可能讓同一工號同時有 AD 與本機帳號);代建也拒絕已鎖定的帳號(應使用重設 / 解鎖)。③ 稽核寫入抽成 `admin/audit-log.ts`(記錄使用者 ID、IP、requestId),`routing.ts` 改用;`authorize.ts` 的操作人可取得自身權限清單。`session.ts` 新增 `userSessionCount`、`permission.ts` 匯出 `parseGroups`。④ 未做:人員同步紀錄與手動觸發(待 W3-4.6b 排程人員同步)、AD 群組對應 API(維持 CLI `apply`)。⑤ Gherkin 新增 `admin/user-admin.feature`;PRD §8.7 補充行為;E2E 清理加上 `E2E` 開頭的公司

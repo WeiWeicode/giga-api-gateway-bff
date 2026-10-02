@@ -83,6 +83,8 @@ giga-api-gateway-bff/
 
 **2026-09-24 本機預驗**:SQL Server 2022 容器、資料庫相容層級 110,所有執行期 SQL 經 2012 語法檢查(`SQL2012_GUARD=error`)。**非 M0 判定依據**,M0 需對 SQL Server 2012 RTM 測試庫(P-04)重跑同一組測試。
 
+**2026-10-02 M0 正式複驗(判定依據)**:公司 SQL Server 2012 RTM(`10.10.130.220`,`11.00.2100`),整合測試專用庫 `giganexus_gw_poc_test`(相容層級 110,`db/dba/05-poc-test-db.sql`),以 `gw_app` / `gw_migrate` 執行 `GW_TEST_DB_NAME=giganexus_gw_poc_test npm run test:int`:**15 項全數通過 → M0 Go(Drizzle)**。第 10 項改連公司 BPM(2019,加密)與 LOS / PortalSolar(2012),人事欄位值會異動,測試改為只驗欄位對應與格式。
+
 | # | 檢查項目 | 本機預驗 | 備註 |
 | --- | --- | --- | --- |
 | 1 | `mssql`(`encrypt: false`)連線 | 通過 | |

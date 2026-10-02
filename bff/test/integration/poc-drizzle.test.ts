@@ -248,10 +248,17 @@ describe('⑩ 外部唯讀資料來源:BPM(2019,encrypt: true)與 LOS / PortalSo
       const portal = createExternalDb(portalPool, 'error');
 
       const [b] = await bpm.select().from(bpmEmployee).where(eq(bpmEmployee.employeeNo, 'S112009'));
-      expect(b).toMatchObject({ deptCode: 'S1800', title: null, managerEmployeeNo: 'S100001' });
+      // 只驗欄位對應:職稱、主管會隨 BPM 人事異動(2026-10-02 起 S112009 主管為 S094009、職稱「一般人員」)
+      expect(b).toMatchObject({ deptCode: 'S1800', title: expect.toBeOneOf([null, expect.any(String)]), managerEmployeeNo: expect.stringMatching(/^S\d{6}$/) });
 
       const [l] = await los.select().from(losEmployee).where(eq(losEmployee.userId, 'S112009'));
-      expect(l).toMatchObject({ efDept: 'S1700', jobName: '工程師', leaveDate: '30/6/2025', isVUser: false });
+      // 同上,部門與日期會異動;日期驗 view 的 CONVERT(…, 103) 字串格式(profile.ts parseLosDate 允許前導 0)
+      expect(l).toMatchObject({
+        efDept: expect.stringMatching(/^S\d{4}$/),
+        jobName: '工程師',
+        leaveDate: expect.stringMatching(/^\d{1,2}\/\d{1,2}\/\d{4}$/),
+        isVUser: false,
+      });
       expect(l).not.toHaveProperty('ID');
 
       const [p] = await portal.select().from(portalLoginData).where(eq(portalLoginData.pid, 'V112001'));
