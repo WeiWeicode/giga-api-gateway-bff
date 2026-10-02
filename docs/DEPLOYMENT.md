@@ -85,6 +85,7 @@ flowchart TD
 | `…/gateway/nginx` | Nginx 與設定檔(`nginx/`) | `nginx` |
 | `…/spa/<app>` | 各 SPA 的 `dist/`(由各前端專案建置) | 發佈到共用 volume(§3.4) |
 | `redis:7` | 官方映像檔 | `redis`(資料存於 named volume) |
+| `nginx/nginx-prometheus-exporter` | 官方映像檔(版本鎖定於 compose) | `nginx-exporter`:讀取 `nginx:8081/stub_status`,`:9113` 預設只綁主機本機(`GW_EXPORTER_BIND`),Prometheus 建置後再開放(W3-2.8) |
 
 > Registry 位址為 `<gitlab-host>:5050`。Docker Desktop 預設只接受 HTTPS Registry;若 Registry 未設定 TLS,兩台 Windows 主機需在 Docker Desktop 設定 `insecure-registries`(建議改為企業 CA 簽發憑證的 HTTPS)。
 
@@ -152,6 +153,10 @@ flowchart LR
 - **Email 攔截**:`GW_ENV` 不是 `prod` 時,worker 把所有 Email 改寄 `MAIL_REDIRECT_TO`(主旨註明原收件人);設定了 `MAIL_HOST` 卻沒有 `MAIL_REDIRECT_TO` 時 BFF / worker 啟動失敗,避免測試通知寄給真實員工。
 - **人事資料來源**:LOS、BPM、PortalSolar 沒有測試庫時,測試區以唯讀帳號讀取正式資料;測試區不寫入任何來源資料庫。
 - **AD**:測試區使用與正式區相同的網域,另建測試帳號供自動化測試。
+- **人員同步**(2026-10-02):worker 每小時以 BPM / LOS 唯讀資料更新測試庫的 `gw.user`(只寫 `giganexus_gw_test`);手動觸發 `POST /api/admin/employee-sync/runs` 或 `npm run gw -- employee:sync`。
+- **告警**:設定 `ALERT_EMAIL_TO`(IT 信箱)後,worker 對通知死信、人員 / 部門同步中止與連續失敗、離職標記與新公司寄告警信;測試區同樣改寄 `MAIL_REDIRECT_TO`。
+- **舊單一入口帳號遷移**:預設關閉(`LEGACY_MIGRATION_ENABLED=false`)。P-15 測試帳號驗證通過後,把兩個演算法常數放入機密目錄 `legacy_portal_key`、`legacy_portal_server_key`,並在 `<區域>.env` 設 `LEGACY_MIGRATION_ENABLED=true`、`LEGACY_PORTAL_KEY_FILE`、`LEGACY_PORTAL_SERVER_KEY_FILE`(見 `deploy/test.env.example`)。
+- **稽核表保存**:由 DBA 以 `db/dba/04-retention-job.sql` 在兩區各建一個 SQL Agent 作業(每天 02:30 分批刪除)。
 
 ---
 
@@ -263,3 +268,5 @@ flowchart LR
 - [ ] 機密檔案已放入受保護目錄,權限只限 Docker 服務帳號
 - [ ] 公司 DNS A 紀錄已建立(PRD Q1);`:443` 公司憑證 `server.crt/key`、`:9443` 伺服器憑證 `agent-server.crt/key`(SAN 含本機 IP)、Agent 中繼 CA、CRL 已放入對應 volume
 - [ ] 測試區 SMTP 已設定攔截
+- [ ] `ALERT_EMAIL_TO` 已設定;稽核表保存 SQL Agent 作業(`db/dba/04-retention-job.sql`)已建立
+- [ ] `/metrics`、`/docs` 只對內網服務白名單開放(`nginx/allowlists/<區域>/internal-services.conf`)

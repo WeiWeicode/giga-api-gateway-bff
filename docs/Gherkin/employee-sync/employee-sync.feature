@@ -1,11 +1,12 @@
 # language: zh-TW
-@mvp @W3-4.6a @W3-4.6b @W3-4.6c @wip
+@mvp @W3-4.6a @W3-4.6b @W3-4.6c
 功能: BPM / LOS 人員同步
   為了讓部門、職稱、主管等人事資料以 BPM 為主、LOS 補充
   身為系統
   我每小時把 BPM 與 LOS 的人員資料同步進 "gw.user"
 
-  # 未實作(2026-10-01):排程同步 Worker(W3-4.6b)尚未開發;目前只有登入補查(W3-4.6c,第一次登入時查 BPM / LOS)與部門樹同步(P2-3a)
+  # 2026-10-02 實作:worker 每小時同步(employee-sync 佇列 employees 工作)、管理 API POST /api/admin/employee-sync/runs 與 CLI employee:sync 手動觸發;
+  # 告警寄 ALERT_EMAIL_TO。自動化對照見 TEST-MAP.md
 
   背景:
     假如 人員同步 Worker 每小時執行一次

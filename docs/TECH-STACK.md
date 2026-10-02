@@ -12,7 +12,7 @@
 | 反向代理 | **Nginx 1.26+**(stable,含 `http_v2`、`auth_request`、`ssl`) | 入口、TLS、mTLS、WebSocket |
 | BFF 執行環境 | **Node.js 22 LTS** + **TypeScript** | |
 | Web 框架 | **Fastify 5** | 高效能、plugin 架構、JSON Schema 驗證 |
-| 主要套件 | `@fastify/cookie`、`@fastify/websocket`、`@fastify/multipart`、`@fastify/swagger`、`undici`(上游連線池)、`jose`(JWT/JWKS)、`ldapts`(AD,多網域)、`@node-rs/argon2`(本機帳號密碼雜湊)、純 JS DES 實作(舊單一入口密碼比對,不啟用 OpenSSL legacy provider)、`drizzle-orm` + `mssql`(tedious 驅動)、`ioredis`、`bullmq`、`nodemailer`、`pino`(日誌)、`prom-client`(指標)、`zod` 或 TypeBox(型別/驗證) | |
+| 主要套件 | `@fastify/cookie`、`@fastify/websocket`、`@fastify/multipart`(匯入上傳)、`@fastify/swagger` + `@fastify/swagger-ui`(`/docs`)、`exceljs`(Excel 匯入與範本,P2-4;其相依的 `uuid` 以 npm overrides 升至 11.1.1)、`undici`(上游連線池)、`jose`(JWT/JWKS)、`ldapts`(AD,多網域)、`@node-rs/argon2`(本機帳號密碼雜湊)、純 JS DES 實作(舊單一入口密碼比對,不啟用 OpenSSL legacy provider)、`drizzle-orm` + `mssql`(tedious 驅動)、`ioredis`、`bullmq`、`nodemailer`、`pino`(日誌)、`prom-client`(指標)、`zod` 或 TypeBox(型別/驗證) | |
 | 資料庫 | **SQL Server 2012 Standard**(公司現有主機,`11.00.2100` = 2012 RTM);獨立資料庫 `giganexus_gw`、schema `gw` | 設定、權限、稽核;相容性限制見 [DATABASE.md](DATABASE.md) §0 |
 | 外部人員資料(唯讀) | **BPM:SQL Server 2019 Standard**(另一台主機,加密連線);**LOS:`[LOS].[dbo].[EmployeeInfo]`**(SQL Server 2012 同主機) | 部門、職稱、主管等人事資料;BPM 為主、LOS 補充,見 [DATABASE.md](DATABASE.md) §8 |
 | ORM / Migration | **Drizzle ORM**(MSSQL dialect)+ **drizzle-kit** | 型別安全的查詢、schema 定義、migration 產生;與 Redis 的同步規則見 [DATABASE.md](DATABASE.md) §7 |
@@ -37,11 +37,11 @@ giga-api-gateway-bff/
 │  │  │  ├─ external/          # BPM / LOS 唯讀 schema(不產生 migration)
 │  │  │  ├─ sync/              # SQL Server → Redis 同步(快照發佈、補償、權限快取)
 │  │  │  └─ client.ts          # 連線池:giganexus_gw(讀寫)、LOS / BPM / PortalSolar(唯讀)
-│  │  ├─ plugins/              # db、redis、auth、rbac、metrics
+│  │  ├─ plugins/              # db、redis、queues、errors、metrics(/metrics)、docs(/docs)
 │  │  ├─ modules/auth|rbac|router|admin|notify|webhook|health
 │  │  ├─ cli/                  # 管理 CLI(W3-5.7 OpenAPI 匯入 / 發佈 / 回滾、W3-4.15 IT 代建)
-│  │  ├─ workers/notify.worker.ts
-│  │  ├─ workers/employee-sync.worker.ts   # BPM + LOS → gw.user
+│  │  ├─ workers/notify.worker.ts、webhook.worker.ts、alert.ts
+│  │  ├─ workers/employee-sync.worker.ts   # BPM + LOS → gw.user(部門樹與人員,每小時)
 │  │  └─ server.ts
 │  └─ test/
 ├─ web-kit/                   # 前端共用套件 @giganexus/web-kit(見 FRONTEND-GUIDE.md §6)

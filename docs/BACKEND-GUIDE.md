@@ -139,13 +139,13 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 
 | Claim | 說明 | 範例 |
 | --- | --- | --- |
-| `sub` | Gateway 使用者 ID;系統對系統呼叫時為 `client:{clientId}` | `1024` |
+| `sub` | Gateway 使用者 ID;系統對系統呼叫(路由 `auth_mode = api_key`)時為 `client:{clientId}`,Webhook 轉送時為 `webhook:{來源}` | `1024` |
 | `emp` | 工號(登入帳號) | `S112009` |
 | `upn` | AD UPN;本機帳號為空 | `S112009@gsmc.com.tw` |
 | `name` | 姓名 | 王小明 |
 | `dept` | 部門代碼(BPM > LOS) | `S1800` |
 | `cos` | 所屬公司(含兼任) | `["碩禾"]` |
-| `amr` | 驗證方式 | `ad` / `local` |
+| `amr` | 驗證方式;系統身分為 `api_key` / `webhook`(此時 `dept`、`cos`、`roles` 為空,`emp` 為 `client:{代碼}` / `webhook:{來源}`) | `ad` / `local` |
 | `roles` | 角色代碼 | `["employee","mes-operator"]` |
 
 - **資料範圍**由後端依 `dept`、`cos`、`roles` 自行過濾(PRD §8.3)。

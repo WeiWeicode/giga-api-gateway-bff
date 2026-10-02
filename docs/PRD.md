@@ -9,7 +9,7 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.10**(2026-10-01) |
+| 文件版本 | **v0.11**(2026-10-02) |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / WebSocket / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
@@ -30,6 +30,7 @@
 | v0.7 | 2026-09-26 | 配合**員工入口網(giga-Portal)**與 GigaItApp 改版(規格,尚未實作):① **角色指派規則** `gw.role_rule`:依公司、部門(**含下層部門**,部門樹 `gw.department` 由 BPM 同步)、**職級(主)**、職稱(選配)自動取得角色(§8.3.1);② 權限分類 `kind`(`app` / `menu` / `tab` / `button` / `api`)與 `parent_code`,按鈕權限 = API 權限(§8.3.2);③ 應用登記 `gw.app`,`/api/auth/me` 回傳 `apps` 供各 SPA 顯示應用切換與應用層守衛(§8.2.4、§8.3.3);④ 管理 API 新增角色權限 / 指派規則寫入、部門樹、權限試算(§8.7,工作項目 P2-3a);⑤ `/` 由 giga-Portal 發佈(含 `/login`、`/register`、`/reset-password`);GigaItApp 改用單一入口、API 改為 `/api/it/*` 經 BFF(§7.2.1);BACKEND-GUIDE 登記 `portal-api` 51271;新增 Q28、Q29 |
 | v0.8 | 2026-10-01 | Q1 修訂:`:443` 改以 DNS 名稱存取(測試區 `giganexus-test.gigasolar.com.tw`、正式區 `giganexus.gigasolar.com.tw`),使用公司 `*.gigasolar.com.tw` 萬用憑證(主管決定以 gigasolar.com.tw 為主);`:9443` Agent 仍以 IP 存取,伺服器憑證分開(§7.1、§7.6)。文件中 `:443` 位址以 `<gateway-host>` 表示,`:9443` 維持 `<gateway-ip>` |
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
+| v0.11 | 2026-10-02 | 補齊未實作項目(程式已完成,待部署測試區驗證):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
 | v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
 
 ---
@@ -243,9 +244,9 @@ sequenceDiagram
 | `rbac` | (內部) | 權限計算、快取、`preHandler` 權限檢查 |
 | `router` | `/api/{system}/*` | 依路由表代理 / 聚合上游 |
 | `admin` | `/api/admin/*` | 供 IT 管理介面:API、上游、角色、權限、AD 群組對應、通知範本、稽核查詢、匯入、發佈 |
-| `notify` | `/api/notify/*`、`/ws/notify` | 通知發送 API、Email、站內通知(LINE 綁定暫緩) |
+| `notify` | `/api/notify/*`、`/ws/notify` | 通知發送 API、Email、站內通知與收件匣(LINE 綁定暫緩) |
 | `webhook` | `/webhook/*` | 簽章驗證、去重、分派 |
-| `health` | `/healthz`、`/readyz`、`/metrics` | 健康檢查與 Prometheus 指標(僅內網) |
+| `health` | `/healthz`、`/readyz`、`/metrics`、`/docs` | 健康檢查、Prometheus 指標(`plugins/metrics.ts`)、BFF 自身 OpenAPI 文件與 Swagger UI(`plugins/docs.ts`);後三者僅內網 |
 
 - **錯誤回應格式統一**為 `{ code, message, requestId }`(驗證錯誤另含 `details`);所有模組與上游錯誤轉換皆遵守此格式,代碼見 §8.1.1。
 
@@ -377,7 +378,7 @@ sequenceDiagram
   - 移除 Cookie(除非路由設定允許透傳)。
   - 加上 `X-Request-Id`、`X-Internal-Token`(JWT,`aud`=上游代碼,效期 60 秒,含 `sub/emp/upn/name/dept/cos/amr/roles`)。
 - 下游服務以 BFF 內網端點 `GET /.well-known/jwks.json` 取得公鑰驗章(Go / Node 皆有現成函式庫)。
-- 無使用者情境(排程、系統對系統)以 API Key 呼叫時,`X-Internal-Token` 的 `sub` 為 `client:{clientId}`。
+- 無使用者情境(排程、系統對系統)以 API Key 呼叫時,`X-Internal-Token` 的 `sub` 為 `client:{clientId}`、`emp` 為 `client:{代碼}`、`amr = api_key`(路由 `auth_mode = api_key`,v0.11 實作);Webhook 轉送到上游時 `sub` / `emp` 為 `webhook:{來源}`、`amr = webhook`(§8.6)。兩者 `dept`、`cos`、`roles` 為空。
 
 #### 8.2.4 Auth API
 
@@ -625,12 +626,12 @@ sequenceDiagram
 | Excel / CSV 範本 | IT 手動整理的清單,欄位對應 [DATABASE.md §2](DATABASE.md) `gw.api_route` |
 | 後端自動註冊 | 測試區、正式區的後端服務啟動時以 API Key 呼叫 `POST /api/admin/registrations` 送出自己的 OpenAPI(SDK `autoRegister`,[BACKEND-GUIDE.md](BACKEND-GUIDE.md) §7.5);驗證規則同 OpenAPI 匯入,另限定只能註冊 API Key 所屬的服務 |
 
-- 匯入流程:上傳 → 解析 → 驗證(路徑衝突、上游存在、權限代碼存在)→ **預覽比對**(新增 / 更新 / 不變 / 錯誤)→ 確認寫入為草稿 → 發佈。
+- 匯入流程:上傳 → 解析 → 驗證(路徑衝突、上游存在、權限代碼存在)→ **預覽比對**(新增 / 更新 / 不變 / 錯誤)→ 確認寫入為草稿 → 發佈。管理 API(P2-4,v0.11):`POST /api/admin/imports` 以 multipart 上傳(`.json` / `.yaml` / `.yml` 為 OpenAPI,需 `target` = 本區上游位址;`.xlsx` / `.csv` 為表格,第一列為欄位名稱,範本 `GET /api/admin/imports/template?format=xlsx|csv`),預覽結果存於匯入批次(`status = preview`,有錯誤為 `failed`);`POST /api/admin/imports/:id/commit` 以目前資料庫**重新驗證**後寫入草稿。表格只支援 proxy / mock 路由(聚合路由以管理介面設定)。
 - 後端自動註冊沒有預覽步驟:驗證通過即寫入草稿(有錯誤則整批不寫入),上游位址以「補上」方式登記(同一服務多台主機各自註冊,不互相覆蓋);**不自動發佈**,由 IT 於發佈前檢視差異後核可。
 - operation 的 `description` 存入 `description`(API 用途說明),`x-gherkin` 存入 `gherkin`(行為規格,Gherkin 場景文字);兩者不進路由快照,只供管理介面與路由查詢使用。
 - 根層 `x-gateway.project`(選用)存入 `gw.upstream.project`(開發專案 = repo 資料夾名稱,Gateway `AGENT.md` §10.2);未提供時保留既有值,不進路由快照。
 - 匯入批次與逐筆結果記錄於 `gw.api_import_batch` / `gw.api_import_item`。
-- 權限代碼不存在時可選擇「一併建立」。
+- 權限代碼不存在時可選擇「一併建立」:OpenAPI 由 `x-permissions` 宣告建立;表格匯入以 `createPermissions = true` 建立(名稱取 `permission_name`)。
 
 ### 8.5 Email / 站內通知(LINE 暫緩)
 
@@ -656,15 +657,16 @@ sequenceDiagram
   ```
 
 - **回應**:202 `{ queued, skipped }`;收件人展開為「每人 × 每通道」一筆 `gw.notify_log`,查無工號、帳號停用、沒有 Email 者記為 `skipped`(不重試);單次上限 1,000 則。`adGroups` 比對 `gw.user.ad_groups`(登入時寫入),**只涵蓋登入過的使用者**。範本變數為 `{{name}}` 子集(不支援區塊與 helper),Email 內文的變數值自動跳脫。
-- **佇列**:BullMQ(Redis)。API 只負責入列,Worker 發送;失敗以指數退避重試 5 次,最終失敗進入死信並告警(目前為 `alert: true` 的 error log,接 Alertmanager 後改為告警)。
+- **佇列**:BullMQ(Redis)。API 只負責入列,Worker 發送;失敗以指數退避重試 5 次,最終失敗進入死信並告警:寫 `alert: true` 的 error log、寄 Email 給 `ALERT_EMAIL_TO`(IT 信箱,同類告警 10 分鐘一次,v0.11),`/metrics` 的 `gw_queue_jobs{queue="notify",state="failed"}` 為死信數(Alertmanager 部署後可直接以此告警)。
 - **測試區與開發**:`GW_ENV` 不是 `prod` 時所有 Email 改寄 `MAIL_REDIRECT_TO`(主旨註明原收件人),未設定則 BFF / worker 啟動失敗。
-- **限速**:依通道設定每秒上限(SMTP 伺服器限制;未來 LINE 另需遵守平台速率與月訊息額度)。
+- **限速**:worker 以 `MAIL_RATE_PER_SEC`(預設每秒 10 則)限制寄送速率(SMTP 伺服器限制;站內通知共用同一上限;未來 LINE 另需遵守平台速率與月訊息額度)。
+- **站內通知收件匣**(v0.11):`GET /api/notify/messages?unread=&page=&pageSize=`(我的通知,新到舊,含未讀數)、`POST /api/notify/messages/:id/read`、`POST /api/notify/messages/read-all`;登入者只能讀寫自己的通知。`/ws/notify` 只推播新通知,未連線期間的通知以此查詢。
 - **紀錄**:每則發送寫入 `gw.notify_log`(狀態、重試次數、錯誤訊息、供應商回應 ID)。
 - **監控告警**:Prometheus Alertmanager 的 Email 告警亦可透過本服務的 webhook 端點發送。
 
 ### 8.6 Webhook 模組
 
-- 依 `gw.webhook_endpoint` 設定:來源、驗簽方式、密鑰、允許 IP、分派目標(上游路由或內部 handler)。
+- 依 `gw.webhook_endpoint` 設定:來源、驗簽方式、密鑰、允許 IP、分派目標:`dispatch_type = queue`(內部處理程序)或 `route`(v0.11:worker 以 POST 把原始 payload 轉送到 `dispatch_target` 路由的上游,帶 `X-Internal-Token`(`webhook:{來源}`)、`Idempotency-Key`、`X-Webhook-Source`;只支援已發佈、無路徑參數的 proxy 路由;上游 5xx / 逾時重試,4xx 不重試)。
 - 流程:驗 IP(已在 Nginx)→ 驗簽 → 時間戳 ±5 分鐘 → 去重 → 記錄 `gw.webhook_log` → 分派 → 立即回 200(耗時工作入佇列)。
 - 目前沒有外部來源(2026-10-01:BPM 不送 Webhook,簽核通知暫不處理),模組保留給日後的外部系統。
 - LINE Webhook **(暫緩)**:處理 `follow` / `message` 事件完成帳號綁定。
@@ -676,9 +678,9 @@ sequenceDiagram
 | 上游服務 | `GET/POST/PATCH/DELETE /api/admin/upstreams[/:id]`、`POST /:id/health-check` | `gw.admin.upstream.*` |
 | API 路由 | `GET/POST/PATCH/DELETE /api/admin/routes[/:id]`、`POST /api/admin/routes/:id/test`(以目前使用者身分試打) | `gw.admin.route.*` |
 | 聚合步驟 | `PUT /api/admin/routes/:id/steps` | `gw.admin.route.write` |
-| 匯入 | `POST /api/admin/imports`(上傳)、`GET /api/admin/imports/:id`(預覽)、`POST /api/admin/imports/:id/commit` | `gw.admin.route.import` |
+| 匯入 | `POST /api/admin/imports`(上傳)、`GET /api/admin/imports[/:id]`(批次清單 / 預覽)、`POST /api/admin/imports/:id/commit`、`GET /api/admin/imports/template` | `gw.admin.route.import` |
 | 發佈 / 回滾 | `GET /api/admin/releases`、`POST /api/admin/releases`(發佈草稿)、`POST /api/admin/releases/:id/rollback` | `gw.admin.release` |
-| 權限 / 角色 | `/api/admin/permissions`(`?tree=1&app=`:依 `kind` / `parent_code` 回傳權限樹)、`/api/admin/roles`、`/api/admin/roles/:id/permissions`、`/api/admin/roles/:id/ad-groups` | `gw.admin.rbac.*` |
+| 權限 / 角色 | `/api/admin/permissions`(`?tree=1&app=`:依 `kind` / `parent_code` 回傳權限樹;`POST` 新增、`PATCH/DELETE /:code`)、`/api/admin/roles`(`POST` 新增、`PATCH/DELETE /:id`,內建角色不可刪)、`/api/admin/roles/:id/permissions`、`GET/PUT /api/admin/roles/:id/ad-groups`(DN 清單整組取代) | `gw.admin.rbac.*` |
 | 指派規則(v0.7) | `GET/POST/PATCH/DELETE /api/admin/roles/:id/rules[/:ruleId]`(`:id` 可為角色 id 或代碼);body `{ companyId, deptCode, includeSubDepts, jobLevels[], title, description, isEnabled }`,至少一個條件、部門代碼須存在於部門樹或人事資料;寫入後遞增所有使用者 `pv`。`PUT /api/admin/roles/:id/permissions` 取代角色權限(`gw-super-admin` 不開放修改) | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
 | 部門樹(v0.7) | `GET /api/admin/departments`(公司 → 部門樹,含人數) | `gw.admin.rbac.read` |
 | 應用(v0.7) | `GET /api/admin/apps`(維護以 CLI `apply`) | `gw.admin.rbac.read` |
@@ -687,16 +689,17 @@ sequenceDiagram
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
 | 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
-| API Key | `/api/admin/api-clients`(建立時只顯示一次明文) | `gw.admin.client.*` |
+| API Key | `GET/POST /api/admin/api-clients`、`GET/PATCH /api/admin/api-clients/:id`、`POST /:id/rotate`(建立與換發時只顯示一次明文;權限範圍不可超過操作人) | `gw.admin.client.*` |
 | 後端自動註冊 | `POST /api/admin/registrations`(**僅接受 `X-Api-Key`**,只能註冊 API Key 代碼 = `x-gateway.upstream` 的服務,寫入草稿) | `gw.admin.route.register` |
 | 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明、Gherkin 與開發專案;API Key 或登入者皆可) | `gw.admin.route.read` |
 | 限流政策 | `/api/admin/rate-limit-policies` | `gw.admin.route.write` |
-| 通知 | `/api/admin/notify/templates`、`/api/admin/notify/logs` | `gw.admin.notify.*` |
+| 通知 | `GET/POST /api/admin/notify/templates`、`GET/PATCH /:id`、`POST /:id/preview`、`GET /api/admin/notify/logs` | `gw.admin.notify.*` |
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |
-| 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
+| 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/permissions/:code/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
 
-- **路由設定(P2-1 / P2-2,2026-10-01 實作)**:修改與刪除需帶 `rowVer`(`row_ver` 的 hex;DELETE 以查詢參數 `?rowVer=`),不符回 409 `VERSION_CONFLICT`。管理 API 只寫資料庫,路由、上游、限流政策的變更都在**下次發佈**時生效;修改已發佈的路由會改為草稿。`DELETE` 上游 / 路由為停用(上游仍被未停用的路由或聚合步驟使用時拒絕),限流政策為刪除(仍被路由參照時拒絕)。上游的 `targets` 只管理本區(`GW_ENV`)位址。`GET /api/admin/releases/preview` 回傳草稿清單與「目前發佈版本 → 發佈後」差異。`POST /api/admin/routes/:id/test`(試打)尚未實作。
-- **使用者 / 公司 / 本機帳號(P2-3,2026-10-01 實作)**:`:id` 可為 `user_id` 或工號。另提供 `GET /api/admin/users/:id`(所屬公司、個別指派、本機帳號狀態、登入工作階段數)與 `PATCH /api/admin/companies/:id`(全名、工號字首、啟用);網域與預設角色以 `PUT …/ad-domains`(`{ rowVer, domains: [依嘗試順序] }`)、`PUT …/roles`(`{ rowVer, roles: [角色代碼] }`)整組取代,另有 `POST /api/admin/local-accounts/:id/disable`。`PATCH /api/admin/users/:id` 的 `roles` 為個別指派的完整清單(`[{ code, validTo?, reason? }]`);**指派或移除的角色所含權限須是操作人本身具備的**,否則 403 `PERMISSION_DENIED`(防止提權)。代建 / 核准回傳 72 小時啟用連結、IT 重設回傳臨時密碼,皆只顯示一次。人員同步紀錄與手動觸發待排程人員同步(W3-4.6b)。
+- **路由設定(P2-1 / P2-2,2026-10-01 實作)**:修改與刪除需帶 `rowVer`(`row_ver` 的 hex;DELETE 以查詢參數 `?rowVer=`),不符回 409 `VERSION_CONFLICT`。管理 API 只寫資料庫,路由、上游、限流政策的變更都在**下次發佈**時生效;修改已發佈的路由會改為草稿。`DELETE` 上游 / 路由為停用(上游仍被未停用的路由或聚合步驟使用時拒絕),限流政策為刪除(仍被路由參照時拒絕)。上游的 `targets` 只管理本區(`GW_ENV`)位址。`GET /api/admin/releases/preview` 回傳草稿清單與「目前發佈版本 → 發佈後」差異。`POST /api/admin/routes/:id/test`(試打,v0.11):只接受登入者,以目前使用者身分呼叫本區上游(草稿亦可;已停用不可),使用獨立連線池與斷路器、寫入稽核;回傳上游回應與 `wouldBeAllowed`(目前使用者實際呼叫是否被允許)。
+- **使用者 / 公司 / 本機帳號(P2-3,2026-10-01 實作)**:`:id` 可為 `user_id` 或工號。另提供 `GET /api/admin/users/:id`(所屬公司、個別指派、本機帳號狀態、登入工作階段數)與 `PATCH /api/admin/companies/:id`(全名、工號字首、啟用);網域與預設角色以 `PUT …/ad-domains`(`{ rowVer, domains: [依嘗試順序] }`)、`PUT …/roles`(`{ rowVer, roles: [角色代碼] }`)整組取代,另有 `POST /api/admin/local-accounts/:id/disable`。`PATCH /api/admin/users/:id` 的 `roles` 為個別指派的完整清單(`[{ code, validTo?, reason? }]`);**指派或移除的角色所含權限須是操作人本身具備的**,否則 403 `PERMISSION_DENIED`(防止提權)。代建 / 核准回傳 72 小時啟用連結、IT 重設回傳臨時密碼,皆只顯示一次。人員同步紀錄與手動觸發(v0.11):`GET /api/admin/employee-sync/runs[/:id]`;`POST` 建立 `queued` 紀錄並排入 worker,已有排隊或執行中的同步時回傳該筆。
+- **第二階段其餘管理 API(v0.11,2026-10-02 實作)**:修改需帶 `rowVer`;寫入與 `gw.audit_log` 同一交易。防止提權:API Key 權限範圍、AD 群組對應的角色權限都不可超過操作人本身的權限,`gw-super-admin` 的權限與 AD 群組不開放 API 修改;`gw.admin.*` 權限不可刪除,仍被路由 / 聚合步驟 / 應用 / 下層權限使用的權限不可刪除。稽核查詢 `GET /api/admin/audit-logs`(操作人、動作前綴、對象)、`GET /api/admin/auth-logs`(帳號、事件、IP),未指定區間時為最近 30 天。
 - **GigaItApp 改用單一入口後(v0.7)**,其前端以**使用者本人的登入**直接呼叫上述管理 API(寫入的稽核記錄實際操作人),不再使用服務帳號;`gw.admin.rbac.write` 只授予 IT 權限管理人員。
 
 ---
@@ -764,23 +767,23 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 | 子任務 | 範圍 | 狀態(2026-10-01) |
 | --- | --- | --- |
-| W3-1 架構規劃 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 | ✅ 完成(PoC 本機預驗通過;migration 已套用至公司 SQL Server 2012 測試庫、測試區以 2012 運作中;`test:int` 正式複驗待執行,[TECH-STACK.md](TECH-STACK.md) §4.1) |
-| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成(未做:nginx-prometheus-exporter) |
+| W3-1 架構規劃 | 本 PRD 定稿、TECH-STACK、DB DDL、**Drizzle × SQL Server 2012 PoC**、ArchAtlas 更新 | ✅ 完成(PoC 本機預驗通過;migration 已套用至公司 SQL Server 2012 測試庫、測試區以 2012 運作中;`test:int` 正式複驗待 P-04,[TECH-STACK.md](TECH-STACK.md) §4.1);稽核表保存排程腳本 `db/dba/04-retention-job.sql` 待 DBA 建立(v0.11) |
+| W3-2 Nginx:443 SSL、SPA、REST、WebSocket、Webhook 入口 | §7.1–7.5、§7.7 | ✅ 測試區完成;nginx-prometheus-exporter 已加入 Compose(v0.11,待部署) |
 | ~~W3-3 Nginx gRPC + mTLS~~ | §7.6 | **v0.9 取消**:Agent 通道改為 HTTPS / WebSocket,併入 W6(RustIt)與 Endpoint Server 一起交付 |
-| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;待外部前置:人員排程同步 Worker(P-12)、舊單一入口帳號遷移(P-15) |
-| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 進行中:路由、聚合、斷路器、發佈同步、自動註冊完成;通知 Worker、自行註冊 / 忘記密碼、Webhook 驗簽未完成 |
+| W3-4 BFF:AD / 本機帳號登入、JWT Cookie、RBAC、人員同步 | §8.2(§8.2.5 含本機帳號登入、IT 代建)、§8.3、[DATABASE.md](DATABASE.md) §3、§8;前端共用套件([FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §6) | ✅ 測試區完成;人員排程同步 Worker 與舊單一入口遷移程式完成(v0.11,待部署;遷移預設關閉,待 P-15 驗證後開啟) |
+| W3-5 BFF:動態路由、聚合、通知骨架 | §8.4(不含匯入 UI)、§8.5(Email + 站內;**LINE 暫緩**)、§8.6(Webhook 模組;目前沒有外部來源);§8.2.5 自行註冊與忘記密碼(需 Email 通知) | 🔶 功能完成(v0.11 補 `/metrics`、`/docs`、收件匣、死信告警、Webhook 路由分派,待部署);整合週:k6 腳本與資安檢查清單已備,**壓測與 TLS 掃描待執行** |
 | ◆ 測試區 Gateway + BFF 可用 | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30 |
 | ◆ 正式區 Gateway + BFF 可用 | 主機 3(10.10.130.122)、`giganexus.gigasolar.com.tw` | 2026-12 |
 
 ### 13.2 第二階段(配合 W4 IT 管理介面)
 
-- [ ] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾
-- [ ] OpenAPI / Excel 匯入與預覽
-- [ ] 「誰能存取」反查、有效權限檢視
-- [ ] 角色指派規則、部門樹、應用登記與 `/api/auth/me` 的 `apps`、UI 權限分類、權限試算(P2-3a,配合員工入口網與 GigaItApp)
-- [ ] API Key 管理
-- [ ] 通知範本、發送紀錄、稽核、人員同步紀錄查詢
-- [ ] 既有系統遷移(§7.2.4)
+- [x] 管理 API 全套(§8.7)、草稿 / 發佈 / 回滾(v0.11:程式完成,待部署測試區)
+- [x] OpenAPI / Excel / CSV 匯入與預覽
+- [x] 「誰能存取」反查、有效權限檢視
+- [x] 角色指派規則、部門樹、應用登記與 `/api/auth/me` 的 `apps`、UI 權限分類、權限試算(P2-3a,配合員工入口網與 GigaItApp)
+- [x] API Key 管理與路由 `api_key` 模式
+- [x] 通知範本、發送紀錄、稽核、人員同步紀錄查詢
+- [ ] 既有系統遷移(§7.2.4):`notesapp`、`bpm` 需逐一評估方式 A / B / C(repo 不在本工作區)
 
 ### 13.3 第三階段(未來)
 
@@ -865,4 +868,4 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 ---
 
-*本文件 v0.10(2026-10-01);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*
+*本文件 v0.11(2026-10-02);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*

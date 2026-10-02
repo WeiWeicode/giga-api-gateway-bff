@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-01**(P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
+> **最後更新:2026-10-02**(補齊未實作項目:`plugins/metrics.ts`(/metrics)、`plugins/docs.ts`(/docs);人員同步 `modules/auth/employee-sync.ts` + `workers/employee-sync.worker.ts`;舊帳號遷移 `modules/auth/legacy-cipher.ts`、`legacy-migration.ts`;管理 API `modules/admin/route-test.ts`、`roles.ts`、`api-clients.ts`、`access.ts`、`imports.ts`(+ `route-table.ts`)、`notify-admin.ts`、`audit-query.ts`、`employee-sync.ts`;收件匣 `modules/notify/inbox.ts`;告警 `workers/alert.ts`。2026-10-01:P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -25,25 +25,30 @@ giga-api-gateway-bff/
 │  │  ├─ app.ts               組裝 Fastify:plugins → modules;X-Request-Id
 │  │  ├─ config.ts            設定載入與驗證(zod)
 │  │  ├─ errors.ts            錯誤代碼與 AppError(PRD §8.1.1)
-│  │  ├─ plugins/             基礎設施:db(外部唯讀來源)、redis、queues(BullMQ 入列)、errors(統一錯誤回應)
+│  │  ├─ plugins/             基礎設施:db(外部唯讀來源)、redis、queues(BullMQ 入列)、errors(統一錯誤回應)、metrics(/metrics)、docs(/docs)
 │  │  ├─ modules/             功能模組(Fastify plugin)
-│  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*;local-account(自行註冊、忘記 / 重設密碼)
+│  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*;local-account(自行註冊、忘記 / 重設密碼);
+│  │  │  │                    employee-sync(人員同步,worker / CLI / 管理 API 共用);legacy-cipher、legacy-migration(舊單一入口遷移,預設關閉)
 │  │  │  ├─ rbac/             權限計算與快取(permission.ts:角色來源含指派規則、me.apps)、規則比對(rules.ts,純函式)、部門樹同步(department-sync.ts)
 │  │  │  ├─ router/           動態路由:路由樹、快照、同步、限流 / 快取、上游呼叫
 │  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、權限設定(rbac.ts:權限樹、角色權限、指派規則、部門樹、應用、試算)、
 │  │  │  │                    路由設定(routing.ts:上游、路由、聚合步驟、限流政策;欄位檢查 routing-rules.ts 純函式)、發佈 / 回滾(releases.ts)、
 │  │  │  │                    使用者 / 公司 / 本機帳號(users.ts;本機帳號邏輯 local-account-admin.ts,CLI 共用)、
-│  │  │  │                    授權(authorize.ts:API Key 或登入者)、稽核寫入(audit-log.ts)、demo(DB 檢視、上手導覽)
-│  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify
+│  │  │  │                    授權(authorize.ts:API Key 或登入者)、稽核寫入(audit-log.ts)、demo(DB 檢視、上手導覽);
+│  │  │  │                    第二階段:路由試打(route-test.ts)、角色 / 權限 / AD 群組(roles.ts)、API Key(api-clients.ts)、反查(access.ts)、
+│  │  │  │                    匯入(imports.ts;表格解析 route-table.ts 純函式;OpenAPI 共用 route-import.ts)、通知範本與紀錄(notify-admin.ts)、
+│  │  │  │                    稽核查詢(audit-query.ts)、人員同步紀錄與手動觸發(employee-sync.ts)
+│  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify、收件匣 /api/notify/messages(inbox.ts)
 │  │  │  ├─ webhook/          /webhook/{source}:驗簽(signature.ts 純函式)、時間戳、去重、gw.webhook_log、入列
 │  │  │  └─ health/           /healthz、/readyz
 │  │  ├─ db/                  資料存取:client(連線池)、schema/(Drizzle)、external/(BPM、LOS、PortalSolar 唯讀)、
 │  │  │                       sync/release(發佈 → Redis)、migrate、seed、sql2012-guard
-│  │  ├─ workers/             佇列處理程序(由 worker.ts 啟動):webhook.worker、notify.worker(Email / 站內通知)
+│  │  ├─ workers/             佇列處理程序(由 worker.ts 啟動):webhook.worker(含路由分派)、notify.worker(Email / 站內通知)、
+│  │  │                       employee-sync.worker(部門樹與人員同步)、alert(告警 Email)
 │  │  └─ cli/                 管理 CLI(`npm run gw`)、OpenAPI 轉路由草稿
 │  ├─ scripts/                開發工具:SQL 2012 語法檢查、重設整合測試庫
-│  └─ test/                   測試(與 src 平行):unit/、integration/、e2e/
-├─ db/                        migrations/(Drizzle 產生、人工審查,不可修改已套用的)、seed/、dba/(交 DBA 以 sa 執行:唯讀帳號與 BPM view)
+│  └─ test/                   測試(與 src 平行):unit/、integration/、e2e/、k6/(壓測腳本,W3-5.12)
+├─ db/                        migrations/(Drizzle 產生、人工審查,不可修改已套用的)、seed/、dba/(交 DBA 以 sa 執行:唯讀帳號、BPM 授權、稽核表保存作業)
 ├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)與 /api/auth/me
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)

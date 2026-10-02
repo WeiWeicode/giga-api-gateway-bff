@@ -111,7 +111,7 @@ export const router = createRouter({
 
 ### 6.1 共用套件
 
-所有專案使用 Gateway 團隊維護的共用套件(建議名稱 **`@giganexus/web-kit`**,發佈於公司 GitLab Package Registry),內含 HTTP client、CSRF、401 / 403 處理、`me` 查詢與權限判斷。**不要在各專案自行重寫這些邏輯。**
+所有專案使用 Gateway 團隊維護的共用套件 **`@giganexus/web-kit`**(原始碼 `giga-api-gateway-bff/web-kit/`;2026-10-02 決定**不發佈到 Package Registry**,由 Gateway Pipeline 的 build 階段複製到同主機共用目錄 `GW_SHARED_DIR`,各 SPA 建置時引用;本機開發以相對路徑引用同一工作區的 `web-kit`),內含 HTTP client、CSRF、401 / 403 處理、`me` 查詢與權限判斷。**不要在各專案自行重寫這些邏輯。**
 
 ```ts
 // main.ts

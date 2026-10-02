@@ -296,7 +296,7 @@ erDiagram
 | `gw.notify_template` | `template_id`、`code` UQ、`name`、`channels`(預設通道 JSON)、`email_subject`、`email_body`(HTML)、`inapp_body`、`is_enabled`、★共通 |
 | `gw.notify_log` | `log_id` BIGINT PK、`template_code`、`channel`、`recipient_user_id`、`recipient_address`、`status`(`queued`/`sent`/`failed`/`dead`/`skipped`;`skipped` = 查無工號、帳號停用或沒有 Email,不入列)、`retry_count`、`provider_msg_id`、`error_message`、`idempotency_key`、`requested_by`、`queued_at`、`sent_at` |
 | `gw.notify_message` | `message_id` BIGINT PK、`user_id`、`title`、`body`、`link_url`、`is_read`、`read_at`、`created_at`(站內通知) |
-| `gw.webhook_endpoint` | `endpoint_id`、`source_code` UQ(目前沒有來源;BPM 不送 Webhook)、`verify_method`(`hmac_sha256`/`none`)、`secret_ref`(密鑰檔名,實值存 `WEBHOOK_SECRETS_DIR/<secret_ref>`)、`signature_header`(預設 `X-Gw-Signature`)、`allowed_ips`(僅供參考,實際由 Nginx 白名單檢查)、`dispatch_type`(`route`/`queue`/`handler`;**目前只實作 `queue`**)、`dispatch_target`、`is_enabled`、★共通 |
+| `gw.webhook_endpoint` | `endpoint_id`、`source_code` UQ(目前沒有來源;BPM 不送 Webhook)、`verify_method`(`hmac_sha256`/`none`)、`secret_ref`(密鑰檔名,實值存 `WEBHOOK_SECRETS_DIR/<secret_ref>`)、`signature_header`(預設 `X-Gw-Signature`)、`allowed_ips`(僅供參考,實際由 Nginx 白名單檢查)、`dispatch_type`(`route`/`queue`/`handler`;實作 `queue` 與 `route`(2026-10-02:worker 轉送到 `dispatch_target` 路由的上游,PRD §8.6),`handler` 未實作)、`dispatch_target`、`is_enabled`、★共通 |
 | `gw.webhook_log` | `log_id` BIGINT PK、`endpoint_id`、`request_id`、`idempotency_key`、`remote_ip`、`verified`(簽章與時間戳皆通過)、`status_code`(回給來源的狀態)、`payload`(目前全部保存)、`received_at`、`processed_at`(worker 處理完成)、`error_message`(拒絕原因、`DUPLICATE_REQUEST`、處理失敗訊息) |
 
 > **LINE 相關欄位暫緩**:`gw.user.line_user_id` / `line_bound_at`、`gw.notify_template.line_body`、`gw.line_bind_code` 表、`webhook_endpoint.verify_method = line_signature` 本階段**不建立**;開發 LINE 通知時再以 migration 新增(見 PRD §8.5)。
@@ -325,12 +325,13 @@ erDiagram
 | ~~`gw:login:fail:{user}` / `gw:login:fail:ip:{ip}`~~ | Counter | 15 分 | 登入失敗限流(2026-10-01 暫停,不再寫入;PRD v0.10) |
 | `gw:rl:{policy}:{key}` | Sorted Set | 視窗秒數 | 滑動視窗限流 |
 | `gw:cache:{routeCode}:{hash}` | String | `cache_ttl_sec` | GET 回應快取 |
-| `gw:cb:{upstreamCode}` | Hash | 30 秒 | 斷路器狀態 |
-| `gw:client:{keyPrefix}` | Hash | 5 分 | API Key 快取(雜湊、權限範圍、允許 IP) |
+| ~~`gw:cb:{upstreamCode}`~~ | Hash | 30 秒 | 斷路器狀態:**不使用**(2026-10-02 決定:斷路器由各 BFF 實例在記憶體中維護,不經 Redis 共享;狀態見 `/readyz` 與 `/metrics` 的 `gw_circuit_open`) |
+| `gw:client:{keyPrefix}` | Hash | 5 分 | API Key 快取(雜湊、權限範圍、允許 IP);管理 API 修改 / 換發 / 停用後刪除 |
+| `gw:alert:{kind}` | String(`SET NX EX`) | 10 分(依告警類別) | 告警 Email 頻率限制(worker,`workers/alert.ts`):同類告警在 TTL 內只寄一次 |
 | `gw:idem:webhook:{source}:{key}` / `gw:idem:notify:{key}` | String | 24h | Webhook / 通知去重(值為第一次請求的 requestId) |
 | `bull:webhook:*` | BullMQ | — | Webhook 事件佇列(worker 處理,完成的工作保留 24 小時,失敗的保留供查) |
 | `bull:notify:*` | BullMQ | — | 通知佇列 |
-| `bull:employee-sync:*` | BullMQ(可重複工作) | — | 人事同步排程:目前為部門樹(`departments`,每小時);人員同步(W3-4.6b)日後加入。BullMQ 確保多個實例下同一時間只執行一次 |
+| `bull:employee-sync:*` | BullMQ(可重複工作) | — | 人事同步排程:部門樹(`departments`)與人員(`employees`,W3-4.6b),各每小時;管理 API 手動觸發時入列 `employees`(帶 runId)。worker concurrency 1,同一時間只執行一個 |
 | `gw:lock:sync` | String(`SET NX PX`) | 30 秒 | 補償同步時的分散式鎖,避免多個 BFF 實例同時重推快照 |
 | `gw:pwchg:{tokenHash}` | String | 10 分 | 限定變更密碼憑證(舊入口遷移或 IT 重設後首次登入;只能呼叫變更密碼) |
 | `gw:reg:ip:{ip}` / `gw:reg:emp:{employeeNo}` | Counter | 1 小時 | 註冊與忘記密碼請求限流(例如每 IP 每小時 10 次、每工號每小時 3 次) |
@@ -349,7 +350,7 @@ erDiagram
 | 資料 | 寫入(Drizzle → SQL Server) | Redis 同步方式 | 失效 / 更新時機 |
 | --- | --- | --- | --- |
 | 路由、上游、聚合步驟、限流政策 | 管理 API 編輯存為 `draft` | **發佈時整份快照推送**:交易內 `draft → published` 並寫入 `gw.config_release`;提交後 `SET gw:routes:snapshot`、`SET gw:routes:version`、`PUBLISH gw:config:changed` | 只有「發佈 / 回滾」會改變 Redis;編輯草稿不影響線上 |
-| 使用者有效權限 | 角色、權限、AD 群組對應、個別指派變更 | **Cache-aside**:查 `gw:perm:{userId}:{pv}`,未命中時以 Drizzle 查詢展開後寫入(TTL 15 分) | 變更時在**同一交易**內遞增受影響使用者的 `perm_version`;鍵名含 `pv`,舊鍵自然過期,不需逐一刪除 |
+| 使用者有效權限 | 角色、權限、AD 群組對應、個別指派變更 | **Cache-aside**:查 `gw:perm:{userId}:{pv}`,未命中時以 Drizzle 查詢展開後寫入(TTL 15 分) | 變更時在**同一交易**內遞增 `perm_version`:個別指派、停用、公司預設角色、人員同步只遞增受影響使用者;**角色權限、AD 群組對應、指派規則、部門樹變更遞增全體使用者**(2026-10-02 決定:規則含下層部門與職級,精確計算受影響者容易遺漏,全體遞增只多一次 Refresh)。鍵名含 `pv`,舊鍵自然過期,不需逐一刪除 |
 | 使用者基本資料 | 人員同步 Worker 自 BPM / LOS 寫入人事欄位;登入時補 AD 欄位(見 §8) | 不另外快取(登入時才讀) | 人事欄位變更時在同一交易內遞增 `perm_version`,已登入者 15 分鐘內換發的 Token 即帶新部門 |
 | API Key | 建立 / 停用 `gw.api_client` | Cache-aside:`gw:client:{keyPrefix}`(TTL 5 分) | 停用時提交後直接 `DEL` |
 | 稽核紀錄 | 與業務變更在**同一交易**內寫入 `gw.audit_log` | 不同步 | — |
@@ -483,7 +484,7 @@ sequenceDiagram
 | `run_id` | INT PK | |
 | `trigger_type` | VARCHAR(10) | `schedule` / `manual` / `login` |
 | `started_at` / `finished_at` | DATETIME2(3) | |
-| `status` | VARCHAR(12) | `success` / `partial`(一個來源失敗)/ `aborted`(安全檢查未過)/ `failed` |
+| `status` | VARCHAR(12) | `queued`(管理 API 手動觸發,待 worker)/ `running` / `success` / `partial`(一個來源失敗)/ `aborted`(安全檢查未過)/ `failed` |
 | `bpm_rows` / `los_rows` | INT NULL | 各來源讀到的筆數 |
 | `created` / `updated` / `unchanged` | INT | 寫入結果 |
 | `resigned_flagged` | INT | 本次新標記離職人數 |

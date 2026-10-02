@@ -76,22 +76,27 @@ E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CL
 
 | 項目 | 狀態 |
 | --- | --- |
-| W3-1 骨架、schema、migration、seed、Drizzle PoC | 完成(migration 已套用至公司 2012 測試庫,`test:int` 正式複驗待 P-04 專用庫) |
-| W3-2 Nginx 入口:TLS、SPA、`/api`、WebSocket、`auth_request`、Webhook 白名單、JSON 錯誤、限流 | 完成 |
+| W3-1 骨架、schema、migration、seed、Drizzle PoC | 完成(migration 已套用至公司 2012 測試庫,`test:int` 正式複驗待 P-04 專用庫);W3-1.6 稽核表保存作業腳本 `db/dba/04-retention-job.sql` 待 DBA 建立 |
+| W3-2 Nginx 入口:TLS、SPA、`/api`、WebSocket、`auth_request`、Webhook 白名單、JSON 錯誤、限流 | 完成;nginx-prometheus-exporter 已加入 Compose(2026-10-02,待部署) |
 | ~~W3-3 Agent `:9443` mTLS + gRPC~~ | gRPC 版完成後**取消**:Agent 改為 Rust + WebSocket(PRD v0.9),`agent.conf` 與 E2E 隨 W6 改寫([ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md) §10 G0);mTLS、簽發者限制、憑證指紋限流沿用 |
 | W3-4 AD 多網域登入、本機帳號、JWT Cookie、Refresh Rotation、CSRF、RBAC、內部 Token / JWKS、登入補查 BPM / LOS、IT 代建 | 完成 |
-| W3-4.6b 人員排程同步 Worker、W3-4.16 舊單一入口遷移 | 未開始(後者需 P-15 測試帳號) |
+| W3-4.6b 人員排程同步 Worker、W3-4.16 舊單一入口遷移 | 程式完成(2026-10-02,待部署);舊帳號遷移**預設關閉**,待 P-15 測試帳號驗證密文一致後開啟 |
 | W3-5 動態路由、聚合、限流、快取、斷路器、發佈 / 回滾 / 補償、CLI 匯入 | 完成 |
 | W3-5.7a 後端自動註冊(API Key、草稿)、路由查詢、`gw.api_route.gherkin`、Node.js SDK 與樣本 | 完成 |
 | W3-5.8 通知(Email + 站內)、W3-5.8a/b 自行註冊與忘記密碼、W3-5.10 Webhook 驗簽 | 完成(2026-10-01;目前沒有 Webhook 外部來源,BPM 不送) |
-| W3-5.12 整合週(k6 壓測、資安檢查) | 未開始 |
-| P2-1 路由設定管理 API(上游、路由、聚合步驟、限流政策,`row_ver` 樂觀鎖)、P2-2 發佈 / 預覽 / 回滾 API | 完成(2026-10-01;路由試打 `POST /api/admin/routes/:id/test` 未做) |
-| P2-3 使用者(停用、個別指派、強制登出)、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用 API | 完成(2026-10-01;人員同步紀錄與手動觸發待 W3-4.6b) |
+| W3-5.11 `/metrics`、`/docs`(原標完成但未實作) | 程式完成(2026-10-02,待部署) |
+| W3-5.12 整合週(k6 壓測、資安檢查) | k6 腳本(`bff/test/k6/`)、[資安檢查清單](docs/SECURITY-CHECKLIST.md)、[Gherkin 對照表](docs/Gherkin/TEST-MAP.md)已備;**壓測與 TLS 掃描待執行** |
+| W3-5.13 站內通知收件匣、死信 Email 告警、Webhook 路由分派 | 程式完成(2026-10-02,待部署) |
+| P2-1 路由設定管理 API(上游、路由、聚合步驟、限流政策,`row_ver` 樂觀鎖)、P2-2 發佈 / 預覽 / 回滾 API | 完成(2026-10-01);路由試打 2026-10-02 補上(待部署) |
+| P2-3 使用者(停用、個別指派、強制登出)、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用 API | 完成(2026-10-01);角色 / 權限 CRUD、AD 群組對應、人員同步紀錄與手動觸發 2026-10-02 補上(待部署) |
+| P2-4 匯入(OpenAPI / Excel / CSV)、P2-5 API Key 管理與 `api_key` 路由、P2-6 反查、P2-7 通知範本 / 發送紀錄 / 稽核查詢 | 程式完成(2026-10-02,待部署;E2E `09-p2-admin`) |
+| P2-8 既有系統遷移(`notesapp`、`bpm`) | 未開始(需逐一評估方式 A / B / C) |
 | P2-3a 指派規則、部門樹、權限分類、應用登記與 `me.apps` | 完成(部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀)) |
 
 注意事項:
 
 - Nginx `ssl_verify_client on` 對無效 / 無憑證的 Agent 會完成 TLS 握手後在 HTTP 層回 400(不會到達 Endpoint Server),而非 TLS 層中斷;2026-10-01 需求方確認接受(ENDPOINT-AGENT-GUIDE §10 G2)。
-- 斷路器狀態由各 BFF 實例在記憶體中維護(DATABASE.md §6 列有 `gw:cb:{upstream}`,目前未使用)。
-- 權限對應變更時 CLI 與管理 API 都以全體使用者遞增 `perm_version`(DATABASE.md §7.2 為「受影響使用者」)。
+- 斷路器狀態由各 BFF 實例在記憶體中維護(2026-10-02 決定維持;DATABASE.md §6 `gw:cb:{upstream}` 標為不使用)。
+- 角色權限、AD 群組對應、指派規則、部門樹變更時遞增全體使用者 `perm_version`;個別指派、停用、公司預設角色、人員同步只遞增受影響者(2026-10-02 決定,DATABASE.md §7.2 已對齊)。
+- `@giganexus/web-kit` 不發佈到 Package Registry,由 Pipeline 複製到同主機共用目錄供 SPA 建置(2026-10-02 決定,FRONTEND-GUIDE §6 已對齊)。
 - 測試區(主機 2)已由 `.gitlab-ci.yml` `develop` Pipeline 部署(2026-09-30,`https://giganexus-test.gigasolar.com.tw`);`deploy-prod` 與 `deploy/docker-compose.prod.yml` 待 2026-12 正式區(主機 3)建置後執行。

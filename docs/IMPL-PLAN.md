@@ -1,6 +1,6 @@
 # GigaNexus Gateway — 實作計畫
 
-> 依據 [PRD.md](PRD.md) **v0.9** §13,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。**時程以 NexusPlan 甘特圖為準**,本文不列日期。
+> 依據 [PRD.md](PRD.md) **v0.11** §13,將 W3 MVP 與第二階段拆解為可執行的工作項目、交付物與驗收條件。**時程以 NexusPlan 甘特圖為準**,本文不列日期。
 > 相關文件:[ARCHITECTURE.md](ARCHITECTURE.md)、[DATABASE.md](DATABASE.md)、[TECH-STACK.md](TECH-STACK.md)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)、[DEPLOYMENT.md](DEPLOYMENT.md)、[REFERENCES.md](REFERENCES.md)。
 
 ---
@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.6(2026-10-01,對齊 PRD v0.9:時程改以甘特圖為準、標示測試區完成狀態、W3-3 取消並改為 Rust + WebSocket、主機 Docker 現況) |
+| 文件版本 | v0.7(2026-10-02,對齊 PRD v0.11:補齊未實作項目——`/metrics`、`/docs`、人員同步、舊帳號遷移、第二階段管理 API、收件匣與告警;Gherkin 改以對照表追蹤);v0.6(2026-10-01,時程改以甘特圖為準、W3-3 取消) |
 | 建立日期 | 2026-09-24 |
 | 對應工作流 | NexusPlan **W3. API Gateway + BFF** + 第二階段(配合 W4) |
 | 狀態 | **測試區已上線**(2026-09-30);正式區預計 2026-12 建置 |
@@ -47,15 +47,15 @@
 | M1 身分可用 | `/api/auth/login`、`/api/auth/me` 與 mock 路由部署至測試區,W5 前端可串接登入 | ✅ 完成(giga-Portal 已以 AD 帳號登入測試區) |
 | **M2 測試區 Gateway + BFF 可用** | 經 W1 Pipeline 部署至測試區;W4、W5 可開始串接 | ✅ 2026-09-30(§8 效能指標尚未壓測) |
 | M2' 正式區 Gateway + BFF 可用 | 主機 3 正式區 Pipeline(`main` 手動核可)部署完成 | 2026-12 |
-| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 進行中:P2-1 路由設定管理 API、P2-2 發佈 / 回滾 API、P2-3 使用者 / 公司 / 本機帳號管理(人員同步紀錄待 W3-4.6b)、P2-3a 指派規則 / 部門樹 / 應用完成(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`);P2-4–P2-8 未開始 |
+| M3 管理功能完成 | 第二階段項目完成,W4 IT 管理介面可自助管理 API | 🔶 P2-1–P2-7 程式完成(P2-1–P2-3a 已上測試區;2026-10-02 新增的試打、角色 / 權限 / AD 群組、匯入、API Key、反查、通知範本、稽核查詢、同步紀錄**待部署測試區並跑 E2E `09-p2-admin`**);P2-8 既有系統遷移未開始(需逐一評估 `notesapp`、`bpm`) |
 
 | 子任務 | 狀態 |
 | --- | --- |
-| W3-1 架構規劃 | ✅ 完成(未做:W3-1.6 稽核表保存排程) |
-| W3-2 Nginx 入口 | ✅ 測試區完成(未做:W3-2.8 exporter) |
+| W3-1 架構規劃 | ✅ 完成;W3-1.6 保存排程腳本 `db/dba/04-retention-job.sql` 已寫好,待 DBA 於兩區建立 SQL Agent 作業 |
+| W3-2 Nginx 入口 | ✅ 測試區完成;W3-2.8 exporter 已加入 Compose(待部署) |
 | ~~W3-3 Agent 通道~~ | 取消,改為 Rust + WebSocket 併入 W6(§4.3) |
-| W3-4 身分與權限 | ✅ 測試區完成;待外部前置:W3-4.6b 人員同步 Worker(P-12)、W3-4.16 舊帳號遷移(P-15) |
-| W3-5 路由與通知 | 🔶 進行中:路由、聚合、斷路器、同步、自動註冊、W3-5.8 通知(Email + 站內)、W3-5.8a 自行註冊、W3-5.8b 忘記 / 重設密碼、W3-5.10 Webhook 驗簽(目前沒有外部來源:BPM 不送 Webhook)完成;W3-5.12 整合週未完成 |
+| W3-4 身分與權限 | ✅ 測試區完成;W3-4.6b 人員同步 Worker 程式完成(待部署);W3-4.16 舊帳號遷移程式完成、**預設關閉**,待 P-15 測試帳號驗證密文一致後開啟;W3-4.1 `metrics` plugin 於 2026-10-02 補上(原標完成但未實作) |
+| W3-5 路由與通知 | 🔶 功能完成:路由、聚合、斷路器、同步、自動註冊、通知、自行註冊、忘記密碼、Webhook 驗簽;2026-10-02 補 W3-5.11 `/metrics`、`/docs`(原標完成但未實作)、W3-5.13 收件匣 / 死信告警 / Webhook 路由分派(待部署)。W3-5.12 整合週:k6 腳本(`bff/test/k6`)、資安檢查清單([SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md))、Gherkin 對照表已備,**壓測與 TLS 掃描待執行** |
 
 ---
 
@@ -192,8 +192,9 @@
 | W3-5.8b | **忘記 / 重設密碼**:寄送重設連結(30 分鐘、一次性)、IT 重設、重設後撤銷所有 Refresh Token;API 先行,畫面細節於 W5 入口網開發時確定(PRD Q23) | PRD §8.2.5 | `/reset-password` API |
 | W3-5.9 | `/ws/notify` 站內即時推播 | PRD §8.5 | |
 | W3-5.10 | Webhook 模組:驗簽、時間戳、去重、`gw.webhook_log`、分派(2026-10-01 決定 BPM 不送 Webhook,目前沒有外部來源) | PRD §8.6 | |
-| W3-5.11 | `/healthz`、`/readyz`(檢查 `giganexus_gw` 與 Redis;BPM / LOS 不列入)、`/metrics`、`/docs`(僅內網) | PRD §8.1 | |
-| W3-5.12 | **整合週**:端到端測試、k6 壓測、資安檢查、部署測試區 | §6、§8 | 測試報告 + 部署紀錄 |
+| W3-5.11 | `/healthz`、`/readyz`(檢查 `giganexus_gw` 與 Redis;BPM / LOS 不列入)、`/metrics`(prom-client,`plugins/metrics.ts`)、`/docs`(OpenAPI 3.1 + Swagger UI,`plugins/docs.ts`;僅內網) | PRD §8.1 | 2026-10-02 補實作 |
+| W3-5.12 | **整合週**:端到端測試、k6 壓測、資安檢查、部署測試區 | §6、§8 | 測試報告 + 部署紀錄;k6 腳本 `bff/test/k6/`、[SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md)、[Gherkin/TEST-MAP.md](Gherkin/TEST-MAP.md) |
+| W3-5.13 | **通知 / Webhook 補強**(2026-10-02):站內通知收件匣 API、死信 Email 告警(`ALERT_EMAIL_TO`)與 `gw_queue_jobs` 指標、Webhook `dispatch_type = route` | PRD §8.5–§8.6 | `modules/notify/inbox.ts`、`workers/alert.ts`、`workers/webhook.worker.ts` |
 
 **驗收:** 以 CLI 發佈新路由後 ≤ 5 秒所有 BFF 實例生效;停掉 Redis 後既有路由仍可服務;聚合路由非必要步驟失敗時回傳部分結果;上游連續失敗觸發斷路器;Email 通知失敗會重試且全部留有紀錄;Webhook 簽章錯誤回 401;LOS / BPM 找得到的工號可完成註冊、AD 找得到的工號無法註冊、查無者進入待審核;重設密碼後其他裝置被登出。
 
@@ -203,15 +204,15 @@
 
 | # | 工作項目 | 文件 |
 | --- | --- | --- |
-| P2-1 | ✅(2026-10-01;`POST /api/admin/routes/:id/test` 試打未做,見 PRD §8.7 註)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
+| P2-1 | ✅(2026-10-01;試打 `POST /api/admin/routes/:id/test` 2026-10-02 補上,`modules/admin/route-test.ts`,待部署)管理 API:上游、路由、聚合步驟、限流政策 CRUD(含 `row_ver` 樂觀鎖) | PRD §8.7;Gherkin `router/route-admin.feature` |
 | P2-2 | ✅(2026-10-01;CLI `publish` / `rollback` 保留)草稿 / 差異預覽 / 發佈 / 回滾 API(取代 W3-5.7 CLI) | PRD §8.4.3;Gherkin `router/release-publish.feature` |
-| P2-3 | 🔶(2026-10-01:使用者管理、強制登出、公司網域與預設角色、本機帳號審核 / 代建 / 重設 / 解鎖 / 停用完成;權限 / 角色於 P2-3a 完成;**人員同步紀錄與手動觸發待 W3-4.6b**;AD 群組對應 API 未做,維持 CLI `apply`)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
+| P2-3 | ✅(2026-10-01:使用者、公司、本機帳號;2026-10-02:角色 / 權限 CRUD 與 AD 群組對應 `modules/admin/roles.ts`、人員同步紀錄與手動觸發 `employee-sync.ts`,待部署)權限、角色、AD 群組對應、使用者管理、強制登出、人員同步紀錄與手動觸發、公司與網域對應、本機帳號審核 / 代建 / 重設 / 解鎖 API | PRD §8.7;Gherkin `admin/user-admin.feature` |
 | P2-3a | ✅(2026-10-01;部門樹已由 BPM `OrganizationUnit` / `Organization` 同步至 `gw.department`(2026-10-01,DBA 已授權 `bpm_reader` 唯讀);`itapp-api` 上游登記待 GigaItApp 改經 BFF)**配合員工入口網(giga-Portal)與 GigaItApp**:角色指派規則 `gw.role_rule`、部門樹 `gw.department`(人員同步)、權限分類 `kind` / `parent_code` / `sort`(`x-permissions` 匯入)、應用登記 `gw.app` 與 `/api/auth/me` 的 `apps`、角色權限 / 指派規則寫入 API、權限試算;`itapp-api` 登記為上游(`/api/it/*`) | PRD §8.3.1–§8.3.3、§8.7;DATABASE §3.2;Gherkin `rbac/role-rules.feature`、`auth/apps.feature` |
-| P2-4 | OpenAPI / Excel 匯入:解析、驗證、預覽、提交 | PRD §8.4.4 |
-| P2-5 | API Key 管理(Argon2id、IP 限制、權限範圍)與 `api_key` 驗證模式 | PRD §8.7 |
-| P2-6 | 「誰能存取」反查、有效權限檢視 | PRD §8.7 |
-| P2-7 | 通知範本管理與發送紀錄查詢 API、稽核查詢 API | PRD §8.7 |
-| P2-8 | 既有系統遷移(`notesapp`、`bpm` 等):逐一評估 PRD §7.2.4 方式 A / B / C,完成後關閉舊對外 port | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §10 |
+| P2-4 | ✅(2026-10-02,待部署)OpenAPI / Excel / CSV 匯入:解析、驗證、預覽、提交(`modules/admin/imports.ts`、`route-table.ts`;exceljs) | PRD §8.4.4 |
+| P2-5 | ✅(2026-10-02,待部署)API Key 管理(Argon2id、IP 限制、權限範圍、換發)與路由 `api_key` 驗證模式(`modules/admin/api-clients.ts`、`router/plugin.ts`) | PRD §8.7 |
+| P2-6 | ✅(2026-10-02,待部署)「誰能存取」反查(依路由或權限代碼)、有效權限檢視(`modules/admin/access.ts`) | PRD §8.7 |
+| P2-7 | ✅(2026-10-02,待部署)通知範本管理與發送紀錄查詢 API、稽核查詢 API(`modules/admin/notify-admin.ts`、`audit-query.ts`) | PRD §8.7 |
+| P2-8 | 未開始:既有系統遷移(`notesapp`、`bpm` 等):逐一評估 PRD §7.2.4 方式 A / B / C,完成後關閉舊對外 port(各系統 repo 不在本工作區,需逐一確認改造方式) | [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §10 |
 
 > W4 前端與管理 API 並行開發:每項管理 API 完成即部署測試區,W4 依 OpenAPI 文件(`/docs`)串接。
 
@@ -226,7 +227,7 @@
 | 單元測試 | Vitest | 權限計算、路由比對、聚合合併、JWT / CSRF、簽章驗證、快照差異、登入方式判斷、密碼政策、兼任帳號字尾比對 | 每次 commit(CI) |
 | 整合測試 | Vitest + Testcontainers(Redis)+ **SQL Server 2012 測試庫**(P-04)+ BPM / LOS 唯讀 view 測試資料 | Drizzle 存取、交易、同步與補償、人員同步合併與安全檢查、BullMQ 佇列 | 每次 MR(CI) |
 | LDAP 測試 | 測試用 AD 帳號(或 OpenLDAP 容器模擬基本流程) | 登入、群組查詢、錯誤代碼 | 每次 MR;真實 AD 於測試區驗證 |
-| 驗收行為 | Cucumber(`docs/Gherkin/*.feature`,zh-TW) | 各功能的驗收場景,標籤對應工作項目 | 每次 MR 跑 `@mvp`;整合週全跑 |
+| 驗收行為 | `docs/Gherkin/*.feature`(zh-TW)為驗收規格;**不引入 Cucumber**(2026-10-02 決定),場景由單元 / E2E 測試涵蓋,對應見 [Gherkin/TEST-MAP.md](Gherkin/TEST-MAP.md) | 各功能的驗收場景,標籤對應工作項目 | 新增場景或測試時更新對照表 |
 | 端到端 | **測試區**(`npm run test:e2e`:經 `https://giganexus-test.gigasolar.com.tw`,CLI / Redis 經 `ssh host2`,假工號本機帳號) | 經 Nginx 的完整請求、工作階段、權限與指派規則、通知與 WebSocket 推播、Webhook 驗簽、自動註冊;不含 AD 帳號登入(不使用真實帳密)、上游代理與斷路器(測試區無模擬上游)、韌性(不可停止共用測試區) | 部署測試區後 / 整合週 |
 | 壓力測試 | k6 | 見 §8 效能指標 | 整合週、重大變更後 |
 | 資安檢查 | 檢查清單(OWASP ASVS L2 子集)、`npm audit`、TLS 掃描 | Cookie、CSRF、標頭淨化、限流、密鑰管理 | 整合週 |
@@ -245,7 +246,7 @@
 - [ ] 新 API 具 JSON Schema 驗證,並出現在 `/docs`
 - [ ] 需稽核的操作寫入 `gw.audit_log` / `gw.auth_log`
 - [ ] 新增的指標與日誌欄位已確認可在 Prometheus / 集中日誌查到
-- [ ] 對應 `docs/Gherkin` 中該工作項目標籤的場景全部通過
+- [ ] 對應 `docs/Gherkin` 中該工作項目標籤的場景已有測試涵蓋,並更新 [Gherkin/TEST-MAP.md](Gherkin/TEST-MAP.md)
 - [ ] 部署至測試區並完成該項驗收條件
 - [ ] 規格有變動時同步更新 PRD / ARCHITECTURE / DATABASE / TECH-STACK / FRONTEND-GUIDE / 本計畫
 

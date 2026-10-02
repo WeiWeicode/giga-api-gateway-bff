@@ -1,7 +1,7 @@
 # GigaNexus Gateway — Gherkin 行為規格
 
 > 以 Gherkin(繁體中文關鍵字,`# language: zh-TW`)描述 Gateway 的驗收行為,對應 [PRD.md](../PRD.md) **v0.7** 與 [IMPL-PLAN.md](../IMPL-PLAN.md) 的工作項目。
-> 可直接供 `@cucumber/cucumber`(或 `vitest-cucumber`)執行;步驟定義放在 `bff/test/features/steps/`(待實作)。
+> 2026-10-02 決定**不引入 Cucumber 步驟定義**:Gherkin 作為驗收規格文件,自動化以 Vitest 單元測試與測試區 E2E 執行,場景與測試的對應見 [TEST-MAP.md](TEST-MAP.md)。
 
 ## 檔案一覽
 
@@ -14,7 +14,7 @@
 | `auth/local-account.feature` | 登入方式判斷、本機帳號登入、密碼政策、鎖定 | §8.2.5 | W3-4.14–4.15 |
 | `auth/self-registration.feature` | 自行註冊(Email 驗證、到職日比對、管理員審核) | §8.2.5 | W3-5.8a |
 | `auth/password-reset.feature` | 忘記密碼、IT 重設、變更密碼 | §8.2.5 | W3-5.8b |
-| `auth/legacy-migration.feature` | 舊單一入口帳號首次登入自動遷移 | §8.2.5、DATABASE §9 | W3-4.16 |
+| `auth/legacy-migration.feature` | 舊單一入口帳號首次登入自動遷移(2026-10-02 實作,預設關閉,待 P-15 測試帳號驗證) | §8.2.5、DATABASE §9 | W3-4.16 |
 | `rbac/permission.feature` | 路由 `auth_mode`、權限檢查、角色來源、權限版本 | §8.3 | W3-4.6–4.8 |
 | `rbac/role-rules.feature` | 依部門(含下層)/ 職級 / 職稱指派角色、權限分類與樹、權限試算(2026-10-01 已實作;規則比對有單元測試 `test/unit/rbac-rules.test.ts`) | §8.3.1–§8.3.2 | P2-3a |
 | `auth/apps.feature` | 應用登記、`me.apps`(已實作);應用切換與應用層守衛(`@e2e`)由各 SPA 實作 | §8.3.3 | P2-3a |
@@ -24,7 +24,7 @@
 | `router/route-admin.feature` | 上游、路由、聚合步驟、限流政策管理 API 與樂觀鎖(2026-10-01 已實作) | §8.7 | P2-1 |
 | `router/api-import.feature` | OpenAPI 匯入規則(含說明與行為規格) | §8.4.4、BACKEND-GUIDE §6 | W3-5.7、W3-5.7a、P2-4 |
 | `router/service-registration.feature` | 後端自動註冊(API Key、草稿)、既有路由查詢 | §8.4.4、§8.7、BACKEND-GUIDE §7.5 | W3-5.7a |
-| `employee-sync/employee-sync.feature` | BPM / LOS 人員同步、兼任帳號、安全檢查 | DATABASE §8 | W3-4.6a–6c |
+| `employee-sync/employee-sync.feature` | BPM / LOS 人員同步、兼任帳號、安全檢查(2026-10-02 實作) | DATABASE §8 | W3-4.6a–6c |
 | `notify/notification.feature` | Email / 站內通知、佇列重試、去重 | §8.5 | W3-5.8–5.9 |
 | `webhook/webhook.feature` | 外部系統 Webhook 驗簽、防重放、去重(目前沒有外部來源) | §7.5、§8.6 | W3-5.10 |
 
@@ -36,7 +36,7 @@
 | `@W3-4.14` 等 | 對應 IMPL-PLAN 工作項目 |
 | `@security` | 安全相關,整合週資安檢查必跑 |
 | `@e2e` | 需經 Nginx 的端到端環境(docker-compose)執行 |
-| `@wip` | 規格細節未定(例:忘記密碼畫面,PRD Q23),暫不列入 CI |
+| `@wip` | 規格細節未定或尚未啟用(例:舊單一入口遷移待 P-15、Agent 通道待 W6),暫不列入 CI |
 
 ## 撰寫原則
 
