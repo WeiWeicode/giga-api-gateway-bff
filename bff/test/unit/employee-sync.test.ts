@@ -78,3 +78,26 @@ describe('checkSourceCount(同步安全檢查)', () => {
     else expect(r).toContain(expected);
   });
 });
+
+describe('groupEmployees:實際資料的情況(2026-10-02 測試區首次同步)', () => {
+  it('BPM 也列出的兼任工號不當作本人,改以 LOS 判定為兼任並找到正確的本人', () => {
+    const g = groupEmployees(
+      [bpm('105133'), bpm('Q105133'), bpm('G105133'), bpm('TG105133')],
+      [los('105133'), los('Q105133', true), los('G105133', true), los('TG105133', true)],
+    );
+    expect([...g.people.keys()]).toEqual(['105133']);
+    expect(g.virtuals.map((v) => [v.emp, v.base])).toEqual([
+      ['Q105133', '105133'],
+      ['G105133', '105133'],
+      ['TG105133', '105133'],
+    ]);
+  });
+
+  it('LOS 同一兼任工號多筆(不同公司):只建一個兼任帳號,各公司都併入本人;優先取未離職的那筆', () => {
+    const left = { ...los('EG105133', true), compName: '國碩', leaveDate: '1/1/2024' };
+    const g = groupEmployees([], [los('105133'), left, { ...los('EG105133', true), compName: '芯和' }]);
+    expect(g.virtuals).toHaveLength(1);
+    expect(g.virtuals[0]!.row.compName).toBe('芯和');
+    expect(g.people.get('105133')!.virtuals.map((v) => v.compName)).toEqual(['國碩', '芯和']);
+  });
+});

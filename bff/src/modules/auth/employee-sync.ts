@@ -37,7 +37,11 @@ export interface GroupedEmployees {
   invalid: number;
 }
 
-/** 以工號合併兩個來源;兼任帳號(LOS IsVUser = 1)以字尾比對本人實體工號,取最長相符者(DATABASE.md §8.2) */
+/**
+ * 以工號合併兩個來源;兼任帳號(LOS IsVUser = 1)以字尾比對本人實體工號,取最長相符者(DATABASE.md §8.2)。
+ *   - 是否為兼任帳號以 LOS 為準:BPM 也會把兼任工號列為一般人員(例 Q105133),這些工號不當作本人
+ *   - LOS 同一兼任工號可能有多筆(不同公司,例 EG105133 芯和 / 國碩):只建一個兼任帳號,各筆公司都併入本人
+ */
 export function groupEmployees(bpmRows: BpmRow[], losRows: LosRow[]): GroupedEmployees {
   const people: GroupedEmployees['people'] = new Map();
   let invalid = 0;
@@ -46,30 +50,32 @@ export function groupEmployees(bpmRows: BpmRow[], losRows: LosRow[]): GroupedEmp
     if (!p) people.set(emp, (p = { bpm: null, los: null, virtuals: [] }));
     return p;
   };
-  for (const r of bpmRows) {
-    const emp = normalizeEmpNo(r.employeeNo ?? '');
-    if (isValidEmpNo(emp)) person(emp).bpm = r;
-    else invalid++;
-  }
-  const virtualRows: LosRow[] = [];
+  const virtualRows = new Map<string, LosRow[]>();
   for (const r of losRows) {
     const emp = normalizeEmpNo(r.userId ?? '');
     if (!isValidEmpNo(emp)) invalid++;
-    else if (r.isVUser) virtualRows.push(r);
+    else if (r.isVUser) virtualRows.set(emp, [...(virtualRows.get(emp) ?? []), r]);
     else person(emp).los = r;
+  }
+  for (const r of bpmRows) {
+    const emp = normalizeEmpNo(r.employeeNo ?? '');
+    if (!isValidEmpNo(emp)) invalid++;
+    else if (!virtualRows.has(emp) || people.has(emp)) person(emp).bpm = r;
   }
   const physical = [...people.keys()].sort((a, b) => b.length - a.length);
   const virtuals: GroupedEmployees['virtuals'] = [];
   const orphans: string[] = [];
-  for (const r of virtualRows) {
-    const emp = normalizeEmpNo(r.userId);
+  for (const [emp, rows] of virtualRows) {
+    // LOS 也有同一工號的實體帳號時以實體帳號為準
+    if (people.has(emp)) continue;
     const base = physical.find((p) => p.length < emp.length && emp.endsWith(p));
     if (!base) {
       orphans.push(emp);
       continue;
     }
-    people.get(base)!.virtuals.push(r);
-    virtuals.push({ emp, base, row: r });
+    people.get(base)!.virtuals.push(...rows);
+    // 兼任帳號本身的資料:優先取未離職的那筆
+    virtuals.push({ emp, base, row: rows.find((x) => !parseLosDate(x.leaveDate)) ?? rows[0]! });
   }
   return { people, virtuals, orphans, invalid };
 }
@@ -186,9 +192,13 @@ export async function syncEmployees(
       ...grouped.virtuals.map((v) => ({ emp: v.emp, kind: 'virtual' as const, base: v.base, row: v.row })),
     ];
 
+    // 同一工號在一次同步中只處理一次(避免同一批重複新增,違反 uq_user_employee_no)
+    const done = new Set<string>();
     for (let i = 0; i < jobs.length; i += BATCH_SIZE) {
       await db.transaction(async (tx) => {
         for (const job of jobs.slice(i, i + BATCH_SIZE)) {
+          if (done.has(job.emp)) continue;
+          done.add(job.emp);
           const cur = existing.get(job.emp);
           if (job.kind === 'virtual') {
             // 兼任帳號只記錄身分(不可單獨登入,Q16);公司與部門已併入本人
