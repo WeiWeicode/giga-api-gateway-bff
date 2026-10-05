@@ -31,7 +31,7 @@ export function permParts(code: string) {
 
 /**
  * 建立不存在的權限(首次登記)。已存在者以 GigaItApp「選單管理」為準(2026-10-05 決定):名稱不覆寫;
- * kind / parent / sort 只在尚未設定過(kind = api、無上層、無排序,例如舊版匯入時未宣告)時補上,之後不再覆寫。
+ * kind / parent / sort 只在尚未設定過(kind = api、無上層、無排序,例如舊版匯入時未宣告)時補上,icon 只在空白時補上,之後不再覆寫。
  * 回傳新建數量。
  */
 export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: string): Promise<number> {
@@ -39,7 +39,14 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
   const existing = new Map(
     (
       await tx
-        .select({ id: permission.permissionId, code: permission.code, kind: permission.kind, parentCode: permission.parentCode, sort: permission.sort })
+        .select({
+          id: permission.permissionId,
+          code: permission.code,
+          kind: permission.kind,
+          parentCode: permission.parentCode,
+          sort: permission.sort,
+          icon: permission.icon,
+        })
         .from(permission)
         .where(
           inArray(
@@ -52,9 +59,10 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
   let created = 0;
   for (const p of perms) {
     const meta = { kind: p.kind ?? 'api', parentCode: p.parent ?? null, sort: p.sort ?? null };
+    const icon = p.icon ?? null;
     const cur = existing.get(p.code);
     if (!cur) {
-      await tx.insert(permission).values({ code: p.code, name: p.name, ...permParts(p.code), ...meta, createdBy: actor, updatedBy: actor });
+      await tx.insert(permission).values({ code: p.code, name: p.name, ...permParts(p.code), ...meta, icon, createdBy: actor, updatedBy: actor });
       created++;
     } else if (
       (p.kind !== undefined || p.parent !== undefined || p.sort !== undefined) &&
@@ -65,8 +73,11 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
     ) {
       await tx
         .update(permission)
-        .set({ ...meta, updatedBy: actor })
+        .set({ ...meta, ...(cur.icon === null && icon ? { icon } : {}), updatedBy: actor })
         .where(eq(permission.permissionId, cur.id));
+    } else if (cur.icon === null && icon) {
+      // 圖示同樣只在尚未設定時補上
+      await tx.update(permission).set({ icon, updatedBy: actor }).where(eq(permission.permissionId, cur.id));
     }
   }
   return created;

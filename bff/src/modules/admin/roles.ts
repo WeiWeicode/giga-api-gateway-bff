@@ -15,9 +15,9 @@
  * - 影響使用者權限的變更(刪除角色、AD 群組對應、刪除已授予的權限)遞增全體 perm_version,提交後清除 pv 快取(DATABASE.md §7.2)。
  * - 防止提權:AD 群組對應的角色所含權限須是操作人本身具備的;gw-super-admin 的 AD 群組不開放以 API 修改(維持 CLI apply)。
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
-import { permissionDeclError, PERMISSION_KINDS } from '../../cli/openapi.js';
+import { ICON, permissionDeclError, PERMISSION_KINDS } from '../../cli/openapi.js';
 import {
   aggregateStep,
   apiClient,
@@ -292,7 +292,28 @@ const roles: FastifyPluginAsync = async (app) => {
     kind: { type: 'string', enum: [...PERMISSION_KINDS] },
     parentCode: { type: ['string', 'null'], maxLength: 100 },
     sort: { type: ['integer', 'null'], minimum: 0, maximum: 32767 },
+    icon: { type: ['string', 'null'], maxLength: 30, pattern: ICON.source },
   } as const;
+
+  /** 改成目錄(group)前:不可已被授予(目錄只分組,不可授予) */
+  async function assertNotGranted(permissionId: number, code: string) {
+    const [[r], [d], [u]] = await Promise.all([
+      app.db
+        .select({ n: sql<number>`count(*)` })
+        .from(rolePermission)
+        .where(eq(rolePermission.permissionId, permissionId)),
+      app.db
+        .select({ n: sql<number>`count(*)` })
+        .from(deptPermission)
+        .where(eq(deptPermission.permissionId, permissionId)),
+      app.db
+        .select({ n: sql<number>`count(*)` })
+        .from(userPermission)
+        .where(eq(userPermission.permissionId, permissionId)),
+    ]);
+    if (Number(r?.n) + Number(d?.n) + Number(u?.n) > 0)
+      throw new GwError('VALIDATION_FAILED', '已授予角色、部門或個人的權限不可改為目錄,請先取消授予', [{ field: 'kind', message: code }]);
+  }
 
   /** 上層須存在,且不可形成循環 */
   async function checkParent(code: string, parentCode: string | null | undefined) {
@@ -307,7 +328,9 @@ const roles: FastifyPluginAsync = async (app) => {
     }
   }
 
-  app.post<{ Body: { code: string; name: string; description?: string | null; kind?: string; parentCode?: string | null; sort?: number | null } }>(
+  app.post<{
+    Body: { code: string; name: string; description?: string | null; kind?: string; parentCode?: string | null; sort?: number | null; icon?: string | null };
+  }>(
     '/api/admin/permissions',
     {
       schema: {
@@ -337,6 +360,7 @@ const roles: FastifyPluginAsync = async (app) => {
           kind: b.kind ?? 'api',
           parentCode: b.parentCode ?? null,
           sort: b.sort ?? null,
+          icon: b.icon ?? null,
           createdBy: by,
           updatedBy: by,
         });
@@ -348,7 +372,7 @@ const roles: FastifyPluginAsync = async (app) => {
 
   app.patch<{
     Params: { code: string };
-    Body: { rowVer: string; name?: string; description?: string | null; kind?: string; parentCode?: string | null; sort?: number | null };
+    Body: { rowVer: string; name?: string; description?: string | null; kind?: string; parentCode?: string | null; sort?: number | null; icon?: string | null };
   }>(
     '/api/admin/permissions/:code',
     {
@@ -362,6 +386,7 @@ const roles: FastifyPluginAsync = async (app) => {
       const cur = await findPermission(req.params.code);
       const { rowVer, ...b } = req.body;
       if (b.parentCode !== undefined) await checkParent(cur.code, b.parentCode);
+      if (b.kind === 'group' && cur.kind !== 'group') await assertNotGranted(cur.permissionId, cur.code);
       const set = Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined));
       await write(actor, false, async (tx) => {
         const rows = await tx
@@ -376,7 +401,7 @@ const roles: FastifyPluginAsync = async (app) => {
           'permission.update',
           'permission',
           cur.code,
-          { name: cur.name, description: cur.description, kind: cur.kind, parentCode: cur.parentCode, sort: cur.sort },
+          { name: cur.name, description: cur.description, kind: cur.kind, parentCode: cur.parentCode, sort: cur.sort, icon: cur.icon },
           set,
         );
       });

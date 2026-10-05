@@ -1,0 +1,1 @@
+ALTER TABLE [gw].[permission] ADD [icon] varchar(30);

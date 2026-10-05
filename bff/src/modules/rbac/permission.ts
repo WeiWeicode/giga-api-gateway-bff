@@ -52,6 +52,7 @@ export interface MenuEntry {
   kind: string;
   parentCode: string | null;
   sort: number | null;
+  icon: string | null;
 }
 
 export interface UserAuthz {
@@ -71,11 +72,26 @@ const SCREEN_KINDS = ['app', 'menu', 'tab', 'button'];
 /** 權限中屬於畫面的部分(應用 / 選單 / Tab / 按鈕),依 sort、代碼排序 */
 export async function menusOf(db: GwDatabase, permissions: string[]): Promise<MenuEntry[]> {
   if (!permissions.length) return [];
-  const rows = await db
-    .select({ code: permission.code, name: permission.name, kind: permission.kind, parentCode: permission.parentCode, sort: permission.sort })
-    .from(permission)
-    .where(and(inArray(permission.code, permissions.slice(0, 2000)), inArray(permission.kind, SCREEN_KINDS)));
-  return rows.sort((a, b) => (a.sort ?? 32767) - (b.sort ?? 32767) || a.code.localeCompare(b.code));
+  const cols = {
+    code: permission.code,
+    name: permission.name,
+    kind: permission.kind,
+    parentCode: permission.parentCode,
+    sort: permission.sort,
+    icon: permission.icon,
+  };
+  const [rows, groups] = await Promise.all([
+    db
+      .select(cols)
+      .from(permission)
+      .where(and(inArray(permission.code, permissions.slice(0, 2000)), inArray(permission.kind, SCREEN_KINDS))),
+    db.select(cols).from(permission).where(eq(permission.kind, 'group')),
+  ]);
+  // 選單目錄(group)不可授予:附上可見頁面所在的目錄(含多層),前端用來顯示分組名稱、排序與圖示
+  const groupBy = new Map(groups.map((g) => [g.code, g]));
+  const used = new Map<string, MenuEntry>();
+  for (const r of rows) for (let p = r.parentCode; p && groupBy.has(p) && !used.has(p); p = groupBy.get(p)!.parentCode) used.set(p, groupBy.get(p)!);
+  return [...rows, ...used.values()].sort((a, b) => (a.sort ?? 32767) - (b.sort ?? 32767) || a.code.localeCompare(b.code));
 }
 
 /** 角色命中來源(權限試算回傳,PRD §8.7) */

@@ -16,6 +16,8 @@ export interface MenuNode {
   path?: string;
   /** 頁面的選單權限(kind = menu);省略 = 登入即可見 */
   permission?: string;
+  /** 目錄層在 BFF 的代碼(kind = group,不可授予):用來取得 IT 在「選單管理」設定的名稱、排序與圖示 */
+  code?: string;
   /** 另外需要全部具備的權限(例如該頁讀取 API 的權限) */
   requires?: readonly string[];
   children?: readonly MenuNode[];

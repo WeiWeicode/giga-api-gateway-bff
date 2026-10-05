@@ -32,6 +32,7 @@ import {
   user,
 } from '../../db/schema/index.js';
 import type { AppConfig } from '../../config.js';
+import { isGrantableKind } from '../../cli/openapi.js';
 import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
 import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
@@ -66,7 +67,7 @@ const ruleProps = {
   isEnabled: { type: 'boolean' },
 } as const;
 
-type PermNode = { code: string; name: string; kind: string; sort: number | null; children: PermNode[] };
+type PermNode = { code: string; name: string; kind: string; sort: number | null; icon: string | null; children: PermNode[] };
 type DeptNode = { deptCode: string; name: string; companyId: number | null; userCount: number; children: DeptNode[] };
 
 const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config }) => {
@@ -155,6 +156,7 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
           kind: permission.kind,
           parentCode: permission.parentCode,
           sort: permission.sort,
+          icon: permission.icon,
           rowVer: permission.rowVer,
         })
         .from(permission)
@@ -163,7 +165,9 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
       // 清單模式含 rowVer(修改 / 刪除權限用,roles.ts)
       if (!['1', 'true'].includes(req.query.tree ?? '')) return { items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer) })) };
 
-      const nodes = new Map<string, PermNode>(rows.map((r) => [r.code, { code: r.code, name: r.name, kind: r.kind, sort: r.sort, children: [] }]));
+      const nodes = new Map<string, PermNode>(
+        rows.map((r) => [r.code, { code: r.code, name: r.name, kind: r.kind, sort: r.sort, icon: r.icon, children: [] }]),
+      );
       const roots: PermNode[] = [];
       for (const r of rows) {
         const parent = r.parentCode && r.parentCode !== r.code ? nodes.get(r.parentCode) : undefined;
@@ -244,7 +248,10 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
       if (PROTECTED_ROLES.has(r.code)) throw new GwError('PERMISSION_DENIED', `${r.code} 的權限不開放以 API 修改`);
       const codes = [...new Set(req.body.permissions)];
       const found = codes.length
-        ? await app.db.select({ id: permission.permissionId, code: permission.code }).from(permission).where(inArray(permission.code, codes))
+        ? await app.db
+            .select({ id: permission.permissionId, code: permission.code, kind: permission.kind })
+            .from(permission)
+            .where(inArray(permission.code, codes))
         : [];
       const unknown = codes.filter((c) => !found.some((f) => f.code === c));
       if (unknown.length)
@@ -252,6 +259,13 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
           'VALIDATION_FAILED',
           '權限代碼不存在',
           unknown.map((c) => ({ field: 'permissions', message: c })),
+        );
+      const groups = found.filter((f) => !isGrantableKind(f.kind));
+      if (groups.length)
+        throw new GwError(
+          'VALIDATION_FAILED',
+          '選單目錄不可授予',
+          groups.map((g) => ({ field: 'permissions', message: g.code })),
         );
       await writeRbac(actor, async (tx) => {
         await tx.delete(rolePermission).where(eq(rolePermission.roleId, r.roleId));

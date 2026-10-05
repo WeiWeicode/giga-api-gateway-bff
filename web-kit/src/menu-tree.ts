@@ -33,19 +33,33 @@ function readKeys(key?: string): string[] | null {
   }
 }
 
-/** 節點名稱以 BFF 的權限名稱為準(GigaItApp「選單管理」可改名);沒有時用前端定義的 title */
-function withNames(nodes: readonly MenuNode[], nameOf: (code: string | undefined) => string | undefined): MenuNode[] {
-  return nodes.map((n) => ({ ...n, title: nameOf(n.permission) ?? n.title, ...(n.children ? { children: withNames(n.children, nameOf) } : {}) }));
+type BffMenu = { name: string; sort: number | null; icon: string | null } | undefined;
+
+/** 節點的名稱、圖示、同層順序以 BFF 為準(GigaItApp「選單管理」可改);沒有時用前端定義 */
+function withNames(nodes: readonly MenuNode[], menuOf: (code: string | undefined) => BffMenu): MenuNode[] {
+  const order = new Map(nodes.map((n, i) => [n.key, i]));
+  const sortOf = (n: MenuNode) => menuOf(n.permission ?? n.code)?.sort ?? null;
+  return nodes
+    .map((n) => {
+      const m = menuOf(n.permission ?? n.code);
+      return { ...n, title: m?.name ?? n.title, icon: m?.icon ?? n.icon, ...(n.children ? { children: withNames(n.children, menuOf) } : {}) };
+    })
+    .sort((a, b) => {
+      const sa = sortOf(a);
+      const sb = sortOf(b);
+      // 兩者都有 BFF 排序時依排序,否則維持前端定義的順序
+      return sa !== null && sb !== null && sa !== sb ? sa - sb : order.get(a.key)! - order.get(b.key)!;
+    });
 }
 
 export function useMenuTree(defs: MaybeRefOrGetter<readonly MenuNode[]>, opts: MenuTreeOptions = {}) {
-  const { permissions, nameOf } = useAuth();
+  const { permissions, menuOf } = useAuth();
   const route = opts.path ? null : useRoute();
   const path = opts.path ?? (() => route!.path);
 
   const menu = computed(() => {
     const have = new Set(permissions.value);
-    return filterMenu(withNames(toValue(defs), nameOf), (c) => have.has(c));
+    return filterMenu(withNames(toValue(defs), menuOf), (c) => have.has(c));
   });
   const trail = computed(() => findTrail(menu.value, path()));
   /** 麵包屑:根 → 目前頁面的標題 */

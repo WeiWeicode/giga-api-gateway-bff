@@ -17,6 +17,7 @@
 import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { app as appTable, department, deptPermission, permission, user, userPermission } from '../../db/schema/index.js';
+import { isGrantableKind } from '../../cli/openapi.js';
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
 import { isJobTier, JOB_TIERS } from '../rbac/job-tiers.js';
@@ -48,34 +49,41 @@ const grants: FastifyPluginAsync = async (app) => {
   async function appScope(appCode: string) {
     const [a] = await app.db.select({ permissionCode: appTable.permissionCode }).from(appTable).where(eq(appTable.code, appCode));
     if (!a) throw new GwError('VALIDATION_FAILED', '應用不存在', [{ field: 'app', message: appCode }]);
-    const rows = await app.db.select({ id: permission.permissionId, code: permission.code, parent: permission.parentCode }).from(permission);
+    const rows = await app.db
+      .select({ id: permission.permissionId, code: permission.code, parent: permission.parentCode, kind: permission.kind })
+      .from(permission);
     const children = new Map<string, string[]>();
     for (const r of rows) if (r.parent && r.parent !== r.code) children.set(r.parent, [...(children.get(r.parent) ?? []), r.code]);
     const byCode = new Map(rows.map((r) => [r.code, r]));
-    const scope = new Map<string, { id: number; parent: string | null }>();
+    const scope = new Map<string, { id: number; parent: string | null; kind: string }>();
     const stack = byCode.has(a.permissionCode) ? [a.permissionCode] : [];
     while (stack.length) {
       const c = stack.pop()!;
       if (scope.has(c)) continue;
       const r = byCode.get(c)!;
-      scope.set(c, { id: r.id, parent: c === a.permissionCode ? null : r.parent });
+      scope.set(c, { id: r.id, parent: c === a.permissionCode ? null : r.parent, kind: r.kind });
       stack.push(...(children.get(c) ?? []));
     }
+    /** 上層權限(略過選單目錄:目錄不可授予) */
     const ancestors = (code: string) => {
       const out: string[] = [];
-      for (let p = scope.get(code)?.parent; p && !out.includes(p); p = scope.get(p)?.parent) out.push(p);
+      const seen = new Set<string>();
+      for (let p = scope.get(code)?.parent; p && !seen.has(p); p = scope.get(p)?.parent) {
+        seen.add(p);
+        if (isGrantableKind(scope.get(p)?.kind ?? '')) out.push(p);
+      }
       return out;
     };
     const idToCode = new Map([...scope].map(([code, v]) => [v.id, code]));
     return { scope, ancestors, idToCode };
   }
 
-  function assertInScope(codes: string[], scope: Map<string, unknown>) {
-    const bad = codes.filter((c) => !scope.has(c));
+  function assertInScope(codes: string[], scope: Map<string, { kind: string }>) {
+    const bad = codes.filter((c) => !scope.has(c) || !isGrantableKind(scope.get(c)!.kind));
     if (bad.length)
       throw new GwError(
         'VALIDATION_FAILED',
-        '權限不屬於此應用',
+        '權限不屬於此應用,或為不可授予的選單目錄',
         bad.map((c) => ({ field: 'grants', message: c })),
       );
   }

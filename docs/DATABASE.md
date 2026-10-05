@@ -223,7 +223,7 @@ erDiagram
 | 表 | 欄位 | 說明 |
 | --- | --- | --- |
 | `gw.role` | `role_id`、`code` UQ、`name`、`description`、`is_system`(內建不可刪)、★共通 | 角色 |
-| `gw.permission` | `permission_id`、`code` UQ(`mes.workorder.read`)、`name`、`system_code`、`resource`、`action`、`description`、**`kind`** VARCHAR(10) NOT NULL 預設 `api`(`app` / `menu` / `tab` / `button` / `api`,v0.7)、**`parent_code`** VARCHAR(100) NULL(上層權限代碼:選單掛應用、Tab 掛選單、按鈕掛選單或 Tab,v0.7)、**`sort`** SMALLINT 預設 0(v0.7)、★共通 | 權限;`kind` / `parent_code` / `sort` 由 OpenAPI `x-permissions` 匯入(PRD §8.3.2) |
+| `gw.permission` | `permission_id`、`code` UQ(`mes.workorder.read`)、`name`、`system_code`、`resource`、`action`、`description`、**`kind`** VARCHAR(10) NOT NULL 預設 `api`(`app` / `group` / `menu` / `tab` / `button` / `api`,v0.7;`group` = 選單目錄,只分組命名、不可授予,v0.12)、**`icon`** VARCHAR(30) NULL(選單圖示名稱,v0.12)、**`parent_code`** VARCHAR(100) NULL(上層權限代碼:選單掛應用、Tab 掛選單、按鈕掛選單或 Tab,v0.7)、**`sort`** SMALLINT 預設 0(v0.7)、★共通 | 權限;`kind` / `parent_code` / `sort` 由 OpenAPI `x-permissions` 匯入(PRD §8.3.2) |
 | `gw.role_permission` | `role_id`、`permission_id`(複合 PK)、`created_at/by` | 角色 ↔ 權限 |
 | `gw.role_ad_group` | `role_id`、`ad_group_dn` NVARCHAR(400)、`ad_group_guid`、`created_at/by` | AD 群組 → 角色 |
 | `gw.user_role` | `user_id`、`role_id`、`valid_from`、`valid_to` NULL、`reason`、`created_at/by` | 個別指派(可到期) |

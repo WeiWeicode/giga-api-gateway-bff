@@ -26,16 +26,21 @@ export interface ParsedRoute {
   gherkin: string | null;
 }
 
-/** x-permissions 一筆;kind / parent / sort 供應用畫面權限樹(PRD §8.3.2,v0.7) */
+/** x-permissions 一筆;kind / parent / sort / icon 供應用畫面權限樹(PRD §8.3.2、§8.3.4) */
 export interface PermissionDecl {
   code: string;
   name: string;
   kind?: PermissionKind;
   parent?: string;
   sort?: number;
+  icon?: string;
 }
 
-export const PERMISSION_KINDS = ['app', 'menu', 'tab', 'button', 'api'] as const;
+/** group = 選單目錄:只用來分組與命名(名稱、排序、圖示),不可授予 */
+export const PERMISSION_KINDS = ['app', 'group', 'menu', 'tab', 'button', 'api'] as const;
+/** 可授予(角色 / 部門 / 個人)的類型 */
+export const isGrantableKind = (kind: string) => kind !== 'group';
+export const ICON = /^[a-z][a-z0-9-]{0,29}$/;
 export type PermissionKind = (typeof PERMISSION_KINDS)[number];
 
 export interface ParsedSpec {
@@ -60,6 +65,7 @@ export function permissionDeclError(p: Record<string, unknown>): string | null {
   if (p.kind !== undefined && !(PERMISSION_KINDS as readonly unknown[]).includes(p.kind)) return `kind 需為 ${PERMISSION_KINDS.join(' / ')}`;
   if (p.parent !== undefined && (typeof p.parent !== 'string' || !CODE.test(p.parent) || p.parent === p.code)) return 'parent 需為其他權限代碼';
   if (p.sort !== undefined && (!Number.isInteger(p.sort) || (p.sort as number) < 0 || (p.sort as number) > 32767)) return 'sort 需為 0–32767 的整數';
+  if (p.icon !== undefined && (typeof p.icon !== 'string' || !ICON.test(p.icon))) return 'icon 需為圖示名稱(小寫英數與 -,30 字內)';
   return null;
 }
 

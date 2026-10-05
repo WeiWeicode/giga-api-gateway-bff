@@ -287,7 +287,7 @@ const { menu, trail, crumbs, isOpen, toggle } = useMenuTree(MENU, { storageKey: 
 
 | 項目 | 說明 |
 | --- | --- |
-| `MenuNode` | `key`(唯一)、`title`(預設文字;有 `permission` 且 `me.menus` 有其名稱時以 BFF 名稱顯示,IT 可在「選單管理」改名)、`path`(頁面;目錄省略)、`permission`(頁面的 menu 權限;省略 = 登入即可見)、`requires`(另外需全部具備)、`icon`、`subtitle`、`children` |
+| `MenuNode` | `key`(唯一)、`code`(目錄層在 BFF 的代碼,`kind = group`,用來取得名稱 / 排序 / 圖示)、`title`(預設文字;`me.menus` 有此 `permission` 或 `code` 時,名稱、圖示、同層順序以 BFF 為準,IT 可在「選單管理」修改)、`path`(頁面;目錄省略)、`permission`(頁面的 menu 權限;省略 = 登入即可見)、`requires`(另外需全部具備)、`icon`、`subtitle`、`children` |
 | 頁面兼目錄 | 同時有 `path` 與 `children`:本身沒權限但下層有可見頁 → 只當目錄顯示(移除 `path`) |
 | `useMenuTree` 回傳 | `menu`(過濾後的樹,含 `depth`)、`trail`(根 → 目前頁面,最長路徑前綴)、`crumbs`(麵包屑標題)、`active`、`isOpen` / `toggle`、`rows`(依展開狀態攤平,想用單層 `v-for` 自行繪製時用) |
 | 展開狀態 | 換頁時自動展開目前頁面所在的目錄;`storageKey` 以 localStorage 保存(無法保存時不影響使用);`defaultOpen: 'all'` 全部展開 |

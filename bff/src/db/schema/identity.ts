@@ -66,11 +66,13 @@ export const permission = gw.table(
     resource: varchar('resource', { length: 50 }).notNull(),
     action: varchar('action', { length: 30 }).notNull(),
     description: nvarchar('description', { length: 500 }),
-    /** 權限分類(PRD §8.3.2,v0.7):app / menu / tab / button / api;未宣告 = api */
+    /** 權限分類(PRD §8.3.2,v0.7):app / group / menu / tab / button / api;未宣告 = api。group = 選單目錄(只分組命名,不可授予,v0.12) */
     kind: varchar('kind', { length: 10 }).notNull().default('api'),
     /** 上層權限代碼(應用 → 選單 → Tab → 按鈕) */
     parentCode: varchar('parent_code', { length: 100 }),
     sort: smallint('sort'),
+    /** 選單圖示名稱(各應用的圖示集,例 settings);目錄與選單使用,v0.12 */
+    icon: varchar('icon', { length: 30 }),
     ...auditColumns(),
   },
   (t) => [uniqueIndex('uq_permission_code').on(t.code)],

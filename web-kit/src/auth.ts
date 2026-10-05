@@ -5,13 +5,17 @@
 import { computed, reactive, readonly } from 'vue';
 import { ApiError, http, redirectToLogin } from './http';
 
-/** 擁有的畫面權限(應用 / 選單 / Tab / 按鈕);name 可由 IT 在 GigaItApp「選單管理」修改,前端顯示選單名稱時優先使用 */
+/**
+ * 擁有的畫面權限(應用 / 選單 / Tab / 按鈕)與其所在的選單目錄(kind = group,不可授予,只用來分組);
+ * name / sort / icon 可由 IT 在 GigaItApp「選單管理」修改,前端顯示選單時優先使用。
+ */
 export interface MeMenu {
   code: string;
   name: string;
   kind: string;
   parentCode: string | null;
   sort: number | null;
+  icon: string | null;
 }
 
 export interface Me {
@@ -55,6 +59,8 @@ export function useAuth() {
     can: (code: string) => !!state.me?.permissions.includes(code),
     /** 權限的顯示名稱(BFF 為準);沒有此畫面權限時回 undefined,由呼叫端用前端預設文字 */
     nameOf: (code: string | undefined) => (code ? state.me?.menus?.find((m) => m.code === code)?.name : undefined),
+    /** 選單 / 目錄在 BFF 的設定(名稱、上層、排序、圖示);沒有時回 undefined */
+    menuOf: (code: string | undefined) => (code ? state.me?.menus?.find((m) => m.code === code) : undefined),
     loadMe,
     logout,
     requireLogin: redirectToLogin,

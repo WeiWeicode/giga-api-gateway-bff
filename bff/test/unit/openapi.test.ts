@@ -64,13 +64,25 @@ describe('parseOpenApi:x-permissions 的 kind / parent / sort(PRD §8.3.2)', () 
   });
 
   it.each([
-    [{ kind: 'page' }, 'kind 需為 app / menu / tab / button / api'],
+    [{ kind: 'page' }, 'kind 需為 app / group / menu / tab / button / api'],
     [{ parent: 'smp.x.write' }, 'parent 需為其他權限代碼'],
     [{ parent: 'bad' }, 'parent 需為其他權限代碼'],
     [{ sort: 1.5 }, 'sort 需為 0–32767 的整數'],
     [{ sort: -1 }, 'sort 需為 0–32767 的整數'],
+    [{ icon: 'Bad Icon' }, 'icon 需為圖示名稱(小寫英數與 -,30 字內)'],
   ])('不合法 %j', (extra, message) => {
     const spec = parseOpenApi(withPerms([{ code: 'smp.x.write', name: '寫入', ...extra }]));
     expect(spec.errors.map((e) => e.message.split(':')[0])).toEqual([message]);
+  });
+
+  it('選單目錄 group 與圖示(PRD §8.3.4)', () => {
+    const spec = parseOpenApi(
+      withPerms([
+        { code: 'smp.app.access', name: '樣本應用', kind: 'app' },
+        { code: 'smp.group.hr', name: '人資', kind: 'group', parent: 'smp.app.access', sort: 10, icon: 'users' },
+      ]),
+    );
+    expect(spec.errors).toEqual([]);
+    expect(spec.permissions[2]).toMatchObject({ kind: 'group', icon: 'users' });
   });
 });
