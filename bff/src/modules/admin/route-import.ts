@@ -30,7 +30,8 @@ export function permParts(code: string) {
 }
 
 /**
- * 建立不存在的權限;已存在者只在宣告了 kind / parent / sort 且與現值不同時更新(名稱不覆寫,IT 可能已調整)。
+ * 建立不存在的權限(首次登記)。已存在者以 GigaItApp「選單管理」為準(2026-10-05 決定):名稱不覆寫;
+ * kind / parent / sort 只在尚未設定過(kind = api、無上層、無排序,例如舊版匯入時未宣告)時補上,之後不再覆寫。
  * 回傳新建數量。
  */
 export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: string): Promise<number> {
@@ -57,6 +58,9 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
       created++;
     } else if (
       (p.kind !== undefined || p.parent !== undefined || p.sort !== undefined) &&
+      cur.kind === 'api' &&
+      cur.parentCode === null &&
+      cur.sort === null &&
       (cur.kind !== meta.kind || cur.parentCode !== meta.parentCode || cur.sort !== meta.sort)
     ) {
       await tx

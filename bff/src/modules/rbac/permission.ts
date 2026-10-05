@@ -45,6 +45,15 @@ export interface AppItem {
   icon: string | null;
 }
 
+/** 使用者擁有的畫面權限(/api/auth/me 的 menus):名稱以 GigaItApp「選單管理」為準,前端用來顯示選單 / Tab 名稱 */
+export interface MenuEntry {
+  code: string;
+  name: string;
+  kind: string;
+  parentCode: string | null;
+  sort: number | null;
+}
+
 export interface UserAuthz {
   userId: number;
   pv: number;
@@ -54,6 +63,19 @@ export interface UserAuthz {
   companies: string[];
   /** 具備 app 權限且啟用中的應用(PRD §8.3.3) */
   apps: AppItem[];
+  menus: MenuEntry[];
+}
+
+const SCREEN_KINDS = ['app', 'menu', 'tab', 'button'];
+
+/** 權限中屬於畫面的部分(應用 / 選單 / Tab / 按鈕),依 sort、代碼排序 */
+export async function menusOf(db: GwDatabase, permissions: string[]): Promise<MenuEntry[]> {
+  if (!permissions.length) return [];
+  const rows = await db
+    .select({ code: permission.code, name: permission.name, kind: permission.kind, parentCode: permission.parentCode, sort: permission.sort })
+    .from(permission)
+    .where(and(inArray(permission.code, permissions.slice(0, 2000)), inArray(permission.kind, SCREEN_KINDS)));
+  return rows.sort((a, b) => (a.sort ?? 32767) - (b.sort ?? 32767) || a.code.localeCompare(b.code));
 }
 
 /** 角色命中來源(權限試算回傳,PRD §8.7) */
@@ -256,6 +278,7 @@ export async function computeAuthz(db: GwDatabase, userId: number, now = new Dat
     permissions,
     companies: companyNames,
     apps: await appsOf(db, permissions),
+    menus: await menusOf(db, permissions),
   };
 }
 

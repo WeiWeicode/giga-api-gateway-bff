@@ -389,7 +389,7 @@ sequenceDiagram
 | POST | `/api/auth/login` | AD 或本機帳號登入(自動判斷,見 §8.2.5),設定 Cookie,回傳 `me`;舊單一入口帳號首次登入回 `PASSWORD_CHANGE_REQUIRED` |
 | POST | `/api/auth/refresh` | 以 `gn_rt` 換發新 Token |
 | POST | `/api/auth/logout` | 登出並撤銷 |
-| GET | `/api/auth/me` | 目前使用者(含部門、職稱、職級)、角色、權限代碼清單、**可使用的應用 `apps`**(§8.3.3);`menus` 保留為空陣列,選單由各應用依 `permissions` 過濾自己的路由定義 |
+| GET | `/api/auth/me` | 目前使用者(含部門、職稱、職級)、角色、權限代碼清單、**可使用的應用 `apps`**(§8.3.3);`menus`(v0.12):使用者擁有的畫面權限 `[{ code, name, kind, parentCode, sort }]`(應用 / 選單 / Tab / 按鈕),名稱以 GigaItApp「選單管理」為準,各應用顯示選單名稱時優先使用;選單結構仍由各應用依 `permissions` 過濾自己的路由定義 |
 | GET | `/_auth/verify` | **僅供 Nginx `auth_request`**(internal location),依 `X-Original-URI` 判斷權限,回 204/401/403 |
 | GET | `/.well-known/jwks.json` | 內部 Token 公鑰(僅內網) |
 | POST | `/api/auth/register` | 本機帳號註冊申請 `{ employeeNo, name, hireDate?, password? }`:有 Email 寄驗證連結(202 `VERIFICATION_SENT`);無 Email 者附到職日(`YYYY-MM-DD`)與密碼,比對通過直接啟用(200 `OK`);查無轉 IT 審核(202 `REGISTRATION_PENDING_APPROVAL`,CLI `local:approve`)。自填 Email 等多餘欄位一律忽略 |
@@ -589,7 +589,7 @@ flowchart LR
 - **個人權限**(`gw.user_permission`):預設**永久**,可設到期日(當天結束前有效);用於例外。
 - **上下層**:儲存時自動補上層(部門:同職級門檻;個人:到期日取下層最晚者);畫面上取消上層會一併取消下層。避免「有按鈕權限、卻看不到那一頁」。
 - **層數**:權限樹以 `parent_code` 串接,層數不限(應用 → 選單 → … → Tab → 按鈕);**權限掛在實際頁面**,中間的目錄層不設權限,底下有任一頁可見即顯示。各應用的側邊選單自行決定顯示層數(GigaItApp 為兩層)。
-- **清單由程式定義**:選單 / Tab / 按鈕的權限清單由各應用的 `gateway-rbac.yaml` / OpenAPI `x-permissions` 登記,畫面只負責「給誰」。
+- **清單的來源**:選單 / Tab / 按鈕權限由各應用的 `gateway-rbac.yaml` / OpenAPI `x-permissions` **首次登記**;登記後的名稱、上層、排序以 GigaItApp「系統管理 › 選單管理」為準(CLI `apply` 與匯入不再覆寫,2026-10-05 需求方決定),也可在該頁新增、刪除。前端仍需以同一代碼控制顯示才有作用。「權限設定」只負責「給誰」(角色 / 部門 / 個人;API 權限另有「API 權限」Tab 授予角色)。
 - **權限版本**:部門權限變更遞增全體使用者 `perm_version`;個人權限只遞增該使用者。寫入與 `gw.audit_log` 同一交易;防止提權:新增或移除的權限須是操作人本身具備的。
 
 #### 8.3.3 應用登記與應用切換(v0.7)

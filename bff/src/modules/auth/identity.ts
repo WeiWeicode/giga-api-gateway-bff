@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
 import type { GwDatabase } from '../../db/client.js';
 import { user } from '../../db/schema/index.js';
-import { computeAuthz, permKey, type AppItem } from '../rbac/permission.js';
+import { computeAuthz, permKey, type AppItem, type MenuEntry } from '../rbac/permission.js';
 import type { IdentityClaims } from './keys.js';
 
 export interface MeResponse {
@@ -25,7 +25,8 @@ export interface MeResponse {
   permissions: string[];
   /** 可使用的應用(PRD §8.3.3) */
   apps: AppItem[];
-  menus: unknown[];
+  /** 擁有的畫面權限與名稱(應用 / 選單 / Tab / 按鈕;名稱可在 GigaItApp「選單管理」修改) */
+  menus: MenuEntry[];
 }
 
 export interface Identity {
@@ -83,7 +84,7 @@ export async function buildIdentity(db: GwDatabase, redis: Redis, userId: number
       roles: authz.roles,
       permissions: authz.permissions,
       apps: authz.apps,
-      menus: [],
+      menus: authz.menus,
     },
   };
 }

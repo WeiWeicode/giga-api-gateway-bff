@@ -14,7 +14,7 @@ import { redirectToLogin } from './http';
 export { ApiError, http, readCookie, redirectToLogin, refreshSession, request } from './http';
 export type { RequestOptions } from './http';
 export { loadMe, logout, setMe, useAuth } from './auth';
-export type { Me } from './auth';
+export type { Me, MeMenu } from './auth';
 export { filterMenu, findTrail, flattenMenu, menuKeys, pathMatches } from './menu';
 export type { MenuNode, VisibleMenuNode } from './menu';
 export { GnMenuTree, useMenuTree } from './menu-tree';

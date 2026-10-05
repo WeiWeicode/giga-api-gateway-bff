@@ -5,12 +5,21 @@
 import { computed, reactive, readonly } from 'vue';
 import { ApiError, http, redirectToLogin } from './http';
 
+/** 擁有的畫面權限(應用 / 選單 / Tab / 按鈕);name 可由 IT 在 GigaItApp「選單管理」修改,前端顯示選單名稱時優先使用 */
+export interface MeMenu {
+  code: string;
+  name: string;
+  kind: string;
+  parentCode: string | null;
+  sort: number | null;
+}
+
 export interface Me {
   user: { userId: number; employeeNo: string; name: string; email: string | null; deptCode: string | null; department: string | null; title: string | null; authType: 'ad' | 'local' };
   companies: string[];
   roles: string[];
   permissions: string[];
-  menus: unknown[];
+  menus: MeMenu[];
 }
 
 const state = reactive<{ me: Me | null; loading: Promise<Me | null> | null }>({ me: null, loading: null });
@@ -44,6 +53,8 @@ export function useAuth() {
     user: computed(() => state.me?.user ?? null),
     permissions: computed(() => state.me?.permissions ?? []),
     can: (code: string) => !!state.me?.permissions.includes(code),
+    /** 權限的顯示名稱(BFF 為準);沒有此畫面權限時回 undefined,由呼叫端用前端預設文字 */
+    nameOf: (code: string | undefined) => (code ? state.me?.menus?.find((m) => m.code === code)?.name : undefined),
     loadMe,
     logout,
     requireLogin: redirectToLogin,
