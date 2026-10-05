@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseOpenApi } from '../../src/cli/openapi.js';
+import { includeAllowed, parseOpenApi } from '../../src/cli/openapi.js';
 
 const doc = (op: Record<string, unknown>) => ({
   'x-gateway': { upstream: 'node-sample', system: 'smp' },
@@ -70,8 +70,8 @@ describe('parseOpenApi:x-permissions 的 kind / parent / sort(PRD §8.3.2)', () 
     [{ sort: 1.5 }, 'sort 需為 0–32767 的整數'],
     [{ sort: -1 }, 'sort 需為 0–32767 的整數'],
     [{ icon: 'Bad Icon' }, 'icon 需為圖示名稱(小寫英數與 -,30 字內)'],
-    [{ includes: ['gw.admin.user.write'] }, 'includes 需為 API 讀取權限代碼陣列(以 .read 結尾)'],
-    [{ includes: 'gw.admin.user.read' }, 'includes 需為 API 讀取權限代碼陣列(以 .read 結尾)'],
+    [{ includes: ['bad'] }, 'includes 需為 API 權限代碼陣列'],
+    [{ includes: 'gw.admin.user.read' }, 'includes 需為 API 權限代碼陣列'],
   ])('不合法 %j', (extra, message) => {
     const spec = parseOpenApi(withPerms([{ code: 'smp.x.write', name: '寫入', ...extra }]));
     expect(spec.errors.map((e) => e.message.split(':')[0])).toEqual([message]);
@@ -86,5 +86,21 @@ describe('parseOpenApi:x-permissions 的 kind / parent / sort(PRD §8.3.2)', () 
     );
     expect(spec.errors).toEqual([]);
     expect(spec.permissions[2]).toMatchObject({ kind: 'group', icon: 'users' });
+  });
+});
+
+describe('includeAllowed:畫面節點綁定 API 權限的規則(PRD §8.3.4)', () => {
+  const read = { code: 'gw.admin.user.read', kind: 'api' };
+  const write = { code: 'gw.admin.user.write', kind: 'api' };
+  it.each([
+    ['menu', read, true],
+    ['menu', write, false],
+    ['tab', write, true],
+    ['button', write, true],
+    ['group', read, false],
+    ['app', read, false],
+    ['button', { code: 'it.sys-user.read', kind: 'menu' }, false],
+  ])('%s 綁 %j → %s', (kind, inc, expected) => {
+    expect(includeAllowed(kind, inc)).toBe(expected);
   });
 });

@@ -260,7 +260,7 @@ const { user, can } = useAuth()
 ### 7.5 選單、Tab、按鈕權限(PRD §8.3.2、§8.3.4)
 
 - 功能頁、頁內 Tab、按鈕各自對應一個權限代碼(`kind` 為 `menu` / `tab` / `button`),在後端 OpenAPI `x-permissions` 宣告並掛到上層(BACKEND-GUIDE §6.1),由 IT 在 GigaItApp 設定:授予角色,或直接授予部門(含下層、職級門檻)與個人(v0.12)。前端只看 `me.permissions`,不需要知道權限從哪裡來。
-- 路由 `meta.permission` 用 `menu` / `tab` 代碼;按鈕用 `button` 代碼,且**必須等於**按鈕呼叫的寫入 API 的權限代碼。
+- 路由 `meta.permission` 用 `menu` / `tab` 代碼;按鈕用自己的 `button` 代碼(如 `it.sys-user.disable`),並在 `gateway-rbac.yaml` 以 `includes` **綁定它呼叫的 API 權限**(如 `gw.admin.user.write`):授予按鈕即一併取得該 API 權限,BFF 仍以 API 權限檢查(2026-10-05 起;舊寫法「按鈕代碼 = API 代碼」仍可用,但在權限設定中看不出屬於哪個畫面)。GigaItApp 為範本。
 - **層數不限**:權限掛在**實際頁面**;中間的目錄層不設權限,底下有任一頁可見即顯示,沒有任何可見頁面的目錄不顯示;直接輸入網址時顯示 403 頁。
 - **多層側邊選單**用 web-kit 提供的 `useMenuTree` + `GnMenuTree`(不要各自重寫過濾與展開邏輯):
 

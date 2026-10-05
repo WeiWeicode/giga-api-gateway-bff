@@ -16,7 +16,7 @@
  */
 import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
-import { app as appTable, department, deptPermission, permission, user, userPermission } from '../../db/schema/index.js';
+import { app as appTable, department, deptPermission, permission, permissionInclude, user, userPermission } from '../../db/schema/index.js';
 import { isGrantableKind } from '../../cli/openapi.js';
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
@@ -26,7 +26,7 @@ import { writeAudit } from './audit-log.js';
 import { createAuthorizer, type Actor } from './authorize.js';
 
 const READ = 'gw.admin.rbac.read';
-/** app 參數的特殊值:純 API 權限(kind = api,不屬於任何應用的權限樹),供部門 / 個人授予 API 權限(含寫入) */
+/** app 參數的特殊值:未綁定畫面的純 API 權限(kind = api),供部門 / 個人授予系統用或特殊用途的 API 權限(含寫入) */
 const API_SCOPE = '@api';
 const WRITE = 'gw.admin.rbac.write';
 
@@ -52,9 +52,12 @@ const grants: FastifyPluginAsync = async (app) => {
     const rows = await app.db
       .select({ id: permission.permissionId, code: permission.code, parent: permission.parentCode, kind: permission.kind })
       .from(permission);
-    // API_SCOPE:沒有畫面的純 API 權限(kind = api),各權限獨立、沒有上層
+    // API_SCOPE:未綁定任何畫面節點的純 API 權限(kind = api;已綁定的隨畫面節點授予),各權限獨立、沒有上層
     if (appCode === API_SCOPE) {
-      const scope = new Map(rows.filter((r) => r.kind === 'api').map((r) => [r.code, { id: r.id, parent: null as string | null, kind: r.kind }]));
+      const bound = new Set((await app.db.select({ id: permissionInclude.includedPermissionId }).from(permissionInclude)).map((r) => r.id));
+      const scope = new Map(
+        rows.filter((r) => r.kind === 'api' && !bound.has(r.id)).map((r) => [r.code, { id: r.id, parent: null as string | null, kind: r.kind }]),
+      );
       return { scope, ancestors: (_code: string): string[] => [], idToCode: new Map([...scope].map(([code, v]) => [v.id, code])) };
     }
     const [a] = await app.db.select({ permissionCode: appTable.permissionCode }).from(appTable).where(eq(appTable.code, appCode));

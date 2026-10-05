@@ -9,7 +9,7 @@
  *   PUT    /api/admin/roles/:role/ad-groups        取代 AD 群組對應(群組 DN 清單)
  *   POST   /api/admin/permissions                  新增權限(畫面權限 kind / parent / sort;API 權限多由 OpenAPI x-permissions 匯入)
  *   PATCH  /api/admin/permissions/:code            修改名稱、說明、kind、上層、排序(需 rowVer)
- *   PUT    /api/admin/permissions/:code/includes   選單隨附的 API 讀取權限(整組取代;只限 kind = api 且代碼以 .read 結尾)
+ *   PUT    /api/admin/permissions/:code/includes   畫面節點綁定的 API 權限(整組取代;選單只能綁讀取 .read,Tab / 按鈕不限)
  *   DELETE /api/admin/permissions/:code?rowVer=    刪除權限(gw.admin.* 不可刪;仍被路由、聚合步驟、應用或下層權限使用時拒絕;一併移除部門 / 個人權限)
  *
  * - :role 為角色代碼或 role_id。寫入與 gw.audit_log 同一交易。
@@ -18,7 +18,7 @@
  */
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
-import { ICON, permissionDeclError, PERMISSION_KINDS } from '../../cli/openapi.js';
+import { ICON, includeAllowed, permissionDeclError, PERMISSION_KINDS } from '../../cli/openapi.js';
 import {
   aggregateStep,
   apiClient,
@@ -388,8 +388,8 @@ const roles: FastifyPluginAsync = async (app) => {
     async (req) => {
       const actor = await authorize(req, WRITE);
       const cur = await findPermission(req.params.code);
-      if (!['menu', 'tab'].includes(cur.kind))
-        throw new GwError('VALIDATION_FAILED', '只有選單或 Tab 可以設定隨附的 API 權限', [{ field: 'code', message: cur.code }]);
+      if (!['menu', 'tab', 'button'].includes(cur.kind))
+        throw new GwError('VALIDATION_FAILED', '只有選單、Tab 或按鈕可以綁定 API 權限', [{ field: 'code', message: cur.code }]);
       const codes = [...new Set(req.body.includes)];
       const found = codes.length
         ? await app.db
@@ -399,12 +399,12 @@ const roles: FastifyPluginAsync = async (app) => {
         : [];
       const bad = codes.filter((c) => {
         const f = found.find((x) => x.code === c);
-        return !f || f.kind !== 'api' || !c.endsWith('.read');
+        return !f || !includeAllowed(cur.kind, f);
       });
       if (bad.length)
         throw new GwError(
           'VALIDATION_FAILED',
-          '只能隨附已存在的 API 讀取權限(kind = api、代碼以 .read 結尾)',
+          cur.kind === 'menu' ? '選單只能綁定已存在的 API 讀取權限(代碼以 .read 結尾)' : '只能綁定已存在的 API 權限(kind = api)',
           bad.map((c) => ({ field: 'includes', message: c })),
         );
       // 防止提權:隨附的權限須是操作人本身具備的

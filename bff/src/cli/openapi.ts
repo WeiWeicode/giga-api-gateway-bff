@@ -34,7 +34,7 @@ export interface PermissionDecl {
   parent?: string;
   sort?: number;
   icon?: string;
-  /** 選單 / Tab 隨附的 API 讀取權限(kind = api、代碼以 .read 結尾),擁有此選單即一併擁有 */
+  /** 畫面節點綁定的 API 權限(擁有此節點即一併擁有):選單只能綁讀取(.read),Tab / 按鈕可綁任何 API 權限 */
   includes?: string[];
 }
 
@@ -43,6 +43,13 @@ export const PERMISSION_KINDS = ['app', 'group', 'menu', 'tab', 'button', 'api']
 /** 可授予(角色 / 部門 / 個人)的類型 */
 export const isGrantableKind = (kind: string) => kind !== 'group';
 export const ICON = /^[a-z][a-z0-9-]{0,29}$/;
+
+/** 畫面節點可綁定的 API 權限(PRD §8.3.4):被綁定者須為 kind = api;選單只能綁讀取(代碼以 .read 結尾),Tab / 按鈕不限 */
+export function includeAllowed(targetKind: string, included: { code: string; kind: string }): boolean {
+  if (included.kind !== 'api') return false;
+  if (targetKind === 'menu') return included.code.endsWith('.read');
+  return targetKind === 'tab' || targetKind === 'button';
+}
 export type PermissionKind = (typeof PERMISSION_KINDS)[number];
 
 export interface ParsedSpec {
@@ -68,8 +75,8 @@ export function permissionDeclError(p: Record<string, unknown>): string | null {
   if (p.parent !== undefined && (typeof p.parent !== 'string' || !CODE.test(p.parent) || p.parent === p.code)) return 'parent 需為其他權限代碼';
   if (p.sort !== undefined && (!Number.isInteger(p.sort) || (p.sort as number) < 0 || (p.sort as number) > 32767)) return 'sort 需為 0–32767 的整數';
   if (p.icon !== undefined && (typeof p.icon !== 'string' || !ICON.test(p.icon))) return 'icon 需為圖示名稱(小寫英數與 -,30 字內)';
-  if (p.includes !== undefined && (!Array.isArray(p.includes) || p.includes.some((c) => typeof c !== 'string' || !CODE.test(c) || !c.endsWith('.read'))))
-    return 'includes 需為 API 讀取權限代碼陣列(以 .read 結尾)';
+  if (p.includes !== undefined && (!Array.isArray(p.includes) || p.includes.some((c) => typeof c !== 'string' || !CODE.test(c))))
+    return 'includes 需為 API 權限代碼陣列';
   return null;
 }
 

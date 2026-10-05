@@ -16,9 +16,10 @@
  *
  * 寫入:同一交易寫入資料與 gw.audit_log(actor 為實際操作人),遞增全體 perm_version,提交後清除 pv 快取(DATABASE.md §7.2)。
  */
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import {
+  apiRoute,
   app as appTable,
   company,
   department,
@@ -174,8 +175,21 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
         .orderBy(asc(permission.code));
       // 清單模式含 rowVer(修改 / 刪除權限用,roles.ts)與選單隨附的 API 讀取權限
       if (!['1', 'true'].includes(req.query.tree ?? '')) {
-        const inc = await includesOf(app.db);
-        return { items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer), includes: inc.get(r.code) ?? [] })) };
+        const [inc, routeRows] = await Promise.all([
+          includesOf(app.db),
+          app.db
+            .select({ permissionCode: apiRoute.permissionCode, method: apiRoute.method, publicPath: apiRoute.publicPath })
+            .from(apiRoute)
+            .where(and(isNotNull(apiRoute.permissionCode), ne(apiRoute.status, 'disabled')))
+            .orderBy(asc(apiRoute.publicPath)),
+        ]);
+        const routesOf = new Map<string, { method: string; publicPath: string }[]>();
+        for (const r of routeRows)
+          routesOf.set(r.permissionCode!, [...(routesOf.get(r.permissionCode!) ?? []), { method: r.method, publicPath: r.publicPath }]);
+        // routes:此權限保護的 API 路由(未停用);選單管理挑選綁定的 API 時顯示用途
+        return {
+          items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer), includes: inc.get(r.code) ?? [], routes: routesOf.get(r.code) ?? [] })),
+        };
       }
 
       const nodes = new Map<string, PermNode>(

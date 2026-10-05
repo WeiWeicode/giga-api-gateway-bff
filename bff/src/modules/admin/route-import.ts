@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, ne } from 'drizzle-orm';
-import { checkUpstreamPort, parseOpenApi, type ParsedSpec, type PermissionDecl } from '../../cli/openapi.js';
+import { checkUpstreamPort, includeAllowed, parseOpenApi, type ParsedSpec, type PermissionDecl } from '../../cli/openapi.js';
 import type { GwDatabase } from '../../db/client.js';
 import {
   apiImportBatch,
@@ -94,7 +94,7 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
   return created;
 }
 
-/** 選單隨附的 API 讀取權限:只在此選單尚未設定任何隨附權限時登記(之後以「選單管理」為準);不存在或非 API 讀取權限者略過 */
+/** 畫面節點綁定的 API 權限:只在此節點尚未綁定任何 API 時登記(之後以「選單管理」為準);不存在或不符綁定規則者略過 */
 async function ensureIncludes(tx: Tx, perms: PermissionDecl[], actor: string): Promise<void> {
   const decls = perms.filter((p) => p.includes?.length);
   if (!decls.length) return;
@@ -111,7 +111,7 @@ async function ensureIncludes(tx: Tx, perms: PermissionDecl[], actor: string): P
     if (has) continue;
     for (const c of new Set(p.includes)) {
       const inc = byCode.get(c);
-      if (inc && inc.kind === 'api' && c.endsWith('.read'))
+      if (inc && includeAllowed(target.kind, inc))
         await tx.insert(permissionInclude).values({ permissionId: target.id, includedPermissionId: inc.id, createdBy: actor });
     }
   }
