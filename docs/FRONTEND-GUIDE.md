@@ -10,7 +10,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.3(2026-10-05:§7.5 多層選單,web-kit `useMenuTree` / `GnMenuTree`;權限可直接授予部門與個人)。v0.2:§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供 |
+| 文件版本 | v0.4(2026-10-05:§7.5 重寫為目錄 / 選單 / Tab / 按鈕權限的完整做法,畫面節點綁定 API,GigaItApp 為範本)。v0.3:§7.5 多層選單,web-kit `useMenuTree` / `GnMenuTree`;權限可直接授予部門與個人。v0.2:§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供 |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的 Vue 專案(必須遵守);既有專案遷移時比照(見 §10) |
 | 維護者 | Gateway 負責人 |
@@ -223,9 +223,10 @@ BFF 統一的錯誤格式(完整代碼見 [PRD.md](PRD.md) §8.1.1 錯誤代碼�
     { "code": "portal", "name": "員工入口網", "basePath": "/", "icon": "home" },
     { "code": "mes", "name": "MES 看板", "basePath": "/mes/", "icon": "factory" }
   ],
-  "menus": [               // 擁有的畫面權限(應用 / 選單 / Tab / 按鈕);名稱可在 GigaItApp「選單管理」修改
-    { "code": "portal.leave.read", "name": "我的假期", "kind": "menu", "parentCode": "portal.app.access", "sort": 20 }
-  ]                        // 選單結構仍由各系統依 permissions 過濾自己的路由定義;顯示名稱優先用 useAuth().nameOf(code)
+  "menus": [               // 擁有的畫面權限(應用 / 選單 / Tab / 按鈕)+ 可見頁面所在的目錄(group);名稱 / 排序 / 圖示可在「選單管理」修改
+    { "code": "it.group.system", "name": "系統管理", "kind": "group", "parentCode": "it.app.access", "sort": 40, "icon": "settings" },
+    { "code": "it.sys-user.read", "name": "人員與部門", "kind": "menu", "parentCode": "it.group.system", "sort": 50, "icon": null }
+  ]                        // 選單結構仍由各系統依 permissions 過濾自己的路由定義;顯示用 useAuth().nameOf(code) / menuOf(code)(§7.5)
 }
 ```
 
@@ -257,12 +258,81 @@ const { user, can } = useAuth()
 | 應用層守衛 | 啟動時取得 `me`:未登入 → `/login?redirect=`;`me.apps` 不含本應用 → 以 `location.replace('/')` 導回員工入口網並帶提示參數(員工入口網本身沒有權限時顯示無權限頁,不可導回自己) |
 | 權限變更 | 換頁或 5 分鐘內重新取得 `me`,應用、選單、按鈕隨之更新;API 權限由 BFF 以 `pv` 立即生效 |
 
-### 7.5 選單、Tab、按鈕權限(PRD §8.3.2、§8.3.4)
+### 7.5 目錄、選單、Tab、按鈕權限(PRD §8.3.2、§8.3.2a、§8.3.4)
 
-- 功能頁、頁內 Tab、按鈕各自對應一個權限代碼(`kind` 為 `menu` / `tab` / `button`),在後端 OpenAPI `x-permissions` 宣告並掛到上層(BACKEND-GUIDE §6.1),由 IT 在 GigaItApp 設定:授予角色,或直接授予部門(含下層、職級門檻)與個人(v0.12)。前端只看 `me.permissions`,不需要知道權限從哪裡來。
-- 路由 `meta.permission` 用 `menu` / `tab` 代碼;按鈕用自己的 `button` 代碼(如 `it.sys-user.disable`),並在 `gateway-rbac.yaml` 以 `includes` **綁定它呼叫的 API 權限**(如 `gw.admin.user.write`):授予按鈕即一併取得該 API 權限,BFF 仍以 API 權限檢查(2026-10-05 起;舊寫法「按鈕代碼 = API 代碼」仍可用,但在權限設定中看不出屬於哪個畫面)。GigaItApp 為範本。
-- **層數不限**:權限掛在**實際頁面**;中間的目錄層不設權限,底下有任一頁可見即顯示,沒有任何可見頁面的目錄不顯示;直接輸入網址時顯示 403 頁。
-- **多層側邊選單**用 web-kit 提供的 `useMenuTree` + `GnMenuTree`(不要各自重寫過濾與展開邏輯):
+畫面上的每個元素都是 BFF 的一個權限節點,**每個節點綁定它用到的 API**;IT 在 GigaItApp 授予畫面節點,使用者就一併取得該畫面需要的 API。前端只看 `/api/auth/me` 的 `permissions`(能不能看)與 `menus`(名稱、排序、圖示),不需要知道權限從哪裡來(角色 / 部門 / 個人)。**GigaItApp 為範本**:`deploy/gateway-rbac.yaml`、`frontend/src/api/auth.ts`(`IT` / `UI` 常數、`MENU`)、`frontend/src/router.ts`。
+
+#### 7.5.1 節點類型與命名
+
+| `kind` | 用途 | 代碼命名 | 可授予 | 綁定 API(`includes`) |
+| --- | --- | --- | --- | --- |
+| `app` | 應用 | `{system}.app.access` | ✓ | — |
+| `group` | 側欄大項(目錄) | `{system}.group.{名稱}` | ✗(底下有可見頁才顯示) | — |
+| `menu` | 功能頁 | `{system}.{頁面}.read` | ✓ | 只能綁讀取(`.read`):此頁共用的讀取 API |
+| `tab` | 頁內 Tab | `{system}.{頁面}.{tab}` | ✓ | 此 Tab 用到的 API |
+| `button` | 按鈕 | `{system}.{頁面}.{動作}` | ✓ | 此按鈕呼叫的 API(通常是寫入) |
+
+- 按鈕用**自己的代碼**,不要直接用 API 代碼;同一個 API 可以被多個按鈕綁定(例:「調整角色」「強制登出」「停用」都綁 `gw.admin.user.write`)。舊寫法「按鈕代碼 = API 代碼」仍可用,但在權限設定看不出屬於哪個畫面。
+- BFF 一定再以 **API 權限**檢查;前端隱藏只是體驗。
+
+#### 7.5.2 步驟一:在 `deploy/gateway-rbac.yaml` 首次登記
+
+```yaml
+permissions:
+  - { code: it.app.access, name: IT 管理系統使用權限, kind: app, sort: 20 }
+  # 目錄(側欄大項):名稱 / 排序 / 圖示
+  - { code: it.group.system, name: 系統管理, kind: group, parent: it.app.access, sort: 40, icon: settings }
+  # 功能頁:只能綁讀取
+  - { code: it.sys-user.read, name: 人員與部門, kind: menu, parent: it.group.system, sort: 50, includes: [gw.admin.user.read] }
+  # Tab
+  - { code: it.sys-user.users, name: 人員, kind: tab, parent: it.sys-user.read, sort: 10, includes: [gw.admin.user.read] }
+  # 按鈕:綁它呼叫的寫入 API
+  - { code: it.sys-user.disable, name: 停用 / 啟用, kind: button, parent: it.sys-user.users, sort: 30, includes: [gw.admin.user.write] }
+roles:
+  - code: it-admin
+    name: IT 管理系統管理員
+    permissions: [it.app.access, it.sys-user.read, it.sys-user.users, it.sys-user.disable]   # 角色的權限整組取代
+```
+
+- CI 每次部署以 Gateway CLI `apply` 套用(GigaItApp:`deploy/apply-gateway-rbac.sh`);**只做首次登記**:已存在的節點不覆寫名稱、上層、排序、圖示與綁定,之後以「選單管理」為準。
+- `includes` 引用的 API 權限須已存在(後端服務 OpenAPI `x-permissions` 註冊,BACKEND-GUIDE §6.1;BFF 管理 API 為 `gw.admin.*`)。
+- 角色只放「此應用的管理員要全部擁有」的清單;其他人由 IT 在權限設定授予(角色 / 部門 / 個人)。
+
+#### 7.5.3 步驟二:前端以代碼控制顯示
+
+```ts
+// api/auth.ts:選單代碼與 Tab / 按鈕代碼
+export const IT = { sysUser: 'it.sys-user.read' } as const
+export const UI = { userList: 'it.sys-user.users', userDisable: 'it.sys-user.disable' } as const
+
+// router.ts:功能頁 meta.permission = 選單;每個 Tab 與其子路由都標 Tab 代碼
+{
+  path: 'system/users', component: TabbedPage,
+  meta: { permission: IT.sysUser, requires: [GW.userRead], title: '人員與部門',
+          tabs: [{ label: '人員', to: '/system/users', permission: UI.userList }] },
+  children: [{ path: '', component: () => import('./pages/system/Users.vue'), meta: { tab: '人員', permission: UI.userList } }],
+}
+```
+
+```vue
+<!-- 頁面:按鈕用按鈕代碼 -->
+<GButton v-if="can(UI.userDisable)" @click="toggleDisable(u)">停用</GButton>
+```
+
+- **名稱、圖示、排序以 BFF 為準**:側欄、頁首、Tab 標籤用 `useAuth().nameOf(code)` / `menuOf(code)`(`me.menus`),前端定義的文字只是預設值;IT 在「選單管理」改名後,使用者重新整理或 5 分鐘內生效。
+- **可見規則**(GigaItApp):選單 = 選單權限 ∩ 該頁的讀取權限(`requires`)∩ 至少一個可看的 Tab;Tab = Tab 權限;按鈕 = 按鈕權限;目前的 Tab 沒權限時改到同頁第一個可看的 Tab;直接輸入網址而沒有權限時顯示 403。
+- **目錄層不設權限**:底下有任一頁可見即顯示,沒有可見頁面的目錄不顯示;頁面在 BFF 的上層目錄決定它歸在哪個大項。
+- 新增的節點要前端以同一代碼實作才有作用;只在「選單管理」新增的節點只存在該區資料庫,要長期保留請補進 `gateway-rbac.yaml`。
+
+#### 7.5.4 步驟三:在 GigaItApp 設定(IT)
+
+1. **選單管理**:確認節點名稱、排序、圖示;編輯節點時勾選它綁定的 API(只列此應用相關系統,顯示每個 API 保護的路由)。
+2. **權限設定**:角色權限 / 部門權限(含下層、職級門檻)/ 個人權限,勾選畫面節點即一併取得綁定的 API;勾選單會一併勾它的 Tab,按鈕需個別勾。
+3. **權限試算**:以工號確認結果(目錄顯示「依下層」、綁定的 API 是否取得)。
+
+#### 7.5.5 多層側邊選單(三層以上)
+
+**多層側邊選單**用 web-kit 提供的 `useMenuTree` + `GnMenuTree`(不要各自重寫過濾與展開邏輯):
 
 ```ts
 import { GnMenuTree, useMenuTree, type MenuNode } from '@giganexus/web-kit'
@@ -294,7 +364,7 @@ const { menu, trail, crumbs, isOpen, toggle } = useMenuTree(MENU, { storageKey: 
 | 樣式 | 元件不帶樣式:`ul.gn-menu`(`--root` / `--sub`)、`li.gn-menu__node`(`is-open`、`is-active`、`is-in-trail`、`has-children`)、縮排變數 `--gn-depth`;預設內容為 `a.gn-menu__link[aria-current=page]` 或 `button.gn-menu__toggle[aria-expanded]`,以 `#item` slot 換成各應用的 G* 元件 |
 | 純函式 | `filterMenu`、`findTrail`、`flattenMenu`、`pathMatches`、`menuKeys`(不依賴 Vue,可在非側欄處重用,例如首頁捷徑) |
 
-- GigaItApp 維持兩層(自有 `AppLayout`);三層以上的應用(如員工入口網)改用上述元件。
+- GigaItApp 維持兩層(自有 `AppLayout`,邏輯同上:名稱 / 圖示 / 順序 / 歸屬以 BFF 為準);三層以上的應用(如員工入口網)改用上述元件。
 
 ---
 
@@ -381,7 +451,7 @@ Pipeline 範本由 Gateway 團隊提供(`include` 共用的 `.gitlab-ci` 片段)
 - [ ] 無任何寫死的主機、port 或根路徑資源
 - [ ] 使用共用套件處理 HTTP、CSRF、401 / 403、`me`
 - [ ] 無 Token 或密碼存在瀏覽器儲存空間
-- [ ] 所需權限代碼已向 IT 登記,並在路由 `meta.permission` 標示
+- [ ] 目錄 / 選單 / Tab / 按鈕已登記在 `deploy/gateway-rbac.yaml`(§7.5.2),每個節點以 `includes` 綁定用到的 API,並在路由 `meta.permission`、Tab、按鈕以同一代碼控制顯示
 - [ ] `VITE_*` 變數中沒有密鑰
 - [ ] 錯誤畫面顯示 `requestId`
 - [ ] 已在測試區經 Gateway 完整測試(非只在本機 dev server)

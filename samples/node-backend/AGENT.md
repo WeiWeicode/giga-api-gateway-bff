@@ -129,6 +129,7 @@
 
 - 身分只信任 `X-Internal-Token`(`req.identity`),不信任其他標頭;**不要關閉或略過 Token 驗證**,dev 也一樣。
 - API 層級權限由 Gateway 處理;**資料層級**(部門、公司)由後端依 `dept` / `cos` / `roles` 過濾,無權限回 `403 DATA_ACCESS_DENIED`。
+- **權限要切出讀 / 寫**:查詢用 `{system}.{resource}.read`,修改用 `.write`(或 `approve`、`export` 等),不要一個權限同時管查與改。後端只宣告 **API 權限**(`src/openapi.ts` 的 `PERMISSIONS`);畫面上的目錄 / 選單 / Tab / 按鈕由**前端應用**的 `deploy/gateway-rbac.yaml` 登記並以 `includes` 綁定這些 API 權限,IT 在 GigaItApp「選單管理」調整(Gateway FRONTEND-GUIDE §7.5、PRD §8.3.2)。選單只能綁 `.read`,寫入由按鈕綁定。
 - 錯誤一律 `throw new AppError(status, code, message, details?)`,格式 `{ code, message, requestId, details? }`。
 - 自訂代碼**以系統代碼開頭**(例 `SAMPLE_ITEM_NOT_FOUND`);不可使用 `UNAUTHENTICATED`、`PERMISSION_DENIED`、`CSRF_INVALID`、`UPSTREAM_*`。
 - 不回傳堆疊或 SQL;不回 `Set-Cookie`、CORS、`X-Powered-By` 標頭。

@@ -20,7 +20,11 @@ declare module 'fastify' {
   }
 }
 
-/** 本服務用到的權限代碼與中文名稱;Gateway 匯入時不存在者一併建立 */
+/**
+ * 本服務的 API 權限代碼與中文名稱;Gateway 匯入時不存在者一併建立(kind 省略 = api)。
+ * 讀 / 寫分開:查詢 .read、修改 .write。畫面節點(選單 / Tab / 按鈕)由前端應用的 gateway-rbac.yaml 登記,
+ * 以 includes 綁定這些權限(例:按鈕「新增項目」綁 sample.item.write;FRONTEND-GUIDE §7.5)。
+ */
 export const PERMISSIONS = [
   { code: 'sample.item.read', name: '樣本項目:查詢' },
   { code: 'sample.item.write', name: '樣本項目:新增' },

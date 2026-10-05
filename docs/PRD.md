@@ -32,7 +32,7 @@
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
 | v0.11 | 2026-10-02 | 補齊未實作項目(2026-10-02 測試區完成,E2E 01–09 通過):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
 | v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
-| v0.12 | 2026-10-05 | ① **部門權限與個人權限**(需求方決定):選單 / Tab / 按鈕權限可直接授予部門(含下層、依職級門檻)與個人(預設永久,可設到期日),不必建角色或規則;有效權限 = 角色權限 ∪ 部門權限 ∪ 個人權限(§8.3.4、§8.7,DATABASE `gw.dept_permission`、`gw.user_permission`);GigaItApp「權限設定」(原「角色與按鈕權限」,唯一的權限編輯入口)新增「部門權限」「個人權限」Tab,「權限查詢」(原「BFF 權限」)改為唯讀並列出部門 / 個人來源;② **職級門檻**:全員 / 課級以上(職級 ≤ 7)/ 理級以上(≤ 6)/ 處級以上(≤ 4),數字越小職位越高(Q29 決定);③ **分階段開放公司** `LOGIN_COMPANIES`(先開放碩禾、禾迅;新增錯誤代碼 `COMPANY_NOT_OPEN`);④ 選單層數不限(`parent_code` 串接),目錄層不設權限 |
+| v0.12 | 2026-10-05 | ① **部門權限與個人權限**(需求方決定):選單 / Tab / 按鈕權限可直接授予部門(含下層、依職級門檻)與個人(預設永久,可設到期日),不必建角色或規則;有效權限 = 角色權限 ∪ 部門權限 ∪ 個人權限(§8.3.4、§8.7,DATABASE `gw.dept_permission`、`gw.user_permission`);GigaItApp「權限設定」(原「角色與按鈕權限」,唯一的權限編輯入口)新增「部門權限」「個人權限」Tab,「權限查詢」(原「BFF 權限」)改為唯讀並列出部門 / 個人來源;② **職級門檻**:全員 / 課級以上(職級 ≤ 7)/ 理級以上(≤ 6)/ 處級以上(≤ 4),數字越小職位越高(Q29 決定);③ **分階段開放公司** `LOGIN_COMPANIES`(先開放碩禾、禾迅;新增錯誤代碼 `COMPANY_NOT_OPEN`);④ 選單層數不限(`parent_code` 串接),目錄層不設權限;⑤ 選單目錄 `kind = group`、圖示 `icon`、**畫面節點綁定 API**(`gw.permission_include`,按鈕綁寫入),§8.3.2 重寫為完整的畫面權限模型與設定流程(GigaItApp 為範本);`/api/auth/me` 的 `menus` 回傳畫面權限名稱;web-kit 多層選單;`LOGIN_COMPANIES` 分階段開放 |
 
 ---
 
@@ -554,21 +554,54 @@ flowchart LR
 - 內建角色:`gw-super-admin`(僅限 IT 主管群組)、`gw-it-admin`、`employee`(所有登入者預設)。
 - 權限檢查順序:路由比對 → 取出 `auth_mode` / `permission_code` → 驗證 JWT(黑名單、`pv`)→ 從 Redis 取使用者權限集合 → 比對 → 通過才轉發。
 
-#### 8.3.2 應用、選單、Tab、按鈕權限(v0.7)
+#### 8.3.2 應用、目錄、選單、Tab、按鈕權限(v0.7,v0.12 修訂)
 
-各應用(員工入口網、GigaItApp…)的畫面權限與 API 權限**同一套、只存在 BFF**,由 GigaItApp 設定;前端隱藏只是體驗,API 一律由 BFF 檢查。
+各應用(員工入口網、GigaItApp…)的畫面權限與 API 權限**同一套、只存在 BFF**,由 GigaItApp 設定;前端隱藏只是體驗,API 一律由 BFF 檢查。**GigaItApp 為範本**(2026-10-05),新應用照同一做法。
 
-| `kind` | 意義 | 代碼範例 | 前端 | BFF |
-| --- | --- | --- | --- | --- |
-| `app` | 可使用某應用 | `portal.app.access`、`it.app.access` | 應用切換清單、應用層守衛(§8.3.3) | 該應用自有 API 一併要求 |
-| `menu` | 可見某功能頁 | `portal.leave.read` | 兩層選單、頁面守衛 | 該頁讀取 API 使用同一代碼 |
-| `tab` | 可見頁內某 Tab | `portal.leave-history.read` | Tab 顯示 | 該 Tab 讀取 API 使用同一代碼 |
-| `button` | 可按某按鈕 | `bpm.approval.approve` | `v-can` 隱藏 | **= 對應寫入 API 的 `permission_code`** |
-| `api` | 只有 API(系統對系統、管理 API),不出現在畫面 | `gw.admin.route.read` | — | 檢查 |
+| `kind` | 意義 | 代碼範例 | 可授予 | 可綁定 API(`includes`) | 前端 |
+| --- | --- | --- | --- | --- | --- |
+| `app` | 可使用某應用 | `it.app.access` | ✓ | — | 應用切換清單、應用層守衛(§8.3.3) |
+| `group` | 選單目錄(側欄大項),只分組命名 | `it.group.system` | ✗(依下層顯示) | — | 名稱 / 排序 / 圖示以 BFF 為準 |
+| `menu` | 可見某功能頁 | `it.sys-user.read` | ✓ | 只能綁讀取(`.read`) | 側欄、頁面守衛 |
+| `tab` | 可見頁內某 Tab | `it.sys-user.users` | ✓ | 任何 API | Tab 顯示、Tab 子路由守衛 |
+| `button` | 可按某按鈕 | `it.sys-user.disable` | ✓ | 任何 API(通常為寫入) | `v-can` 隱藏 |
+| `api` | API 權限,不直接出現在畫面 | `gw.admin.user.write` | ✓(建議透過畫面節點) | — | — |
 
-- `menu` / `tab` / `button` 以 `parent_code` 掛到上層(應用 → 選單 → Tab → 按鈕),`sort` 決定設定畫面的順序;GigaItApp 以樹狀呈現與設定。
-- 定義來源:各應用在 OpenAPI 根層 `x-permissions` 宣告 `kind`、`parent`、`sort`(BACKEND-GUIDE §6.1),經匯入 / 自動註冊寫入;選單的圖示、路徑、顯示名稱仍在各應用前端(路由 meta),以權限代碼對應。
+- **樹狀結構**:`parent_code` 串成「應用 → 目錄 → 選單 → Tab → 按鈕」,層數不限;`sort` 決定順序,`icon` 為目錄 / 選單圖示。
+- **畫面節點綁定 API**(`gw.permission_include`,§8.3.4):每個選單 / Tab / 按鈕綁定它用到的 API 權限,**擁有節點即一併擁有**。按鈕使用**自己的代碼**並綁定它呼叫的寫入 API(例:「停用 / 啟用」`it.sys-user.disable` → `gw.admin.user.write`);v0.7 的「按鈕代碼 = API 代碼」寫法仍相容,但在權限設定中看不出屬於哪個畫面,新應用不再使用。
+- **代碼命名**:`{system}.{頁面}.{動作}`;選單 `{system}.{頁面}.read`、Tab `{system}.{頁面}.{tab}`、按鈕 `{system}.{頁面}.{動作}`、目錄 `{system}.group.{名稱}`。
+- **定義來源(首次登記)**:前端應用在自己的 `deploy/gateway-rbac.yaml`(CLI `apply`,CI 自動套用)宣告 `kind`、`parent`、`sort`、`icon`、`includes`;後端服務在 OpenAPI 根層 `x-permissions` 宣告 API 權限(BACKEND-GUIDE §6.1)。**登記後以 GigaItApp「系統管理 › 選單管理」為準**,`apply` / 匯入不再覆寫名稱、上層、排序、圖示與綁定。選單的路徑與頁面元件仍在各應用前端(路由),以權限代碼對應。
 - 未宣告 `kind` 的既有權限視為 `api`(相容)。
+
+#### 8.3.2a 設定流程(GigaItApp)
+
+```mermaid
+flowchart LR
+    DEV["前端應用<br/>gateway-rbac.yaml<br/>(app / group / menu / tab / button + includes)"] -->|"CI apply(首次登記)"| PERM["BFF gw.permission<br/>+ gw.permission_include"]
+    BE["後端服務<br/>OpenAPI x-permissions"] -->|"匯入 / 自動註冊"| PERM
+    PERM --> MM["選單管理<br/>改名稱 / 排序 / 圖示 / 上層<br/>選擇節點綁定的 API"]
+    PERM --> SET["權限設定<br/>角色權限 / 部門權限(職級門檻)/ 個人權限"]
+    SET -->|"授予畫面節點<br/>= 一併取得綁定的 API"| USER["使用者有效權限<br/>/api/auth/me permissions + menus"]
+    USER --> FE["前端:側欄 / Tab / 按鈕顯示<br/>BFF:API 檢查"]
+```
+
+| 畫面(GigaItApp) | 做什麼 |
+| --- | --- |
+| 系統管理 › **選單管理** | 各應用「目錄 → 選單 → Tab → 按鈕」:改名稱、排序、上層、圖示,新增 / 刪除;編輯節點時勾選它綁定的 API(只列此應用相關系統,顯示每個 API 保護的路由與已綁定的節點) |
+| 系統管理 › 權限設定 › **角色權限** | 權限 × 角色矩陣(每列標示綁定的 API);應用選「未綁定畫面的 API」設定沒有綁到畫面的 API |
+| 權限設定 › **部門權限 / 個人權限** | 直接授予部門(含下層、職級門檻)或個人(預設永久);同樣標示綁定的 API,並可設定未綁定畫面的 API |
+| 權限設定 › **權限試算** | 依工號或人事條件試算,樹狀顯示每個節點是否擁有、目錄「依下層」、綁定的 API 是否取得 |
+| Gateway 管理 › **權限查詢**(唯讀) | 角色權限總覽、誰能存取(含部門 / 個人 / 隨畫面節點取得)、關係圖 |
+
+- 勾選時自動勾上層(略過目錄);勾選單時一併勾它底下的 Tab(按鈕需個別勾);取消上層一併取消下層。
+- 前端可見規則(GigaItApp):選單 = 選單權限 ∩ 該頁需要的讀取權限 ∩ 至少一個可看的 Tab;Tab = Tab 權限;按鈕 = 按鈕權限。沒有權限的 Tab 自動改到同頁第一個可看的 Tab。
+
+#### 8.3.3 應用登記與應用切換(v0.7)
+
+- `gw.app`(DATABASE §3.2)登記每個 SPA 應用:代碼、名稱、子路徑(§7.2.1)、圖示、排序、所需的 `app` 權限;由 Gateway 負責人以 CLI `apply` 的 `apps:` 維護。
+- `GET /api/auth/me` 回傳 `apps: [{ code, name, basePath, icon }]`,只含使用者具備其 `app` 權限且啟用中的應用。
+- 各 SPA 右上角帳號旁顯示**應用切換**(只列 `apps`,一個以下不顯示);**應用層守衛**:未登入 → `/login?redirect=`;已登入但不在 `apps` 內 → 導回員工入口網 `/` 並提示(員工入口網本身沒有權限時顯示無權限頁,不可導回自己)。規範見 [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §7.4。
+- 預設:內建角色 `employee` 擁有 `portal.app.access`;`it.app.access` 由 IT 以指派規則或 AD 群組授予。
 
 #### 8.3.4 部門權限與個人權限(v0.12)
 
@@ -592,14 +625,8 @@ flowchart LR
 - **畫面節點綁定 API**(2026-10-05,`gw.permission_include`):選單 / Tab / 按鈕各自綁定它用到的 API 權限,**擁有節點即一併擁有**——選單只能綁讀取(`.read`),Tab 與按鈕不限(按鈕通常綁寫入,如「停用 / 啟用」綁 `gw.admin.user.write`)。授予畫面節點一格即可使用,API 權限跟著畫面走;沒有綁到任何畫面的 API(系統用、特殊用途)在授予畫面以「未綁定畫面的 API」範圍設定。各應用的 Tab 與按鈕應登記為 `tab` / `button` 權限並綁定 API(GigaItApp 為範本),前端以 Tab / 按鈕代碼控制顯示。登入計算、權限試算(`includedBy`)、有效權限、誰能存取(`includedBy`)一併呈現;防止提權時隨附權限也要是操作人具備的。在 GigaItApp「選單管理」設定,`gateway-rbac.yaml` / `x-permissions` 的 `includes` 只做首次登記。
 - **選單目錄 `kind = group`**(2026-10-05):側欄大項登記為目錄節點,只用來分組與命名(名稱、排序、**圖示** `icon`),**不可授予**(角色 / 部門 / 個人的授予 API 拒絕、勾選畫面不顯示勾選框、勾選下層時不帶上目錄);`/api/auth/me` 的 `menus` 附上使用者可見頁面所在的目錄。頁面的上層改到哪個目錄,側欄就歸在哪個大項。選單與目錄的圖示也以 BFF 為準(各應用的圖示集名稱)。
 - **清單的來源**:選單 / Tab / 按鈕權限由各應用的 `gateway-rbac.yaml` / OpenAPI `x-permissions` **首次登記**;登記後的名稱、上層、排序以 GigaItApp「系統管理 › 選單管理」為準(CLI `apply` 與匯入不再覆寫,2026-10-05 需求方決定),也可在該頁新增、刪除。前端仍需以同一代碼控制顯示才有作用。「權限設定」只負責「給誰」(角色 / 部門 / 個人;API 權限另有「API 權限」Tab 授予角色)。
-- **權限版本**:部門權限變更遞增全體使用者 `perm_version`;個人權限只遞增該使用者。寫入與 `gw.audit_log` 同一交易;防止提權:新增或移除的權限須是操作人本身具備的。
-
-#### 8.3.3 應用登記與應用切換(v0.7)
-
-- `gw.app`(DATABASE §3.2)登記每個 SPA 應用:代碼、名稱、子路徑(§7.2.1)、圖示、排序、所需的 `app` 權限;由 Gateway 負責人以 CLI `apply` 的 `apps:` 維護。
-- `GET /api/auth/me` 回傳 `apps: [{ code, name, basePath, icon }]`,只含使用者具備其 `app` 權限且啟用中的應用。
-- 各 SPA 右上角帳號旁顯示**應用切換**(只列 `apps`,一個以下不顯示);**應用層守衛**:未登入 → `/login?redirect=`;已登入但不在 `apps` 內 → 導回員工入口網 `/` 並提示(員工入口網本身沒有權限時顯示無權限頁,不可導回自己)。規範見 [FRONTEND-GUIDE.md](FRONTEND-GUIDE.md) §7.4。
-- 預設:內建角色 `employee` 擁有 `portal.app.access`;`it.app.access` 由 IT 以指派規則或 AD 群組授予。
+- **權限版本**:部門權限變更遞增全體使用者 `perm_version`;個人權限只遞增該使用者。寫入與 `gw.audit_log` 同一交易;防止提權:新增或移除的權限(含綁定的 API)須是操作人本身具備的。
+- 畫面權限模型與各設定畫面見 §8.3.2、§8.3.2a。
 
 ### 8.4 API 聚合與動態路由
 

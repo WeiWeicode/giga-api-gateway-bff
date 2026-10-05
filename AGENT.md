@@ -93,7 +93,7 @@
 | Migration | `npm run db:generate` 產生後**人工審查**並執行 `npm run db:check-2012`；禁止 `drizzle-kit push` |
 | 設定與同步 | 先提交資料庫、再更新 Redis（`docs/DATABASE.md` §7）；Redis 鍵一律 `gw:` 開頭並登記於 §6 |
 | API 路徑 | 對外 `/api/{system_code}/{resource}`，資源名詞複數、kebab-case；`/api/auth/*`、`/api/admin/*` 為 BFF 內建 |
-| 權限 / 路由代碼 | `{system}.{resource}.{action}`，例如 `mes.workorder.read` |
+| 權限 / 路由代碼 | `{system}.{resource}.{action}`，例如 `mes.workorder.read`；API 權限讀 / 寫分開。畫面節點（目錄 / 選單 / Tab / 按鈕）由前端應用 `gateway-rbac.yaml` 登記並以 `includes` 綁定 API，登記後以 GigaItApp「選單管理」為準（PRD §8.3.2、FRONTEND-GUIDE §7.5） |
 | 錯誤回應 | `{ code, message, requestId, details? }`；`code` 大寫蛇形，**新增代碼須先更新 PRD §8.1.1** |
 | 前端 | Vue 3 Composition API（`<script setup lang="ts">`）+ Vite + vue-router（History 模式）；HTTP 一律走 `@giganexus/web-kit` |
 | Nginx | 有 `add_header` 的 location 必須 `include snippets/security-headers.conf`；依部署區不同的值放 `templates/` 或 `allowlists/<區域>/` |
@@ -229,7 +229,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | --- | --- | --- | --- | --- |
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
 | `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(M1:前端已建立並發佈本機 Nginx;portal-api 規劃中) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
-| `GigaItApp` | IT 管理系統:BFF 視覺化、**各應用的應用 / 選單 / Tab / 按鈕權限設定**;端點管理經 BFF。目前自有登入(頂列已有應用切換),規劃改用單一入口(PRD v0.7) | `/it/`、`/it/api/*`(51291;規劃改為 `/api/it/*` 經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
+| `GigaItApp` | IT 管理系統:權限查詢(唯讀)、**選單管理**(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、**權限設定**(角色 / 部門 / 個人);端點管理經 BFF;單一入口(web-kit),也是畫面權限模型的範本 | `/it/`、`/api/it/*`(itapp-api 51291,經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
 | `RustIt` | 端點管理(Rust,2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server(Axum)、Agent 與 Watchdog(Windows 服務)、托盤程式;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/README.md`、`../RustIt/docs/PROJECT-MAP.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。

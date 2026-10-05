@@ -6,6 +6,7 @@
 - 每支 API 附 `description`(用途說明)與 `x-gherkin`(行為規格),自動註冊時寫入 `gw.api_route`
 - `GW_ENV=dev|test|prod`;test、prod 啟動時以 API Key 自動註冊為 Gateway 草稿(§7.5)
 - 共用功能來自 [`@giganexus/backend-sdk`](../../sdk/node)
+- 權限:只宣告 **API 權限**(`src/openapi.ts`,讀 / 寫分開);畫面上的選單 / Tab / 按鈕由前端應用登記並綁定這些 API 權限,授予畫面節點即一併取得(PRD §8.3.2、FRONTEND-GUIDE §7.5)
 
 ## 開始
 

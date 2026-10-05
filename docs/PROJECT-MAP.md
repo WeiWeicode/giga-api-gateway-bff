@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-02**(補齊未實作項目:`plugins/metrics.ts`(/metrics)、`plugins/docs.ts`(/docs);人員同步 `modules/auth/employee-sync.ts` + `workers/employee-sync.worker.ts`;舊帳號遷移 `modules/auth/legacy-cipher.ts`、`legacy-migration.ts`;管理 API `modules/admin/route-test.ts`、`roles.ts`、`api-clients.ts`、`access.ts`、`imports.ts`(+ `route-table.ts`)、`notify-admin.ts`、`audit-query.ts`、`employee-sync.ts`;收件匣 `modules/notify/inbox.ts`;告警 `workers/alert.ts`。2026-10-01:P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
+> **最後更新:2026-10-05**(畫面權限模型(PRD §8.3.2):選單目錄 `kind group`、圖示、畫面節點綁定 API `gw.permission_include`;部門 / 個人權限 `modules/admin/grants.ts` + `gw.dept_permission` / `gw.user_permission`、職級門檻 `modules/rbac/job-tiers.ts`;分階段開放公司 `modules/rbac/login-companies.ts`;web-kit 多層選單 `menu.ts` / `menu-tree.ts`、`/api/auth/me` 的 `menus`。2026-10-02:補齊未實作項目:`plugins/metrics.ts`(/metrics)、`plugins/docs.ts`(/docs);人員同步 `modules/auth/employee-sync.ts` + `workers/employee-sync.worker.ts`;舊帳號遷移 `modules/auth/legacy-cipher.ts`、`legacy-migration.ts`;管理 API `modules/admin/route-test.ts`、`roles.ts`、`api-clients.ts`、`access.ts`、`imports.ts`(+ `route-table.ts`)、`notify-admin.ts`、`audit-query.ts`、`employee-sync.ts`;收件匣 `modules/notify/inbox.ts`;告警 `workers/alert.ts`。2026-10-01:P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -29,9 +29,11 @@ giga-api-gateway-bff/
 │  │  ├─ modules/             功能模組(Fastify plugin)
 │  │  │  ├─ auth/             登入(AD / 本機)、工作階段、JWT 金鑰、API Key、人事資料、/api/auth/*;local-account(自行註冊、忘記 / 重設密碼);
 │  │  │  │                    employee-sync(人員同步,worker / CLI / 管理 API 共用);legacy-cipher、legacy-migration(舊單一入口遷移,預設關閉)
-│  │  │  ├─ rbac/             權限計算與快取(permission.ts:角色來源含指派規則、me.apps)、規則比對(rules.ts,純函式)、部門樹同步(department-sync.ts)
+│  │  │  ├─ rbac/             權限計算與快取(permission.ts:角色 ∪ 部門 / 個人權限 ∪ 畫面節點綁定的 API、me.apps / me.menus)、規則與部門權限比對(rules.ts,純函式)、
+│  │  │  │                    職級門檻(job-tiers.ts)、分階段開放公司(login-companies.ts)、部門樹同步(department-sync.ts)
 │  │  │  ├─ router/           動態路由:路由樹、快照、同步、限流 / 快取、上游呼叫
 │  │  │  ├─ admin/            管理 API:後端註冊、OpenAPI 匯入、權限設定(rbac.ts:權限樹、角色權限、指派規則、部門樹、應用、試算)、
+│  │  │  │                    部門 / 個人權限與職級門檻(grants.ts)、權限節點與綁定 API(roles.ts:/permissions、/permissions/:code/includes)、
 │  │  │  │                    路由設定(routing.ts:上游、路由、聚合步驟、限流政策;欄位檢查 routing-rules.ts 純函式)、發佈 / 回滾(releases.ts)、
 │  │  │  │                    使用者 / 公司 / 本機帳號(users.ts;本機帳號邏輯 local-account-admin.ts,CLI 共用)、
 │  │  │  │                    授權(authorize.ts:API Key 或登入者)、稽核寫入(audit-log.ts)、demo(DB 檢視、上手導覽);
@@ -49,7 +51,7 @@ giga-api-gateway-bff/
 │  ├─ scripts/                開發工具:SQL 2012 語法檢查、重設整合測試庫
 │  └─ test/                   測試(與 src 平行):unit/、integration/、e2e/、k6/(壓測腳本,W3-5.12)
 ├─ db/                        migrations/(Drizzle 產生、人工審查,不可修改已套用的)、seed/、dba/(交 DBA 以 sa 執行:唯讀帳號、BPM 授權、稽核表保存作業)
-├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)與 /api/auth/me
+├─ web-kit/src/               @giganexus/web-kit:前端 HTTP(CSRF、Token 更新)、/api/auth/me(nameOf / menuOf)、多層選單(menu.ts 純邏輯、menu-tree.ts useMenuTree / GnMenuTree)
 ├─ sdk/node/src/              @giganexus/backend-sdk:內部 Token 驗證、自動註冊、路由查詢 CLI
 ├─ samples/node-backend/      下游 Node.js 後端樣本(src/、test/、AGENT.md)
 ├─ deploy/                    Docker Compose(測試 / 正式)、env 範例、健康檢查、煙霧測試、gen-temp-pki.sh(測試區臨時憑證)
@@ -79,7 +81,7 @@ giga-api-gateway-bff/
 | 路由發佈 | CLI / 管理 API → `db/sync/release.ts`(SQL Server → Redis)→ 各 BFF `modules/router/sync.ts` 載入快照、原子替換路由樹 |
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
 | 通知 | 其他系統 `X-Api-Key` → `modules/notify/routes.ts` → `send.ts`(範本、收件人 × 通道、`gw.notify_log`)→ BullMQ `notify` → `workers/notify.worker.ts`(nodemailer / `gw.notify_message` + Redis `gw:notify:user:*` → `notify/ws.ts` 推播) |
-| 權限計算 | 登入 / Refresh / `me` / 權限試算 → `rbac/permission.ts`(`loadUserFacts` → `resolveRoles`:employee、AD 群組、公司、`rules.ts` 指派規則 + `gw.department` 樹、個別指派 → `permissionsOf` → `appsOf`) |
+| 權限計算 | 登入 / Refresh / `me` / 權限試算 → `rbac/permission.ts`(`loadUserFacts` → `resolveRoles`:employee、AD 群組、公司、`rules.ts` 指派規則 + `gw.department` 樹、個別指派 → `permissionsOf` ∪ `resolveDirectGrants`(部門 / 個人)→ `expandIncludes`(畫面節點綁定的 API)→ `appsOf` / `menusOf`) |
 | 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `OrganizationUnit` / `Organization` → `gw.department`,樹變更遞增全體 pv) |
 | 自行註冊 / 忘記密碼 | `modules/auth/routes.ts` → `local-account.ts`(AD 查詢、`profile.ts` 查 LOS / BPM、`gw.local_credential` / `local_account_token`)→ `app.notifier` 寄連結 |
 | Webhook | Nginx `portal.conf` `/webhook/`(IP 白名單)→ `modules/webhook/routes.ts`(驗簽 → 時間戳 → 去重 → `gw.webhook_log` → BullMQ `webhook`)→ `worker.ts` → `workers/webhook.worker.ts`(依 `dispatch_target` 處理) |
@@ -96,7 +98,7 @@ giga-api-gateway-bff/
 | Redis 鍵 | `docs/DATABASE.md` §6 先登記 |
 | 通知範本 / 系統範本 | CLI `apply` 的 `notifyTemplates:`;註冊與重設密碼的系統範本在 `db/seed/data.mts` `NOTIFY_TEMPLATES`(seed 只新增) |
 | 路由設定 / 發佈 API(W4 IT 管理介面) | `bff/src/modules/admin/routing.ts`(欄位檢查 `routing-rules.ts`)、`releases.ts`;發佈邏輯共用 `bff/src/db/sync/release.ts`(CLI `publish` / `rollback` 同一套) |
-| 權限設定 API(GigaItApp) | `bff/src/modules/admin/rbac.ts`;規則比對 `modules/rbac/rules.ts`;應用登記以 CLI `apply` 的 `apps:` |
+| 權限設定 API(GigaItApp) | `bff/src/modules/admin/rbac.ts`(角色權限、規則、試算)、`grants.ts`(部門 / 個人權限)、`roles.ts`(權限節點、綁定 API);規則比對 `modules/rbac/rules.ts`;畫面節點首次登記以各應用 `gateway-rbac.yaml`(CLI `apply`,`modules/admin/route-import.ts` 的 `ensurePermissions`) |
 | 本機帳號審核 / IT 重設 | 管理 API `bff/src/modules/admin/users.ts`;邏輯 `admin/local-account-admin.ts`(CLI `local:approve`、`local:reset`、`local:unlock`、`local:disable`、`local:create` 共用) |
 | 使用者 / 公司管理 API | `bff/src/modules/admin/users.ts` |
 | Webhook 來源 / 事件處理 | 端點以 CLI `apply` 的 `webhooks:`;處理程序登記在 `bff/src/workers/webhook.worker.ts`;簽章規格 `docs/BACKEND-GUIDE.md` §7.6 |

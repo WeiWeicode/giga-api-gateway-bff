@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.6(2026-10-05,§6.1 `x-permissions` 只宣告 API 權限,畫面節點由前端應用登記並以 `includes` 綁定;API 權限要切得出讀 / 寫);v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -223,7 +223,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | 根 | `x-gateway.upstream` | ✅ | `upstream_id` | 服務代碼(§3.3),同時是內部 Token 的 `aud` |
 | 根 | `x-gateway.system` | ✅ | `system_code` | 系統代碼,決定對外前綴 `/api/{system}` |
 | 根 | `x-gateway.project` | 建議 | `gw.upstream.project` | **開發專案**:實作本服務的 repo 資料夾名稱(Gateway `AGENT.md` §10.2,英數與 `. _ -`,100 字內);管理介面與路由查詢據此顯示「由哪個專案開發」。未提供時保留既有值。**Node.js SDK 由 `package.json` 的 `gateway.project` 自動寫入**(§7.5);其他語言自行實作註冊時也必須帶入 |
-| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務用到的權限代碼與中文名稱;匯入時不存在者一併建立。**有畫面的應用**另宣告 `kind`(`app` / `menu` / `tab` / `button`,省略 = `api`)、`parent`(上層權限代碼)、`sort`,供 IT 在 GigaItApp 以「應用 → 選單 → Tab → 按鈕」設定(PRD §8.3.2;2026-10-01 已實作:格式錯誤列為 `IMPORT_HAS_ERRORS`,既有權限的名稱不覆寫;`kind` / `parent` / `sort` 只在尚未設定過〔`kind = api`、無上層、無排序〕時補上 — 2026-10-05 起登記後以 GigaItApp「選單管理」為準);按鈕的代碼必須等於它呼叫的寫入 API 的 `x-permission` |
+| 根 | `x-permissions` | ✅ | `gw.permission` | 本服務的 **API 權限**代碼與中文名稱(`kind` 省略 = `api`);匯入時不存在者一併建立,既有權限的名稱不覆寫。畫面節點(目錄 / 選單 / Tab / 按鈕)由**前端應用**的 `deploy/gateway-rbac.yaml` 登記並以 `includes` 綁定本服務的 API 權限(FRONTEND-GUIDE §7.5、PRD §8.3.2);若本服務也負責登記畫面節點,可同樣宣告 `kind`(`app` / `group` / `menu` / `tab` / `button`)、`parent`、`sort`、`icon`、`includes`——**只做首次登記**,之後以 GigaItApp「選單管理」為準(2026-10-05)。格式錯誤列為 `IMPORT_HAS_ERRORS` |
 | operation | `operationId` | ✅ | `route_code` | 全域唯一,格式 `{system}.{resource}.{action}`,例 `mes.workorder.get` |
 | operation | `summary` | ✅ | `name` | 中文名稱,顯示於管理介面 |
 | operation | `description` | 建議 | `description` | **API 用途說明**(1000 字內):做什麼、資料範圍、主要錯誤代碼;路由查詢(§7.5)以此比對關鍵字 |
@@ -237,7 +237,8 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | operation | `x-audit-level` | 選用 | `audit_level` | `none` / `meta` / `body`;敏感 API(薪資、個資)至少 `meta` |
 | operation | `x-rate-limit` | 選用 | `rate_limit_policy_id` | 限流政策代碼(例 `report-heavy`),未填用預設 |
 
-- 權限代碼格式 `{system}.{resource}.{action}`(PRD §8.3);`action` 常用 `read`、`write`、`approve`、`export`。
+- 權限代碼格式 `{system}.{resource}.{action}`(PRD §8.3);`action` 常用 `read`、`write`、`approve`、`export`。讀取用 `.read` 結尾:選單只能綁定 `.read` 的 API 權限(寫入由按鈕綁定)。
+- **API 權限要切得出讀 / 寫**:同一個權限同時管查詢與修改時(例 `gw.admin.release`),只能綁在 Tab / 按鈕上,無法讓「只能看」的人進入頁面。
 - **沒有 `x-permission` 的 operation 匯入時列為錯誤**,不會自動視為公開。
 - `description` 超過 1000 字、`x-gherkin` 不是文字時列為錯誤;兩者不影響路由轉送,只供管理介面與路由查詢使用。以 Node.js 樣本(§7.5)開發時,`npm test` 會檢查兩者必填。
 
@@ -257,10 +258,10 @@ x-permissions:
     name: 工單查詢
   - code: mes.workorder.report
     name: 報工
-# 有畫面的應用(例:員工入口網)另宣告 kind / parent / sort(PRD §8.3.2):
-#  - { code: portal.app.access, name: 員工入口網, kind: app }
-#  - { code: portal.leave.read, name: 我的假期, kind: menu, parent: portal.app.access, sort: 20 }
-#  - { code: portal.leave.apply, name: 請假申請, kind: button, parent: portal.leave.read }
+# 後端服務只宣告 API 權限(上面兩筆)。畫面節點通常由前端應用的 deploy/gateway-rbac.yaml 登記並綁定這些 API(FRONTEND-GUIDE §7.5):
+#  - { code: mes.workorder-page.read, name: 工單, kind: menu, parent: mes.group.production, includes: [mes.workorder.read] }
+#  - { code: mes.workorder-page.report, name: 報工, kind: button, parent: mes.workorder-page.read, includes: [mes.workorder.report] }
+# 授予「報工」按鈕即一併取得 mes.workorder.report;BFF 仍以 API 權限(x-permission)檢查
 paths:
   /v1/work-orders/{id}:          # 對外:/api/mes/work-orders/{id}
     get:
