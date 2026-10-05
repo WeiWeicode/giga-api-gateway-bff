@@ -9,7 +9,7 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.11**(2026-10-02) |
+| 文件版本 | **v0.12**(2026-10-05) |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / WebSocket / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
@@ -32,6 +32,7 @@
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
 | v0.11 | 2026-10-02 | 補齊未實作項目(2026-10-02 測試區完成,E2E 01–09 通過):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
 | v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
+| v0.12 | 2026-10-05 | ① **部門權限與個人權限**(需求方決定):選單 / Tab / 按鈕權限可直接授予部門(含下層、依職級門檻)與個人(預設永久,可設到期日),不必建角色或規則;有效權限 = 角色權限 ∪ 部門權限 ∪ 個人權限(§8.3.4、§8.7,DATABASE `gw.dept_permission`、`gw.user_permission`);GigaItApp「角色與按鈕權限」新增「部門權限」「個人權限」Tab;② **職級門檻**:全員 / 課級以上(職級 ≤ 7)/ 理級以上(≤ 6)/ 處級以上(≤ 4),數字越小職位越高(Q29 決定);③ **分階段開放公司** `LOGIN_COMPANIES`(先開放碩禾、禾迅;新增錯誤代碼 `COMPANY_NOT_OPEN`);④ 選單層數不限(`parent_code` 串接),目錄層不設權限 |
 
 ---
 
@@ -537,6 +538,8 @@ flowchart LR
     USER["使用者 gw.user"] -->|"gw.user_role(個別指派,可設到期日)"| ROLE
     USER -.->|登入時同步| ADG
     ROLE -->|gw.role_permission| PERM["權限 gw.permission<br/>mes.workorder.read"]
+    DEPT["部門 gw.department<br/>(含下層、職級門檻)"] -->|"gw.dept_permission(v0.12)"| PERM
+    USER -->|"gw.user_permission(v0.12,預設永久)"| PERM
     PERM -->|gw.api_route.permission_code| API["API 路由 gw.api_route"]
 ```
 
@@ -566,6 +569,28 @@ flowchart LR
 - `menu` / `tab` / `button` 以 `parent_code` 掛到上層(應用 → 選單 → Tab → 按鈕),`sort` 決定設定畫面的順序;GigaItApp 以樹狀呈現與設定。
 - 定義來源:各應用在 OpenAPI 根層 `x-permissions` 宣告 `kind`、`parent`、`sort`(BACKEND-GUIDE §6.1),經匯入 / 自動註冊寫入;選單的圖示、路徑、顯示名稱仍在各應用前端(路由 meta),以權限代碼對應。
 - 未宣告 `kind` 的既有權限視為 `api`(相容)。
+
+#### 8.3.4 部門權限與個人權限(v0.12)
+
+需求方 2026-10-05 決定:每次都要新增角色或規則步驟太多,且規則要點進角色才看得到;改為**選單 / Tab / 按鈕權限可直接授予部門與個人**。角色與指派規則照舊保留(跨部門的身分,如 IT 管理員)。
+
+- **有效權限 = 角色權限 ∪ 部門權限 ∪ 個人權限**,三者取聯集;第一版沒有「拒絕 / 排除」。權限試算、有效權限、誰能存取一併列出部門與個人來源。
+- **部門權限**(`gw.dept_permission`):部門 × 權限 × **職級門檻**。預設**含下層部門**(部門的設定,套用到該部門所有應用的權限);下層部門顯示自上層繼承的權限,不能取消。比對對象為使用者所有所屬部門(`gw.user_company`,含兼任);沒有部門資料者不取得部門權限。
+- **職級門檻**(BFF 常數,`GET /api/admin/job-tiers`):`gw.user.job_level`(BPM `FunctionLevel.levelValue`)數字越小職位越高,「以上」= 職級 ≤ 門檻。
+
+  | 代碼 | 名稱 | 條件 |
+  | --- | --- | --- |
+  | `all` | 全員(一般人員) | 不看職級(一般人員實際為 8、9,另有職級空白者) |
+  | `section` | 課級以上 | 職級 ≤ 7 |
+  | `manager` | 理級以上 | 職級 ≤ 6 |
+  | `division` | 處級以上 | 職級 ≤ 4 |
+
+  門檻值以碩禾 / 禾迅為準(0 董事長、2 總經理、3 副總、4 處長、6 經理 / 副理、7 課長 / 副課長);職級空白或非數字者只符合「全員」。其他公司職級尺度不同(如 12、16),開放前需再確認。少數職稱與職級不一致者(如職稱「處長」職級 8)依職級數字判斷。
+- **個人權限**(`gw.user_permission`):預設**永久**,可設到期日(當天結束前有效);用於例外。
+- **上下層**:儲存時自動補上層(部門:同職級門檻;個人:到期日取下層最晚者);畫面上取消上層會一併取消下層。避免「有按鈕權限、卻看不到那一頁」。
+- **層數**:權限樹以 `parent_code` 串接,層數不限(應用 → 選單 → … → Tab → 按鈕);**權限掛在實際頁面**,中間的目錄層不設權限,底下有任一頁可見即顯示。各應用的側邊選單自行決定顯示層數(GigaItApp 為兩層)。
+- **清單由程式定義**:選單 / Tab / 按鈕的權限清單由各應用的 `gateway-rbac.yaml` / OpenAPI `x-permissions` 登記,畫面只負責「給誰」。
+- **權限版本**:部門權限變更遞增全體使用者 `perm_version`;個人權限只遞增該使用者。寫入與 `gw.audit_log` 同一交易;防止提權:新增或移除的權限須是操作人本身具備的。
 
 #### 8.3.3 應用登記與應用切換(v0.7)
 
@@ -684,8 +709,9 @@ sequenceDiagram
 | 權限 / 角色 | `/api/admin/permissions`(`?tree=1&app=`:依 `kind` / `parent_code` 回傳權限樹;`POST` 新增、`PATCH/DELETE /:code`)、`/api/admin/roles`(`POST` 新增、`PATCH/DELETE /:id`,內建角色不可刪)、`/api/admin/roles/:id/permissions`、`GET/PUT /api/admin/roles/:id/ad-groups`(DN 清單整組取代) | `gw.admin.rbac.*` |
 | 指派規則(v0.7) | `GET/POST/PATCH/DELETE /api/admin/roles/:id/rules[/:ruleId]`(`:id` 可為角色 id 或代碼);body `{ companyId, deptCode, includeSubDepts, jobLevels[], title, description, isEnabled }`,至少一個條件、部門代碼須存在於部門樹或人事資料;寫入後遞增所有使用者 `pv`。`PUT /api/admin/roles/:id/permissions` 取代角色權限(`gw-super-admin` 不開放修改) | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
 | 部門樹(v0.7) | `GET /api/admin/departments`(公司 → 部門樹,含人數) | `gw.admin.rbac.read` |
+| 部門 / 個人權限(v0.12) | `GET /api/admin/job-tiers`;`GET /api/admin/dept-permissions?app=`(各部門直接設定數)、`GET/PUT /api/admin/dept-permissions/:deptCode`(`?app=`;PUT `{ app, includeSubDepts, grants: [{ code, jobTier }] }`,回傳含 `inherited`);`GET/PUT /api/admin/user-permissions/:id`(`?app=`;PUT `{ app, grants: [{ code, validTo?, reason? }] }`)。皆取代**該應用權限樹內**的設定,自動補上層(§8.3.4) | 讀 `gw.admin.rbac.read`、寫 `gw.admin.rbac.write` |
 | 應用(v0.7) | `GET /api/admin/apps`(維護以 CLI `apply`) | `gw.admin.rbac.read` |
-| 權限試算(v0.7) | `POST /api/admin/rbac/preview`:`{ employeeNo }` 或 `{ company, deptCode, jobLevel, title }` → 角色(`sources`:`default` / `ad_group` / `company` / `rule` / `user`,`ruleIds`)、權限、`apps`;與實際登入計算為同一函式(假設條件不含 AD 群組與個別指派) | `gw.admin.rbac.read` |
+| 權限試算(v0.7) | `POST /api/admin/rbac/preview`:`{ employeeNo }` 或 `{ company, deptCode, jobLevel, title }` → 角色(`sources`:`default` / `ad_group` / `company` / `rule` / `user`,`ruleIds`)、`directGrants`(v0.12 部門 / 個人)、權限、`apps`;與實際登入計算為同一函式(假設條件不含 AD 群組與個別指派) | `gw.admin.rbac.read` |
 | 使用者 | `GET /api/admin/users`、`PATCH /api/admin/users/:id`(停用、個別角色)、`POST /api/admin/users/:id/revoke-sessions` | `gw.admin.user.*` |
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
@@ -857,7 +883,7 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 | Q26 | Windows 主機上的 Gateway 以哪種方式執行,Nginx 才能取得真實來源 IP(§14.1) | **已解決(2026-10-01)**:WSL2 Docker Engine 不變,Windows 上以 Traefik 做 L4 轉送(取代 `netsh portproxy`),以 PROXY protocol 帶入來源 IP、Nginx realip 取出([DEPLOYMENT.md](DEPLOYMENT.md) §6.1);主機 2 已驗證,主機 3 於 2026-12 改用 Docker Engine 時採用相同做法 | 需求方 |
 | Q27 | IT 管理系統(GigaItApp,v0.7 前為自有登入)的端點管理功能以哪邊的權限為準 | **已決定**:以 **BFF** 為準。端點 API 經 `/api/endpoint/*` → BFF(`endpoint.*` 權限、內部 Token 帶操作人工號)→ Endpoint Server(RustIt);itapp-api(Node.js)只負責 IT 應用本身的選單、Tab、按鈕顯示權限,不轉送端點 API。Rust 與 Node.js 兩個後端並行([ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) §8) | 提案人 |
 | Q28 | 員工入口網的選單 / Tab / 按鈕權限如何依部門、職位控管 | **已決定(2026-09-26)**:以 BFF 為唯一來源;新增角色指派規則,**職位以職級為主**、職稱選配,**部門含下層**;按鈕權限 = API 權限;GigaItApp 提供設定畫面並改用單一入口(§8.3.1–§8.3.3) | 需求方 |
-| Q29 | 職級值的比較方式:規則列出職級清單,或以數值範圍(「課長以上」)表示 | 第一版列出清單;待 BPM 負責人確認 `FunctionLevel.levelValue` 大小與職位高低的對應後再評估範圍條件 | BPM 負責人 + IT |
+| Q29 | 職級值的比較方式:規則列出職級清單,或以數值範圍(「課長以上」)表示 | **已決定(2026-10-05)**:部門權限以**職級門檻**表示(全員 / 課級 ≤ 7 / 理級 ≤ 6 / 處級 ≤ 4,數字越小職位越高,§8.3.4);指派規則維持列出職級清單。職稱與職級不一致者依數字判斷,不另找人事確認 | 需求方 |
 
 ---
 
@@ -869,4 +895,4 @@ SQL Server `gw` schema 與 Redis 鍵設計詳見 **[DATABASE.md](DATABASE.md)**:
 
 ---
 
-*本文件 v0.11(2026-10-02);待決事項 Q6(待 W3-5 壓測結果)、Q25、Q29。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*
+*本文件 v0.12(2026-10-05);待決事項 Q6(待 W3-5 壓測結果)、Q25。實作計畫見 [IMPL-PLAN.md](IMPL-PLAN.md),時程見 NexusPlan 甘特圖。*

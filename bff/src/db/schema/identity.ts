@@ -272,6 +272,48 @@ export const department = gw.table(
   (t) => [index('ix_department_parent').on(t.parentDeptCode)],
 );
 
+/**
+ * 部門權限(v0.12):直接授予部門的選單 / Tab / 按鈕權限,不經角色。
+ * job_tier = 職級門檻代碼(all / section / manager / division,對照 rbac/job-tiers.ts);include_sub_depts 含下層部門。
+ */
+export const deptPermission = gw.table(
+  'dept_permission',
+  {
+    deptCode: varchar('dept_code', { length: 30 })
+      .notNull()
+      .references(() => department.deptCode),
+    permissionId: int('permission_id')
+      .notNull()
+      .references(() => permission.permissionId),
+    jobTier: varchar('job_tier', { length: 20 }).notNull(),
+    includeSubDepts: bit('include_sub_depts').notNull().default(true),
+    createdAt: createdAt(),
+    createdBy: nvarchar('created_by', { length: 64 }).notNull(),
+  },
+  (t) => [
+    primaryKey({ name: 'pk_dept_permission', columns: [t.deptCode, t.permissionId, t.jobTier] }),
+    index('ix_dept_permission_permission').on(t.permissionId),
+  ],
+);
+
+/** 個人權限(v0.12):直接授予個人的權限;valid_to NULL = 永久 */
+export const userPermission = gw.table(
+  'user_permission',
+  {
+    userId: int('user_id')
+      .notNull()
+      .references(() => user.userId),
+    permissionId: int('permission_id')
+      .notNull()
+      .references(() => permission.permissionId),
+    validTo: datetime2('valid_to', { precision: 3 }),
+    reason: nvarchar('reason', { length: 200 }),
+    createdAt: createdAt(),
+    createdBy: nvarchar('created_by', { length: 64 }).notNull(),
+  },
+  (t) => [primaryKey({ name: 'pk_user_permission', columns: [t.userId, t.permissionId] }), index('ix_user_permission_permission').on(t.permissionId)],
+);
+
 /** 角色指派規則:同一規則內 AND、NULL = 不限;同一角色多條規則 OR */
 export const roleRule = gw.table(
   'role_rule',

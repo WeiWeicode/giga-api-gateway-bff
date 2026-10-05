@@ -2,7 +2,7 @@
  * 存取反查(PRD §8.7、P2-6):權限 gw.admin.rbac.read。
  *
  *   GET /api/admin/routes/:id/who-can-access         某條路由誰能呼叫:依 auth_mode,列出具備其權限的角色與角色來源(所有登入者、AD 群組、
- *                                                     公司預設、指派規則、個別指派)及具備該權限的 API Key
+ *                                                     公司預設、指派規則、個別指派)、直接授予的部門 / 個人(v0.12)及具備該權限的 API Key
  *   GET /api/admin/users/:id/effective-permissions    使用者的有效角色(含來源與命中規則)、權限(含授予的角色)、應用;與登入計算同一函式
  *   GET /api/admin/permissions/:code/who-can-access   同上,以權限代碼查詢(選單 / 按鈕權限沒有對應路由時使用)
  */
@@ -13,6 +13,8 @@ import {
   apiClientPermission,
   apiRoute,
   company,
+  department,
+  deptPermission,
   permission,
   role,
   roleAdGroup,
@@ -20,11 +22,12 @@ import {
   rolePermission,
   roleRule,
   user,
+  userPermission,
   userRole,
 } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
-import { appsOf, DEFAULT_ROLE, loadUserFacts, resolveRoles } from '../rbac/permission.js';
+import { appsOf, DEFAULT_ROLE, loadUserFacts, resolveDirectGrants, resolveRoles } from '../rbac/permission.js';
 import { parseJobLevels } from '../rbac/rules.js';
 import { createAuthorizer } from './authorize.js';
 
@@ -36,7 +39,7 @@ const access: FastifyPluginAsync = async (app) => {
   /** 具備某權限的角色與其來源,以及具備該權限的 API Key */
   async function whoHas(code: string) {
     const [perm] = await app.db.select().from(permission).where(eq(permission.code, code));
-    if (!perm) return { permission: code, exists: false, roles: [], apiClients: [] };
+    if (!perm) return { permission: code, exists: false, roles: [], direct: { departments: [], users: [] }, apiClients: [] };
     const roles = await app.db
       .select({ id: role.roleId, code: role.code, name: role.name })
       .from(rolePermission)
@@ -45,7 +48,7 @@ const access: FastifyPluginAsync = async (app) => {
       .orderBy(asc(role.code));
     const ids = roles.map((r) => r.id);
     const now = new Date();
-    const [groups, companies, rules, users, clients] = await Promise.all([
+    const [groups, companies, rules, users, clients, deptGrants, userGrants] = await Promise.all([
       ids.length ? app.db.select({ roleId: roleAdGroup.roleId, dn: roleAdGroup.adGroupDn }).from(roleAdGroup).where(inArray(roleAdGroup.roleId, ids)) : [],
       ids.length
         ? app.db
@@ -73,6 +76,18 @@ const access: FastifyPluginAsync = async (app) => {
         .innerJoin(apiClient, eq(apiClient.clientId, apiClientPermission.clientId))
         .where(eq(apiClientPermission.permissionId, perm.permissionId))
         .orderBy(asc(apiClient.code)),
+      app.db
+        .select({ deptCode: deptPermission.deptCode, name: department.name, jobTier: deptPermission.jobTier, includeSubDepts: deptPermission.includeSubDepts })
+        .from(deptPermission)
+        .innerJoin(department, eq(department.deptCode, deptPermission.deptCode))
+        .where(eq(deptPermission.permissionId, perm.permissionId))
+        .orderBy(asc(deptPermission.deptCode)),
+      app.db
+        .select({ employeeNo: user.employeeNo, name: user.displayName, validTo: userPermission.validTo, reason: userPermission.reason })
+        .from(userPermission)
+        .innerJoin(user, eq(user.userId, userPermission.userId))
+        .where(and(eq(userPermission.permissionId, perm.permissionId), or(isNull(userPermission.validTo), gt(userPermission.validTo, now))))
+        .orderBy(asc(user.employeeNo)),
     ]);
     const companyNames = new Map((await app.db.select({ id: company.companyId, name: company.compName }).from(company)).map((c) => [c.id, c.name]));
     return {
@@ -100,6 +115,8 @@ const access: FastifyPluginAsync = async (app) => {
           })),
         users: users.filter((u) => u.roleId === r.id).map(({ roleId: _, ...u }) => u),
       })),
+      // 直接授予(v0.12)
+      direct: { departments: deptGrants, users: userGrants },
       apiClients: clients.map((c) => ({ ...c, active: c.isEnabled && (!c.expiresAt || c.expiresAt > now) })),
     };
   }
@@ -173,11 +190,35 @@ const access: FastifyPluginAsync = async (app) => {
             )
         : [];
       const roleCode = new Map(roles.map((r) => [r.roleId, r.code]));
-      const byCode = new Map<string, { code: string; name: string; kind: string; grantedBy: string[] }>();
+      type Entry = {
+        code: string;
+        name: string;
+        kind: string;
+        grantedBy: string[];
+        /** 直接授予的部門(v0.12) */
+        depts: { deptCode: string; jobTier: string; includeSubDepts: boolean }[];
+        /** 個人權限(v0.12) */
+        personal: { validTo: Date | null; reason: string | null } | null;
+      };
+      const byCode = new Map<string, Entry>();
       for (const g of grants) {
-        const cur = byCode.get(g.code) ?? { code: g.code, name: g.name, kind: g.kind, grantedBy: [] };
+        const cur = byCode.get(g.code) ?? { code: g.code, name: g.name, kind: g.kind, grantedBy: [], depts: [], personal: null };
         cur.grantedBy.push(roleCode.get(g.roleId)!);
         byCode.set(g.code, cur);
+      }
+      const direct = await resolveDirectGrants(app.db, facts);
+      const missing = [...new Set(direct.map((d) => d.code))].filter((c) => !byCode.has(c));
+      if (missing.length)
+        for (const p of await app.db
+          .select({ code: permission.code, name: permission.name, kind: permission.kind })
+          .from(permission)
+          .where(inArray(permission.code, missing)))
+          byCode.set(p.code, { ...p, grantedBy: [], depts: [], personal: null });
+      for (const d of direct) {
+        const cur = byCode.get(d.code);
+        if (!cur) continue;
+        if (d.source === 'dept') cur.depts.push({ deptCode: d.deptCode, jobTier: d.jobTier, includeSubDepts: d.includeSubDepts });
+        else cur.personal = { validTo: d.validTo, reason: d.reason };
       }
       const permissions = [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
       return {

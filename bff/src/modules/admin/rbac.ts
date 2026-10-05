@@ -36,7 +36,7 @@ import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
 import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
 import { openCompanyIds } from '../rbac/login-companies.js';
-import { appsOf, bumpAllPermVersions, loadUserFacts, permissionsOf, resolveRoles, type AuthzFacts } from '../rbac/permission.js';
+import { appsOf, bumpAllPermVersions, effectivePermissions, loadUserFacts, resolveDirectGrants, resolveRoles, type AuthzFacts } from '../rbac/permission.js';
 import { hasCondition, parseJobLevels } from '../rbac/rules.js';
 import { audit } from './route-import.js';
 
@@ -466,13 +466,19 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
         subject = { company: b.company ?? null, deptCode: b.deptCode ?? null, jobLevel: b.jobLevel ?? null, title: b.title ?? null };
       }
       const roles = await resolveRoles(app.db, facts);
-      const permissions = await permissionsOf(
-        app.db,
-        roles.map((r) => r.roleId),
-      );
+      const [permissions, direct] = await Promise.all([
+        effectivePermissions(
+          app.db,
+          roles.map((r) => r.roleId),
+          facts,
+        ),
+        resolveDirectGrants(app.db, facts),
+      ]);
       return {
         subject,
         roles: roles.map((r) => ({ code: r.code, sources: r.sources, ruleIds: r.ruleIds })),
+        // 直接授予的部門 / 個人權限(v0.12)
+        directGrants: direct,
         permissions,
         apps: await appsOf(app.db, permissions),
       };

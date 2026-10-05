@@ -2,6 +2,7 @@
  * 權限計算與快取(PRD §8.3、DATABASE.md §7.2)。
  *
  * 角色來源:employee(所有登入者)+ AD 群組對應 + 公司預設角色(含兼任公司)+ 指派規則(v0.7)+ 個別指派(有效期間內)。
+ * 有效權限 = 角色權限 ∪ 部門權限(含下層、職級門檻)∪ 個人權限(有效期間內)(v0.12,直接授予、不經角色)。
  * 快取:gw:perm:{userId}:{pv}(Set,15 分);權限版本 pv 變更時鍵名自然換新,舊鍵自然過期。
  * 目前 pv:gw:pv:{userId}(15 分)cache-aside,變更者提交後刪除此鍵。
  * Redis 不可用時退回資料庫查詢(PRD §12 降級)。
@@ -16,6 +17,7 @@ import {
   app,
   company,
   department,
+  deptPermission,
   permission,
   role,
   roleAdGroup,
@@ -24,9 +26,10 @@ import {
   roleRule,
   user,
   userCompany,
+  userPermission,
   userRole,
 } from '../../db/schema/index.js';
-import { DeptTree, matchRules, parseJobLevels, type RuleDef, type UserFacts } from './rules.js';
+import { DeptTree, matchDeptGrants, matchRules, parseJobLevels, type RuleDef, type UserFacts } from './rules.js';
 
 export const DEFAULT_ROLE = 'employee';
 const PERM_TTL_SEC = 15 * 60;
@@ -147,9 +150,7 @@ export async function resolveRoles(db: GwDatabase, facts: AuthzFacts, now = new 
     .innerJoin(role, eq(role.roleId, roleRule.roleId))
     .where(eq(roleRule.isEnabled, true));
   if (ruleRows.length) {
-    const tree = new DeptTree(
-      await db.select({ deptCode: department.deptCode, parentDeptCode: department.parentDeptCode }).from(department).where(eq(department.isEnabled, true)),
-    );
+    const tree = await loadDeptTree(db);
     const defs: RuleDef[] = ruleRows.map(({ rule: r }) => ({
       ruleId: r.ruleId,
       roleId: r.roleId,
@@ -176,6 +177,49 @@ export async function resolveRoles(db: GwDatabase, facts: AuthzFacts, now = new 
   return [...roles.values()].sort((a, b) => a.code.localeCompare(b.code));
 }
 
+export async function loadDeptTree(db: GwDatabase): Promise<DeptTree> {
+  return new DeptTree(
+    await db.select({ deptCode: department.deptCode, parentDeptCode: department.parentDeptCode }).from(department).where(eq(department.isEnabled, true)),
+  );
+}
+
+/** 直接授予的權限(部門 / 個人,v0.12);同一權限可能有多個來源 */
+export type DirectGrant =
+  | { code: string; source: 'dept'; deptCode: string; jobTier: string; includeSubDepts: boolean }
+  | { code: string; source: 'user'; validTo: Date | null; reason: string | null };
+
+export async function resolveDirectGrants(db: GwDatabase, facts: AuthzFacts, now = new Date()): Promise<DirectGrant[]> {
+  const out: DirectGrant[] = [];
+  const deptRows = await db
+    .select({
+      deptCode: deptPermission.deptCode,
+      permissionCode: permission.code,
+      jobTier: deptPermission.jobTier,
+      includeSubDepts: deptPermission.includeSubDepts,
+    })
+    .from(deptPermission)
+    .innerJoin(permission, eq(permission.permissionId, deptPermission.permissionId));
+  if (deptRows.length) {
+    for (const g of matchDeptGrants(deptRows, facts, await loadDeptTree(db)))
+      out.push({ code: g.permissionCode, source: 'dept', deptCode: g.deptCode, jobTier: g.jobTier, includeSubDepts: g.includeSubDepts });
+  }
+  if (facts.userId !== null) {
+    const rows = await db
+      .select({ code: permission.code, validTo: userPermission.validTo, reason: userPermission.reason })
+      .from(userPermission)
+      .innerJoin(permission, eq(permission.permissionId, userPermission.permissionId))
+      .where(and(eq(userPermission.userId, facts.userId), or(isNull(userPermission.validTo), gt(userPermission.validTo, now))));
+    for (const r of rows) out.push({ code: r.code, source: 'user', validTo: r.validTo, reason: r.reason });
+  }
+  return out;
+}
+
+/** 角色權限 ∪ 直接授予的權限 */
+export async function effectivePermissions(db: GwDatabase, roleIds: number[], facts: AuthzFacts, now = new Date()): Promise<string[]> {
+  const [fromRoles, direct] = await Promise.all([permissionsOf(db, roleIds), resolveDirectGrants(db, facts, now)]);
+  return [...new Set([...fromRoles, ...direct.map((d) => d.code)])].sort();
+}
+
 export async function permissionsOf(db: GwDatabase, roleIds: number[]): Promise<string[]> {
   if (!roleIds.length) return [];
   const rows = await db
@@ -198,9 +242,11 @@ export async function appsOf(db: GwDatabase, permissions: string[]): Promise<App
 export async function computeAuthz(db: GwDatabase, userId: number, now = new Date()): Promise<UserAuthz> {
   const { pv, isDisabled, companyNames, facts } = await loadUserFacts(db, userId);
   const roles = await resolveRoles(db, facts, now);
-  const permissions = await permissionsOf(
+  const permissions = await effectivePermissions(
     db,
     roles.map((r) => r.roleId),
+    facts,
+    now,
   );
   return {
     userId,

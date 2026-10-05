@@ -9,7 +9,7 @@
  *   PUT    /api/admin/roles/:role/ad-groups        取代 AD 群組對應(群組 DN 清單)
  *   POST   /api/admin/permissions                  新增權限(畫面權限 kind / parent / sort;API 權限多由 OpenAPI x-permissions 匯入)
  *   PATCH  /api/admin/permissions/:code            修改名稱、說明、kind、上層、排序(需 rowVer)
- *   DELETE /api/admin/permissions/:code?rowVer=    刪除權限(gw.admin.* 不可刪;仍被路由、聚合步驟、應用或下層權限使用時拒絕)
+ *   DELETE /api/admin/permissions/:code?rowVer=    刪除權限(gw.admin.* 不可刪;仍被路由、聚合步驟、應用或下層權限使用時拒絕;一併移除部門 / 個人權限)
  *
  * - :role 為角色代碼或 role_id。寫入與 gw.audit_log 同一交易。
  * - 影響使用者權限的變更(刪除角色、AD 群組對應、刪除已授予的權限)遞增全體 perm_version,提交後清除 pv 快取(DATABASE.md §7.2)。
@@ -23,6 +23,7 @@ import {
   apiClient,
   apiClientPermission,
   apiRoute,
+  deptPermission,
   app as appTable,
   permission,
   role,
@@ -32,6 +33,7 @@ import {
   roleRule,
   rowVerFromHex,
   rowVerToHex,
+  userPermission,
   userRole,
 } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
@@ -408,7 +410,7 @@ const roles: FastifyPluginAsync = async (app) => {
       ];
       if (uses.length) throw new GwError('VALIDATION_FAILED', '權限仍被使用,請先移除參照', uses);
 
-      const [grants, clients] = await Promise.all([
+      const [grants, clients, deptGrants, userGrants] = await Promise.all([
         app.db
           .select({ code: role.code })
           .from(rolePermission)
@@ -419,8 +421,13 @@ const roles: FastifyPluginAsync = async (app) => {
           .from(apiClientPermission)
           .innerJoin(apiClient, eq(apiClient.clientId, apiClientPermission.clientId))
           .where(eq(apiClientPermission.permissionId, cur.permissionId)),
+        app.db
+          .select({ deptCode: deptPermission.deptCode, jobTier: deptPermission.jobTier })
+          .from(deptPermission)
+          .where(eq(deptPermission.permissionId, cur.permissionId)),
+        app.db.select({ userId: userPermission.userId }).from(userPermission).where(eq(userPermission.permissionId, cur.permissionId)),
       ]);
-      await write(actor, grants.length > 0, async (tx) => {
+      await write(actor, grants.length + deptGrants.length + userGrants.length > 0, async (tx) => {
         const [still] = await tx
           .select({ id: permission.permissionId })
           .from(permission)
@@ -428,6 +435,8 @@ const roles: FastifyPluginAsync = async (app) => {
         if (!still) throw new GwError('VERSION_CONFLICT');
         await tx.delete(rolePermission).where(eq(rolePermission.permissionId, cur.permissionId));
         await tx.delete(apiClientPermission).where(eq(apiClientPermission.permissionId, cur.permissionId));
+        await tx.delete(deptPermission).where(eq(deptPermission.permissionId, cur.permissionId));
+        await tx.delete(userPermission).where(eq(userPermission.permissionId, cur.permissionId));
         await tx.delete(permission).where(eq(permission.permissionId, cur.permissionId));
         await writeAudit(
           tx,
@@ -435,7 +444,13 @@ const roles: FastifyPluginAsync = async (app) => {
           'permission.delete',
           'permission',
           cur.code,
-          { ...permOut(cur), roles: grants.map((g) => g.code), apiClients: clients.map((c) => c.code) },
+          {
+            ...permOut(cur),
+            roles: grants.map((g) => g.code),
+            apiClients: clients.map((c) => c.code),
+            departments: deptGrants,
+            users: userGrants.map((u) => u.userId),
+          },
           null,
         );
       });

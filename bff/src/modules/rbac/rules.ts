@@ -6,6 +6,8 @@
  *   部門預設含下層(部門樹 gw.department)。
  */
 
+import { tierMatches } from './job-tiers.js';
+
 export interface RuleDef {
   ruleId: number;
   roleId: number;
@@ -87,4 +89,26 @@ export function matchRules(rules: RuleDef[], facts: UserFacts, tree: DeptTree): 
     out.set(r.roleId, [...(out.get(r.roleId) ?? []), r.ruleId]);
   }
   return out;
+}
+
+/** 部門權限(gw.dept_permission,v0.12) */
+export interface DeptGrantDef {
+  deptCode: string;
+  permissionCode: string;
+  jobTier: string;
+  includeSubDepts: boolean;
+}
+
+/** 使用者符合的部門權限:任一所屬部門落在授權部門(含下層時含其下層)內,且職級符合門檻 */
+export function matchDeptGrants(grants: DeptGrantDef[], facts: Pick<UserFacts, 'memberships' | 'jobLevel'>, tree: DeptTree): DeptGrantDef[] {
+  const mine = facts.memberships.map((m) => m.deptCode).filter((d): d is string => d !== null);
+  if (!mine.length) return [];
+  const scope = new Map<string, Set<string>>();
+  return grants.filter((g) => {
+    if (!tierMatches(g.jobTier, facts.jobLevel)) return false;
+    const key = `${g.deptCode}|${g.includeSubDepts ? 1 : 0}`;
+    let depts = scope.get(key);
+    if (!depts) scope.set(key, (depts = g.includeSubDepts ? tree.descendants(g.deptCode) : new Set([g.deptCode])));
+    return mine.some((d) => depts.has(d));
+  });
 }

@@ -6,6 +6,7 @@ import apiClientsAdmin from './modules/admin/api-clients.js';
 import auditQuery from './modules/admin/audit-query.js';
 import dbViewer from './modules/admin/db-viewer.js';
 import employeeSyncAdmin from './modules/admin/employee-sync.js';
+import grantsAdmin from './modules/admin/grants.js';
 import importsAdmin from './modules/admin/imports.js';
 import notifyAdmin from './modules/admin/notify-admin.js';
 import onboarding from './modules/admin/onboarding.js';
@@ -80,6 +81,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(releasesAdmin, { config });
   await app.register(usersAdmin, { config });
   await app.register(accessAdmin);
+  await app.register(grantsAdmin);
   await app.register(apiClientsAdmin);
   await app.register(employeeSyncAdmin);
   await app.register(importsAdmin, { config });

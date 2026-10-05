@@ -249,6 +249,8 @@ erDiagram
 | --- | --- | --- |
 | `gw.role_rule` | `rule_id` INT PK、`role_id` FK、`company_id` INT NULL(FK `gw.company`)、`dept_code` VARCHAR(30) NULL、`include_sub_depts` BIT 預設 1、`job_levels` NVARCHAR(200) NULL(職級值 JSON 陣列,如 `["5","6"]`)、`title` NVARCHAR(100) NULL(職稱完全相符,選配)、`description` NVARCHAR(200) NULL、`is_enabled` BIT、★共通 | 依人事欄位指派角色:同一規則內各條件 AND,NULL = 不限;同一角色多條規則 OR;至少要有一個條件(不可空規則)。比對對象為使用者**所有所屬公司與部門**(`gw.user_company`,含兼任),職級、職稱取 `gw.user`。寫入後所有使用者 `perm_version + 1` |
 | `gw.department` | `dept_code` VARCHAR(30) PK、`name` NVARCHAR(100)、`parent_dept_code` VARCHAR(30) NULL、`company_id` INT NULL、`bpm_unit_oid` VARCHAR(50) NULL、`is_enabled` BIT、`synced_at` DATETIME2(3) | 部門樹:worker 每小時(BullMQ `employee-sync` 工作 `departments`)或 CLI `dept:sync` 自 BPM `OrganizationUnit` / `Organization`(主管決定不在 BPM 新增 table / view,改由 DBA 授權 `bpm_reader` 唯讀這兩張表,`db/dba/03-bpm-org-grant.sql`)同步;BPM 已無的部門改 `is_enabled = 0`,BPM 組織名稱等於 `gw.company.comp_name` 時填 `company_id`。`include_sub_depts` 以此展開下層部門。樹結構變更(新增、改上層、停用 / 啟用)時所有使用者 `perm_version + 1`,只改名稱不遞增。安全檢查:BPM 回傳 0 筆,或一次停用超過 10%(且多於 5 個)時中止 |
+| `gw.dept_permission` | `dept_code` FK `gw.department`、`permission_id` FK、`job_tier` VARCHAR(20)(`all` / `section` / `manager` / `division`)、PK 三者;`include_sub_depts` BIT 預設 1、`created_at`、`created_by` | 部門權限(v0.12,PRD §8.3.4):直接授予部門,不經角色。使用者任一所屬部門落在授權部門(含下層時含其下層)內,且職級符合門檻(`job_level` ≤ 門檻;`all` 不限)即擁有。`include_sub_depts` 為部門設定(同部門各列一致)。寫入後所有使用者 `perm_version + 1` |
+| `gw.user_permission` | `user_id` FK、`permission_id` FK、PK 兩者;`valid_to` DATETIME2(3) NULL(NULL = 永久)、`reason` NVARCHAR(200) NULL、`created_at`、`created_by` | 個人權限(v0.12):直接授予個人,有效期間內生效;寫入後該使用者 `perm_version + 1` |
 | `gw.app` | `app_id` INT PK、`code` VARCHAR(30) UQ(`portal`、`it`)、`name` NVARCHAR(50)、`base_path` VARCHAR(100)(`/`、`/it/`,對應 PRD §7.2.1)、`icon` VARCHAR(30)、`sort` SMALLINT、`permission_code` VARCHAR(100)(→ `gw.permission.code`,`kind = app`;不建 FK,CLI `apply` 檢查存在並把該權限改為 `app`)、`is_enabled` BIT、★共通 | 應用登記;`/api/auth/me` 的 `apps` 依此與使用者權限過濾;以 CLI `apply` 的 `apps:` 維護 |
 
 - 有效角色 = AD 群組對應 ∪ 公司預設角色 ∪ **符合的指派規則** ∪ 有效的個別指派;有效權限計算結果仍以 `gw:perm:{userId}:{pv}` 快取(§6)。
@@ -350,7 +352,7 @@ erDiagram
 | 資料 | 寫入(Drizzle → SQL Server) | Redis 同步方式 | 失效 / 更新時機 |
 | --- | --- | --- | --- |
 | 路由、上游、聚合步驟、限流政策 | 管理 API 編輯存為 `draft` | **發佈時整份快照推送**:交易內 `draft → published` 並寫入 `gw.config_release`;提交後 `SET gw:routes:snapshot`、`SET gw:routes:version`、`PUBLISH gw:config:changed` | 只有「發佈 / 回滾」會改變 Redis;編輯草稿不影響線上 |
-| 使用者有效權限 | 角色、權限、AD 群組對應、個別指派變更 | **Cache-aside**:查 `gw:perm:{userId}:{pv}`,未命中時以 Drizzle 查詢展開後寫入(TTL 15 分) | 變更時在**同一交易**內遞增 `perm_version`:個別指派、停用、公司預設角色、人員同步只遞增受影響使用者;**角色權限、AD 群組對應、指派規則、部門樹變更遞增全體使用者**(2026-10-02 決定:規則含下層部門與職級,精確計算受影響者容易遺漏,全體遞增只多一次 Refresh)。鍵名含 `pv`,舊鍵自然過期,不需逐一刪除 |
+| 使用者有效權限 | 角色、權限、AD 群組對應、個別指派變更 | **Cache-aside**:查 `gw:perm:{userId}:{pv}`,未命中時以 Drizzle 查詢展開後寫入(TTL 15 分) | 變更時在**同一交易**內遞增 `perm_version`:個別指派、停用、公司預設角色、人員同步只遞增受影響使用者;**角色權限、AD 群組對應、指派規則、部門樹、部門權限變更遞增全體使用者**(個人權限只遞增該使用者)(2026-10-02 決定:規則含下層部門與職級,精確計算受影響者容易遺漏,全體遞增只多一次 Refresh)。鍵名含 `pv`,舊鍵自然過期,不需逐一刪除 |
 | 使用者基本資料 | 人員同步 Worker 自 BPM / LOS 寫入人事欄位;登入時補 AD 欄位(見 §8) | 不另外快取(登入時才讀) | 人事欄位變更時在同一交易內遞增 `perm_version`,已登入者 15 分鐘內換發的 Token 即帶新部門 |
 | API Key | 建立 / 停用 `gw.api_client` | Cache-aside:`gw:client:{keyPrefix}`(TTL 5 分) | 停用時提交後直接 `DEL` |
 | 稽核紀錄 | 與業務變更在**同一交易**內寫入 `gw.audit_log` | 不同步 | — |

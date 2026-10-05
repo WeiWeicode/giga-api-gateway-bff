@@ -1,6 +1,16 @@
 /** docs/Gherkin/rbac/role-rules.feature(P2-3a):規則比對 */
 import { describe, expect, it } from 'vitest';
-import { DeptTree, matchRules, parseJobLevels, ruleMatches, type RuleDef, type UserFacts } from '../../src/modules/rbac/rules.js';
+import { tierMatches } from '../../src/modules/rbac/job-tiers.js';
+import {
+  DeptTree,
+  matchDeptGrants,
+  matchRules,
+  parseJobLevels,
+  ruleMatches,
+  type DeptGrantDef,
+  type RuleDef,
+  type UserFacts,
+} from '../../src/modules/rbac/rules.js';
 
 // 部門樹 IT(資訊部)→ IT-SYS(系統課)、IT-NET(網管課);IT-SYS → IT-SYS-A
 const tree = new DeptTree([
@@ -103,5 +113,60 @@ describe('parseJobLevels', () => {
     expect(parseJobLevels('[]')).toBeNull();
     expect(parseJobLevels('5')).toBeNull();
     expect(parseJobLevels(null)).toBeNull();
+  });
+});
+
+describe('職級門檻(v0.12)', () => {
+  it.each([
+    ['all', null, true],
+    ['all', '9', true],
+    ['section', '7', true],
+    ['section', '8', false],
+    ['manager', '6', true],
+    ['manager', '7', false],
+    ['division', '4', true],
+    ['division', '0', true],
+    ['division', '6', false],
+    ['section', null, false],
+    ['section', 'A1', false],
+    ['unknown', '1', false],
+  ])('%s / 職級 %s → %s', (tier, level, expected) => {
+    expect(tierMatches(tier, level)).toBe(expected);
+  });
+});
+
+describe('matchDeptGrants(v0.12)', () => {
+  const g = (d: Partial<DeptGrantDef>): DeptGrantDef => ({ deptCode: 'IT', permissionCode: 'it.x', jobTier: 'all', includeSubDepts: true, ...d });
+  const grants = [
+    g({ permissionCode: 'it.all' }),
+    g({ permissionCode: 'it.mgr', jobTier: 'manager' }),
+    g({ deptCode: 'IT-SYS', permissionCode: 'it.sys-only', includeSubDepts: false }),
+    g({ deptCode: 'HR', permissionCode: 'hr.all' }),
+  ];
+  const codes = (dept: string, level: string | null) => matchDeptGrants(grants, facts(dept, level), tree).map((x) => x.permissionCode);
+
+  it('含下層:下層部門的人取得上層部門的權限', () => {
+    expect(codes('IT-SYS-A', '8')).toEqual(['it.all']);
+  });
+  it('職級門檻:理級以上才取得', () => {
+    expect(codes('IT-NET', '6')).toEqual(['it.all', 'it.mgr']);
+  });
+  it('不含下層:只有該部門本身', () => {
+    expect(codes('IT-SYS', '9')).toEqual(['it.all', 'it.sys-only']);
+    expect(codes('IT-SYS-A', '9')).not.toContain('it.sys-only');
+  });
+  it('兼任:任一所屬部門符合即取得', () => {
+    const f: UserFacts = {
+      memberships: [
+        { companyId: 1, deptCode: 'HR' },
+        { companyId: 2, deptCode: 'IT' },
+      ],
+      jobLevel: null,
+      title: null,
+    };
+    expect(matchDeptGrants(grants, f, tree).map((x) => x.permissionCode)).toEqual(['it.all', 'hr.all']);
+  });
+  it('沒有部門資料不取得任何部門權限', () => {
+    expect(matchDeptGrants(grants, { memberships: [{ companyId: null, deptCode: null }], jobLevel: '1', title: null }, tree)).toEqual([]);
   });
 });
