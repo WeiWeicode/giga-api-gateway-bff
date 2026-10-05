@@ -1,4 +1,4 @@
-import { cli, remote, BFF } from '../test/e2e/gw.js';
+import { cli, remote } from '../test/e2e/gw.js';
 
 async function main() {
   console.log('量測路由生效時間 (目標 ≤ 5 秒)...');
