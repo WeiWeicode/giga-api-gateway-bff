@@ -10,7 +10,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.2(§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供) |
+| 文件版本 | v0.3(2026-10-05:§7.5 多層選單,web-kit `useMenuTree` / `GnMenuTree`;權限可直接授予部門與個人)。v0.2:§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供 |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的 Vue 專案(必須遵守);既有專案遷移時比照(見 §10) |
 | 維護者 | Gateway 負責人 |
@@ -255,11 +255,44 @@ const { user, can } = useAuth()
 | 應用層守衛 | 啟動時取得 `me`:未登入 → `/login?redirect=`;`me.apps` 不含本應用 → 以 `location.replace('/')` 導回員工入口網並帶提示參數(員工入口網本身沒有權限時顯示無權限頁,不可導回自己) |
 | 權限變更 | 換頁或 5 分鐘內重新取得 `me`,應用、選單、按鈕隨之更新;API 權限由 BFF 以 `pv` 立即生效 |
 
-### 7.5 選單、Tab、按鈕權限(PRD §8.3.2,v0.7)
+### 7.5 選單、Tab、按鈕權限(PRD §8.3.2、§8.3.4)
 
-- 兩層選單的功能頁、頁內 Tab、按鈕各自對應一個權限代碼(`kind` 為 `menu` / `tab` / `button`),在後端 OpenAPI `x-permissions` 宣告並掛到上層(BACKEND-GUIDE §6.1),由 IT 在 GigaItApp 依角色、部門、職位設定。
+- 功能頁、頁內 Tab、按鈕各自對應一個權限代碼(`kind` 為 `menu` / `tab` / `button`),在後端 OpenAPI `x-permissions` 宣告並掛到上層(BACKEND-GUIDE §6.1),由 IT 在 GigaItApp 設定:授予角色,或直接授予部門(含下層、職級門檻)與個人(v0.12)。前端只看 `me.permissions`,不需要知道權限從哪裡來。
 - 路由 `meta.permission` 用 `menu` / `tab` 代碼;按鈕用 `button` 代碼,且**必須等於**按鈕呼叫的寫入 API 的權限代碼。
-- 無 `menu` 權限的功能不顯示,沒有任何可見功能的選單群組不顯示;直接輸入網址時顯示 403 頁。
+- **層數不限**:權限掛在**實際頁面**;中間的目錄層不設權限,底下有任一頁可見即顯示,沒有任何可見頁面的目錄不顯示;直接輸入網址時顯示 403 頁。
+- **多層側邊選單**用 web-kit 提供的 `useMenuTree` + `GnMenuTree`(不要各自重寫過濾與展開邏輯):
+
+```ts
+import { GnMenuTree, useMenuTree, type MenuNode } from '@giganexus/web-kit'
+
+const MENU: MenuNode[] = [
+  { key: 'home', title: '首頁', path: '/' },
+  { key: 'hr', title: '人資', icon: 'users', children: [                 // 目錄層:不設 permission
+    { key: 'leave', title: '請假', children: [
+      { key: 'leave-mine', title: '我的假單', path: '/hr/leave/mine', permission: 'portal.leave.read' },
+      { key: 'leave-approve', title: '審核', path: '/hr/leave/approve', permission: 'portal.leave.approve', requires: ['bpm.approval.read'] },
+    ] },
+  ] },
+]
+const { menu, trail, crumbs, isOpen, toggle } = useMenuTree(MENU, { storageKey: 'portal.menu.open' })
+```
+
+```vue
+<GnMenuTree :nodes="menu" :is-open="isOpen" :trail="trail" @toggle="toggle">
+  <template #item="{ node, open, active, hasChildren, toggle }">…自訂一列的外觀(圖示、展開箭頭、RouterLink)…</template>
+</GnMenuTree>
+```
+
+| 項目 | 說明 |
+| --- | --- |
+| `MenuNode` | `key`(唯一)、`title`、`path`(頁面;目錄省略)、`permission`(頁面的 menu 權限;省略 = 登入即可見)、`requires`(另外需全部具備)、`icon`、`subtitle`、`children` |
+| 頁面兼目錄 | 同時有 `path` 與 `children`:本身沒權限但下層有可見頁 → 只當目錄顯示(移除 `path`) |
+| `useMenuTree` 回傳 | `menu`(過濾後的樹,含 `depth`)、`trail`(根 → 目前頁面,最長路徑前綴)、`crumbs`(麵包屑標題)、`active`、`isOpen` / `toggle`、`rows`(依展開狀態攤平,想用單層 `v-for` 自行繪製時用) |
+| 展開狀態 | 換頁時自動展開目前頁面所在的目錄;`storageKey` 以 localStorage 保存(無法保存時不影響使用);`defaultOpen: 'all'` 全部展開 |
+| 樣式 | 元件不帶樣式:`ul.gn-menu`(`--root` / `--sub`)、`li.gn-menu__node`(`is-open`、`is-active`、`is-in-trail`、`has-children`)、縮排變數 `--gn-depth`;預設內容為 `a.gn-menu__link[aria-current=page]` 或 `button.gn-menu__toggle[aria-expanded]`,以 `#item` slot 換成各應用的 G* 元件 |
+| 純函式 | `filterMenu`、`findTrail`、`flattenMenu`、`pathMatches`、`menuKeys`(不依賴 Vue,可在非側欄處重用,例如首頁捷徑) |
+
+- GigaItApp 維持兩層(自有 `AppLayout`);三層以上的應用(如員工入口網)改用上述元件。
 
 ---
 

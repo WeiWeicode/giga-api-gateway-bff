@@ -4,6 +4,7 @@
  *   app.use(createWebKit({ router }))
  *   const { user, can } = useAuth()
  *   await http.get('/api/mes/work-orders')
+ *   const { menu, trail, isOpen, toggle } = useMenuTree(MENU)   // 多層側邊選單(§7.5)
  */
 import type { App } from 'vue';
 import type { Router } from 'vue-router';
@@ -14,6 +15,10 @@ export { ApiError, http, readCookie, redirectToLogin, refreshSession, request } 
 export type { RequestOptions } from './http';
 export { loadMe, logout, setMe, useAuth } from './auth';
 export type { Me } from './auth';
+export { filterMenu, findTrail, flattenMenu, menuKeys, pathMatches } from './menu';
+export type { MenuNode, VisibleMenuNode } from './menu';
+export { GnMenuTree, useMenuTree } from './menu-tree';
+export type { MenuItemSlotProps, MenuTreeOptions } from './menu-tree';
 
 declare module 'vue-router' {
   interface RouteMeta {
