@@ -9,7 +9,7 @@
  *   PUT /api/admin/user-permissions/:id                 { app, grants: [{ code, validTo?, reason? }] } 取代此人在此應用的個人權限(validTo 省略 = 永久)
  *   GET /api/admin/direct-grants                        全部直接授予(部門 + 有效的個人權限),權限查詢的關係圖使用
  *
- * - 權限須屬於該應用的權限樹(應用 → 選單 → Tab → 按鈕);儲存時自動補上層(部門:同職級門檻;個人:取下層最晚的到期日)。
+ * - 權限須屬於該應用的權限樹(應用 → 選單 → Tab → 按鈕);app = '@api' 時為純 API 權限(kind = api,含寫入),沒有上層;儲存時自動補上層(部門:同職級門檻;個人:取下層最晚的到期日)。
  * - 「含下層部門」為部門的設定,套用到此部門所有應用的權限。
  * - 防止提權:新增或移除的權限須是操作人本身具備的。
  * - 部門權限變更遞增全體 perm_version;個人權限只遞增該使用者。寫入與 gw.audit_log 同一交易。
@@ -26,6 +26,8 @@ import { writeAudit } from './audit-log.js';
 import { createAuthorizer, type Actor } from './authorize.js';
 
 const READ = 'gw.admin.rbac.read';
+/** app 參數的特殊值:純 API 權限(kind = api,不屬於任何應用的權限樹),供部門 / 個人授予 API 權限(含寫入) */
+const API_SCOPE = '@api';
 const WRITE = 'gw.admin.rbac.write';
 
 const APP_QS = { type: 'object', required: ['app'], properties: { app: { type: 'string', minLength: 1, maxLength: 30 } } } as const;
@@ -47,11 +49,16 @@ const grants: FastifyPluginAsync = async (app) => {
 
   /** 應用的權限樹:code → { id, parent };parent 限於樹內 */
   async function appScope(appCode: string) {
-    const [a] = await app.db.select({ permissionCode: appTable.permissionCode }).from(appTable).where(eq(appTable.code, appCode));
-    if (!a) throw new GwError('VALIDATION_FAILED', '應用不存在', [{ field: 'app', message: appCode }]);
     const rows = await app.db
       .select({ id: permission.permissionId, code: permission.code, parent: permission.parentCode, kind: permission.kind })
       .from(permission);
+    // API_SCOPE:沒有畫面的純 API 權限(kind = api),各權限獨立、沒有上層
+    if (appCode === API_SCOPE) {
+      const scope = new Map(rows.filter((r) => r.kind === 'api').map((r) => [r.code, { id: r.id, parent: null as string | null, kind: r.kind }]));
+      return { scope, ancestors: (_code: string): string[] => [], idToCode: new Map([...scope].map(([code, v]) => [v.id, code])) };
+    }
+    const [a] = await app.db.select({ permissionCode: appTable.permissionCode }).from(appTable).where(eq(appTable.code, appCode));
+    if (!a) throw new GwError('VALIDATION_FAILED', '應用不存在', [{ field: 'app', message: appCode }]);
     const children = new Map<string, string[]>();
     for (const r of rows) if (r.parent && r.parent !== r.code) children.set(r.parent, [...(children.get(r.parent) ?? []), r.code]);
     const byCode = new Map(rows.map((r) => [r.code, r]));
