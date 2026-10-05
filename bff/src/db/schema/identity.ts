@@ -78,6 +78,28 @@ export const permission = gw.table(
   (t) => [uniqueIndex('uq_permission_code').on(t.code)],
 );
 
+/**
+ * 選單隨附的 API 讀取權限(v0.12,PRD §8.3.4):擁有選單 / Tab 權限即一併擁有這些 API 權限(只限 kind = api 且代碼以 .read 結尾)。
+ * 讓「授予選單」一格即可使用該頁,不必另外授予頁面讀取資料用的 API 權限。
+ */
+export const permissionInclude = gw.table(
+  'permission_include',
+  {
+    permissionId: int('permission_id')
+      .notNull()
+      .references(() => permission.permissionId),
+    includedPermissionId: int('included_permission_id')
+      .notNull()
+      .references(() => permission.permissionId),
+    createdAt: createdAt(),
+    createdBy: nvarchar('created_by', { length: 64 }).notNull(),
+  },
+  (t) => [
+    primaryKey({ name: 'pk_permission_include', columns: [t.permissionId, t.includedPermissionId] }),
+    index('ix_permission_include_included').on(t.includedPermissionId),
+  ],
+);
+
 export const rolePermission = gw.table(
   'role_permission',
   {

@@ -19,6 +19,7 @@ import {
   department,
   deptPermission,
   permission,
+  permissionInclude,
   role,
   roleAdGroup,
   roleCompany,
@@ -255,7 +256,45 @@ export async function resolveDirectGrants(db: GwDatabase, facts: AuthzFacts, now
 /** 角色權限 ∪ 直接授予的權限 */
 export async function effectivePermissions(db: GwDatabase, roleIds: number[], facts: AuthzFacts, now = new Date()): Promise<string[]> {
   const [fromRoles, direct] = await Promise.all([permissionsOf(db, roleIds), resolveDirectGrants(db, facts, now)]);
-  return [...new Set([...fromRoles, ...direct.map((d) => d.code)])].sort();
+  return (await expandIncludes(db, [...new Set([...fromRoles, ...direct.map((d) => d.code)])])).permissions;
+}
+
+/** 選單隨附的 API 讀取權限(gw.permission_include):menu code → 隨附的 API 權限代碼 */
+export async function includesOf(db: GwDatabase, codes?: string[]): Promise<Map<string, string[]>> {
+  if (codes && !codes.length) return new Map();
+  const inc = db
+    .select({ code: permission.code, includedId: permissionInclude.includedPermissionId })
+    .from(permissionInclude)
+    .innerJoin(permission, eq(permission.permissionId, permissionInclude.permissionId));
+  const rows = await (codes ? inc.where(inArray(permission.code, codes.slice(0, 2000))) : inc);
+  if (!rows.length) return new Map();
+  const names = new Map(
+    (
+      await db
+        .select({ id: permission.permissionId, code: permission.code })
+        .from(permission)
+        .where(
+          inArray(
+            permission.permissionId,
+            rows.map((r) => r.includedId),
+          ),
+        )
+    ).map((r) => [r.id, r.code]),
+  );
+  const out = new Map<string, string[]>();
+  for (const r of rows) {
+    const c = names.get(r.includedId);
+    if (c) out.set(r.code, [...(out.get(r.code) ?? []), c].sort());
+  }
+  return out;
+}
+
+/** 加上擁有的選單隨附的 API 權限;includedBy:隨附而得的權限 → 來自哪些選單(只列原本沒有的) */
+export async function expandIncludes(db: GwDatabase, codes: string[]): Promise<{ permissions: string[]; includedBy: Map<string, string[]> }> {
+  const have = new Set(codes);
+  const includedBy = new Map<string, string[]>();
+  for (const [menu, list] of await includesOf(db, codes)) for (const c of list) if (!have.has(c)) includedBy.set(c, [...(includedBy.get(c) ?? []), menu]);
+  return { permissions: [...new Set([...codes, ...includedBy.keys()])].sort(), includedBy };
 }
 
 export async function permissionsOf(db: GwDatabase, roleIds: number[]): Promise<string[]> {

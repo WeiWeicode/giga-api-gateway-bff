@@ -9,13 +9,14 @@
  *   PUT    /api/admin/roles/:role/ad-groups        取代 AD 群組對應(群組 DN 清單)
  *   POST   /api/admin/permissions                  新增權限(畫面權限 kind / parent / sort;API 權限多由 OpenAPI x-permissions 匯入)
  *   PATCH  /api/admin/permissions/:code            修改名稱、說明、kind、上層、排序(需 rowVer)
+ *   PUT    /api/admin/permissions/:code/includes   選單隨附的 API 讀取權限(整組取代;只限 kind = api 且代碼以 .read 結尾)
  *   DELETE /api/admin/permissions/:code?rowVer=    刪除權限(gw.admin.* 不可刪;仍被路由、聚合步驟、應用或下層權限使用時拒絕;一併移除部門 / 個人權限)
  *
  * - :role 為角色代碼或 role_id。寫入與 gw.audit_log 同一交易。
  * - 影響使用者權限的變更(刪除角色、AD 群組對應、刪除已授予的權限)遞增全體 perm_version,提交後清除 pv 快取(DATABASE.md §7.2)。
  * - 防止提權:AD 群組對應的角色所含權限須是操作人本身具備的;gw-super-admin 的 AD 群組不開放以 API 修改(維持 CLI apply)。
  */
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { ICON, permissionDeclError, PERMISSION_KINDS } from '../../cli/openapi.js';
 import {
@@ -26,6 +27,7 @@ import {
   deptPermission,
   app as appTable,
   permission,
+  permissionInclude,
   role,
   roleAdGroup,
   roleCompany,
@@ -38,7 +40,7 @@ import {
 } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { clientKey } from '../auth/api-key.js';
-import { bumpAllPermVersions } from '../rbac/permission.js';
+import { bumpAllPermVersions, includesOf } from '../rbac/permission.js';
 import { writeAudit } from './audit-log.js';
 import { createAuthorizer, type Actor } from './authorize.js';
 import { permParts, type Tx } from './route-import.js';
@@ -370,6 +372,64 @@ const roles: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.put<{ Params: { code: string }; Body: { includes: string[] } }>(
+    '/api/admin/permissions/:code/includes',
+    {
+      schema: {
+        params: CODE_PARAMS,
+        body: {
+          type: 'object',
+          required: ['includes'],
+          additionalProperties: false,
+          properties: { includes: { type: 'array', maxItems: 50, items: { type: 'string', minLength: 1, maxLength: 100 } } },
+        },
+      },
+    },
+    async (req) => {
+      const actor = await authorize(req, WRITE);
+      const cur = await findPermission(req.params.code);
+      if (!['menu', 'tab'].includes(cur.kind))
+        throw new GwError('VALIDATION_FAILED', '只有選單或 Tab 可以設定隨附的 API 權限', [{ field: 'code', message: cur.code }]);
+      const codes = [...new Set(req.body.includes)];
+      const found = codes.length
+        ? await app.db
+            .select({ id: permission.permissionId, code: permission.code, kind: permission.kind })
+            .from(permission)
+            .where(inArray(permission.code, codes))
+        : [];
+      const bad = codes.filter((c) => {
+        const f = found.find((x) => x.code === c);
+        return !f || f.kind !== 'api' || !c.endsWith('.read');
+      });
+      if (bad.length)
+        throw new GwError(
+          'VALIDATION_FAILED',
+          '只能隨附已存在的 API 讀取權限(kind = api、代碼以 .read 結尾)',
+          bad.map((c) => ({ field: 'includes', message: c })),
+        );
+      // 防止提權:隨附的權限須是操作人本身具備的
+      const before = (await includesOf(app.db, [cur.code])).get(cur.code) ?? [];
+      const changed = [...codes.filter((c) => !before.includes(c)), ...before.filter((c) => !codes.includes(c))];
+      if (changed.length) {
+        const mine = await actor.permissions();
+        const lacking = changed.filter((c) => !mine.has(c));
+        if (lacking.length)
+          throw new GwError(
+            'PERMISSION_DENIED',
+            '不可隨附或移除您沒有的權限',
+            lacking.map((c) => ({ field: 'includes', message: c })),
+          );
+      }
+      await write(actor, changed.length > 0, async (tx) => {
+        await tx.delete(permissionInclude).where(eq(permissionInclude.permissionId, cur.permissionId));
+        for (const f of found)
+          await tx.insert(permissionInclude).values({ permissionId: cur.permissionId, includedPermissionId: f.id, createdBy: actor.name.slice(0, 64) });
+        await writeAudit(tx, actor, 'permission.includes', 'permission', cur.code, { includes: before }, { includes: codes.sort() });
+      });
+      return { code: cur.code, includes: codes.sort() };
+    },
+  );
+
   app.patch<{
     Params: { code: string };
     Body: { rowVer: string; name?: string; description?: string | null; kind?: string; parentCode?: string | null; sort?: number | null; icon?: string | null };
@@ -461,6 +521,9 @@ const roles: FastifyPluginAsync = async (app) => {
         await tx.delete(rolePermission).where(eq(rolePermission.permissionId, cur.permissionId));
         await tx.delete(apiClientPermission).where(eq(apiClientPermission.permissionId, cur.permissionId));
         await tx.delete(deptPermission).where(eq(deptPermission.permissionId, cur.permissionId));
+        await tx
+          .delete(permissionInclude)
+          .where(or(eq(permissionInclude.permissionId, cur.permissionId), eq(permissionInclude.includedPermissionId, cur.permissionId)));
         await tx.delete(userPermission).where(eq(userPermission.permissionId, cur.permissionId));
         await tx.delete(permission).where(eq(permission.permissionId, cur.permissionId));
         await writeAudit(

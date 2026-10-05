@@ -37,7 +37,17 @@ import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
 import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
 import { openCompanyIds } from '../rbac/login-companies.js';
-import { appsOf, bumpAllPermVersions, effectivePermissions, loadUserFacts, resolveDirectGrants, resolveRoles, type AuthzFacts } from '../rbac/permission.js';
+import {
+  appsOf,
+  bumpAllPermVersions,
+  expandIncludes,
+  includesOf,
+  permissionsOf,
+  loadUserFacts,
+  resolveDirectGrants,
+  resolveRoles,
+  type AuthzFacts,
+} from '../rbac/permission.js';
 import { hasCondition, parseJobLevels } from '../rbac/rules.js';
 import { audit } from './route-import.js';
 
@@ -162,8 +172,11 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
         .from(permission)
         .where(req.query.system ? eq(permission.systemCode, req.query.system) : undefined)
         .orderBy(asc(permission.code));
-      // 清單模式含 rowVer(修改 / 刪除權限用,roles.ts)
-      if (!['1', 'true'].includes(req.query.tree ?? '')) return { items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer) })) };
+      // 清單模式含 rowVer(修改 / 刪除權限用,roles.ts)與選單隨附的 API 讀取權限
+      if (!['1', 'true'].includes(req.query.tree ?? '')) {
+        const inc = await includesOf(app.db);
+        return { items: rows.map((r) => ({ ...r, rowVer: rowVerToHex(r.rowVer), includes: inc.get(r.code) ?? [] })) };
+      }
 
       const nodes = new Map<string, PermNode>(
         rows.map((r) => [r.code, { code: r.code, name: r.name, kind: r.kind, sort: r.sort, icon: r.icon, children: [] }]),
@@ -480,19 +493,22 @@ const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { conf
         subject = { company: b.company ?? null, deptCode: b.deptCode ?? null, jobLevel: b.jobLevel ?? null, title: b.title ?? null };
       }
       const roles = await resolveRoles(app.db, facts);
-      const [permissions, direct] = await Promise.all([
-        effectivePermissions(
+      const [fromRoles, direct] = await Promise.all([
+        permissionsOf(
           app.db,
           roles.map((r) => r.roleId),
-          facts,
         ),
         resolveDirectGrants(app.db, facts),
       ]);
+      // 與登入計算相同:角色 ∪ 部門 / 個人,再加上選單隨附的 API 讀取權限
+      const { permissions, includedBy } = await expandIncludes(app.db, [...new Set([...fromRoles, ...direct.map((d) => d.code)])]);
       return {
         subject,
         roles: roles.map((r) => ({ code: r.code, sources: r.sources, ruleIds: r.ruleIds })),
         // 直接授予的部門 / 個人權限(v0.12)
         directGrants: direct,
+        // 隨選單取得的 API 讀取權限:權限代碼 → 選單代碼
+        includedBy: Object.fromEntries(includedBy),
         permissions,
         apps: await appsOf(app.db, permissions),
       };

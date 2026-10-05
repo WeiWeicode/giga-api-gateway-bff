@@ -21,7 +21,7 @@ import { isGrantableKind } from '../../cli/openapi.js';
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
 import { isJobTier, JOB_TIERS } from '../rbac/job-tiers.js';
-import { bumpAllPermVersions } from '../rbac/permission.js';
+import { bumpAllPermVersions, expandIncludes } from '../rbac/permission.js';
 import { writeAudit } from './audit-log.js';
 import { createAuthorizer, type Actor } from './authorize.js';
 
@@ -88,11 +88,12 @@ const grants: FastifyPluginAsync = async (app) => {
       );
   }
 
-  /** 新增或移除的權限須是操作人本身具備的 */
+  /** 新增或移除的權限(含選單隨附的 API 讀取權限)須是操作人本身具備的 */
   async function assertCanChange(actor: Actor, changed: string[]) {
     if (!changed.length) return;
     const mine = await actor.permissions();
-    const lacking = [...new Set(changed)].filter((c) => !mine.has(c));
+    const expanded = (await expandIncludes(app.db, [...new Set(changed)])).permissions;
+    const lacking = expanded.filter((c) => !mine.has(c));
     if (lacking.length)
       throw new GwError(
         'PERMISSION_DENIED',

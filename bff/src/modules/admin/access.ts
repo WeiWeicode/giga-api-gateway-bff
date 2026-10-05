@@ -16,6 +16,7 @@ import {
   department,
   deptPermission,
   permission,
+  permissionInclude,
   role,
   roleAdGroup,
   roleCompany,
@@ -27,7 +28,7 @@ import {
 } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
-import { appsOf, DEFAULT_ROLE, loadUserFacts, resolveDirectGrants, resolveRoles } from '../rbac/permission.js';
+import { appsOf, DEFAULT_ROLE, expandIncludes, loadUserFacts, resolveDirectGrants, resolveRoles } from '../rbac/permission.js';
 import { parseJobLevels } from '../rbac/rules.js';
 import { createAuthorizer } from './authorize.js';
 
@@ -39,7 +40,7 @@ const access: FastifyPluginAsync = async (app) => {
   /** 具備某權限的角色與其來源,以及具備該權限的 API Key */
   async function whoHas(code: string) {
     const [perm] = await app.db.select().from(permission).where(eq(permission.code, code));
-    if (!perm) return { permission: code, exists: false, roles: [], direct: { departments: [], users: [] }, apiClients: [] };
+    if (!perm) return { permission: code, exists: false, roles: [], direct: { departments: [], users: [] }, includedBy: [], apiClients: [] };
     const roles = await app.db
       .select({ id: role.roleId, code: role.code, name: role.name })
       .from(rolePermission)
@@ -48,7 +49,7 @@ const access: FastifyPluginAsync = async (app) => {
       .orderBy(asc(role.code));
     const ids = roles.map((r) => r.id);
     const now = new Date();
-    const [groups, companies, rules, users, clients, deptGrants, userGrants] = await Promise.all([
+    const [groups, companies, rules, users, clients, deptGrants, userGrants, viaMenus] = await Promise.all([
       ids.length ? app.db.select({ roleId: roleAdGroup.roleId, dn: roleAdGroup.adGroupDn }).from(roleAdGroup).where(inArray(roleAdGroup.roleId, ids)) : [],
       ids.length
         ? app.db
@@ -88,6 +89,13 @@ const access: FastifyPluginAsync = async (app) => {
         .innerJoin(user, eq(user.userId, userPermission.userId))
         .where(and(eq(userPermission.permissionId, perm.permissionId), or(isNull(userPermission.validTo), gt(userPermission.validTo, now))))
         .orderBy(asc(user.employeeNo)),
+      // 隨附此權限的選單:擁有這些選單的人也擁有此權限
+      app.db
+        .select({ code: permission.code, name: permission.name })
+        .from(permissionInclude)
+        .innerJoin(permission, eq(permission.permissionId, permissionInclude.permissionId))
+        .where(eq(permissionInclude.includedPermissionId, perm.permissionId))
+        .orderBy(asc(permission.code)),
     ]);
     const companyNames = new Map((await app.db.select({ id: company.companyId, name: company.compName }).from(company)).map((c) => [c.id, c.name]));
     return {
@@ -117,6 +125,8 @@ const access: FastifyPluginAsync = async (app) => {
       })),
       // 直接授予(v0.12)
       direct: { departments: deptGrants, users: userGrants },
+      /** 隨附此權限的選單(擁有其中任一選單即擁有此權限) */
+      includedBy: viaMenus,
       apiClients: clients.map((c) => ({ ...c, active: c.isEnabled && (!c.expiresAt || c.expiresAt > now) })),
     };
   }
@@ -199,10 +209,12 @@ const access: FastifyPluginAsync = async (app) => {
         depts: { deptCode: string; jobTier: string; includeSubDepts: boolean }[];
         /** 個人權限(v0.12) */
         personal: { validTo: Date | null; reason: string | null } | null;
+        /** 隨選單取得(只在沒有其他來源時列出):選單代碼 */
+        includedBy: string[];
       };
       const byCode = new Map<string, Entry>();
       for (const g of grants) {
-        const cur = byCode.get(g.code) ?? { code: g.code, name: g.name, kind: g.kind, grantedBy: [], depts: [], personal: null };
+        const cur = byCode.get(g.code) ?? { code: g.code, name: g.name, kind: g.kind, grantedBy: [], depts: [], personal: null, includedBy: [] };
         cur.grantedBy.push(roleCode.get(g.roleId)!);
         byCode.set(g.code, cur);
       }
@@ -213,13 +225,21 @@ const access: FastifyPluginAsync = async (app) => {
           .select({ code: permission.code, name: permission.name, kind: permission.kind })
           .from(permission)
           .where(inArray(permission.code, missing)))
-          byCode.set(p.code, { ...p, grantedBy: [], depts: [], personal: null });
+          byCode.set(p.code, { ...p, grantedBy: [], depts: [], personal: null, includedBy: [] });
       for (const d of direct) {
         const cur = byCode.get(d.code);
         if (!cur) continue;
         if (d.source === 'dept') cur.depts.push({ deptCode: d.deptCode, jobTier: d.jobTier, includeSubDepts: d.includeSubDepts });
         else cur.personal = { validTo: d.validTo, reason: d.reason };
       }
+      // 選單隨附的 API 讀取權限
+      const { includedBy } = await expandIncludes(app.db, [...byCode.keys()]);
+      if (includedBy.size)
+        for (const p of await app.db
+          .select({ code: permission.code, name: permission.name, kind: permission.kind })
+          .from(permission)
+          .where(inArray(permission.code, [...includedBy.keys()])))
+          byCode.set(p.code, { ...p, grantedBy: [], depts: [], personal: null, includedBy: includedBy.get(p.code) ?? [] });
       const permissions = [...byCode.values()].sort((a, b) => a.code.localeCompare(b.code));
       return {
         user: { ...u, permVersion: pv, companies: companyNames },

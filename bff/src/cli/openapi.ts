@@ -34,6 +34,8 @@ export interface PermissionDecl {
   parent?: string;
   sort?: number;
   icon?: string;
+  /** 選單 / Tab 隨附的 API 讀取權限(kind = api、代碼以 .read 結尾),擁有此選單即一併擁有 */
+  includes?: string[];
 }
 
 /** group = 選單目錄:只用來分組與命名(名稱、排序、圖示),不可授予 */
@@ -66,6 +68,8 @@ export function permissionDeclError(p: Record<string, unknown>): string | null {
   if (p.parent !== undefined && (typeof p.parent !== 'string' || !CODE.test(p.parent) || p.parent === p.code)) return 'parent 需為其他權限代碼';
   if (p.sort !== undefined && (!Number.isInteger(p.sort) || (p.sort as number) < 0 || (p.sort as number) > 32767)) return 'sort 需為 0–32767 的整數';
   if (p.icon !== undefined && (typeof p.icon !== 'string' || !ICON.test(p.icon))) return 'icon 需為圖示名稱(小寫英數與 -,30 字內)';
+  if (p.includes !== undefined && (!Array.isArray(p.includes) || p.includes.some((c) => typeof c !== 'string' || !CODE.test(c) || !c.endsWith('.read'))))
+    return 'includes 需為 API 讀取權限代碼陣列(以 .read 結尾)';
   return null;
 }
 

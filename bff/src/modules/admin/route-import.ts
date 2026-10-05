@@ -8,7 +8,17 @@ import { createHash } from 'node:crypto';
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import { checkUpstreamPort, parseOpenApi, type ParsedSpec, type PermissionDecl } from '../../cli/openapi.js';
 import type { GwDatabase } from '../../db/client.js';
-import { apiImportBatch, apiImportItem, apiRoute, auditLog, permission, rateLimitPolicy, upstream, upstreamTarget } from '../../db/schema/index.js';
+import {
+  apiImportBatch,
+  apiImportItem,
+  apiRoute,
+  auditLog,
+  permission,
+  permissionInclude,
+  rateLimitPolicy,
+  upstream,
+  upstreamTarget,
+} from '../../db/schema/index.js';
 
 export type Tx = Parameters<Parameters<GwDatabase['transaction']>[0]>[0];
 
@@ -80,7 +90,31 @@ export async function ensurePermissions(tx: Tx, perms: PermissionDecl[], actor: 
       await tx.update(permission).set({ icon, updatedBy: actor }).where(eq(permission.permissionId, cur.id));
     }
   }
+  await ensureIncludes(tx, perms, actor);
   return created;
+}
+
+/** 選單隨附的 API 讀取權限:只在此選單尚未設定任何隨附權限時登記(之後以「選單管理」為準);不存在或非 API 讀取權限者略過 */
+async function ensureIncludes(tx: Tx, perms: PermissionDecl[], actor: string): Promise<void> {
+  const decls = perms.filter((p) => p.includes?.length);
+  if (!decls.length) return;
+  const codes = [...new Set(decls.flatMap((p) => [p.code, ...p.includes!]))];
+  const rows = await tx
+    .select({ id: permission.permissionId, code: permission.code, kind: permission.kind })
+    .from(permission)
+    .where(inArray(permission.code, codes));
+  const byCode = new Map(rows.map((r) => [r.code, r]));
+  for (const p of decls) {
+    const target = byCode.get(p.code);
+    if (!target) continue;
+    const [has] = await tx.select({ id: permissionInclude.permissionId }).from(permissionInclude).where(eq(permissionInclude.permissionId, target.id));
+    if (has) continue;
+    for (const c of new Set(p.includes)) {
+      const inc = byCode.get(c);
+      if (inc && inc.kind === 'api' && c.endsWith('.read'))
+        await tx.insert(permissionInclude).values({ permissionId: target.id, includedPermissionId: inc.id, createdBy: actor });
+    }
+  }
 }
 
 export async function upsertUpstream(

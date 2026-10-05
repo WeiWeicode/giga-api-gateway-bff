@@ -39,7 +39,7 @@ import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
 import { revokeUserSessions, userSessionCount } from '../auth/session.js';
 import { openCompanyIds } from '../rbac/login-companies.js';
-import { parseGroups, permissionsOf } from '../rbac/permission.js';
+import { expandIncludes, parseGroups, permissionsOf } from '../rbac/permission.js';
 import { writeAudit } from './audit-log.js';
 import { createAuthorizer } from './authorize.js';
 import * as localAdmin from './local-account-admin.js';
@@ -297,12 +297,12 @@ const users: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config })
         ];
         if (changed.length) {
           const mine = await actor.permissions();
-          const lacking = (
-            await permissionsOf(
-              app.db,
-              changed.map((c) => c.roleId),
-            )
-          ).filter((p) => !mine.has(p));
+          // 含選單隨附的 API 讀取權限
+          const granted = await permissionsOf(
+            app.db,
+            changed.map((c) => c.roleId),
+          );
+          const lacking = (await expandIncludes(app.db, granted)).permissions.filter((p) => !mine.has(p));
           if (lacking.length)
             throw new GwError(
               'PERMISSION_DENIED',
