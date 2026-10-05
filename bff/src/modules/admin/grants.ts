@@ -7,13 +7,14 @@
  *   PUT /api/admin/dept-permissions/:deptCode           { app, includeSubDepts, grants: [{ code, jobTier }] } 取代此部門在此應用的權限
  *   GET /api/admin/user-permissions/:id?app=            個人權限(:id 為 user_id 或工號);有效權限與來源見 GET /api/admin/users/:id/effective-permissions
  *   PUT /api/admin/user-permissions/:id                 { app, grants: [{ code, validTo?, reason? }] } 取代此人在此應用的個人權限(validTo 省略 = 永久)
+ *   GET /api/admin/direct-grants                        全部直接授予(部門 + 有效的個人權限),權限查詢的關係圖使用
  *
  * - 權限須屬於該應用的權限樹(應用 → 選單 → Tab → 按鈕);儲存時自動補上層(部門:同職級門檻;個人:取下層最晚的到期日)。
  * - 「含下層部門」為部門的設定,套用到此部門所有應用的權限。
  * - 防止提權:新增或移除的權限須是操作人本身具備的。
  * - 部門權限變更遞增全體 perm_version;個人權限只遞增該使用者。寫入與 gw.audit_log 同一交易。
  */
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import { app as appTable, department, deptPermission, permission, user, userPermission } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
@@ -247,6 +248,33 @@ const grants: FastifyPluginAsync = async (app) => {
       return { deptCode: d.code, includeSubDepts: b.includeSubDepts, direct: [...next].map((k) => ({ code: k.split('|')[0]!, jobTier: k.split('|')[1]! })) };
     },
   );
+
+  app.get('/api/admin/direct-grants', async (req) => {
+    await authorize(req, READ);
+    const now = new Date();
+    const [departments, users] = await Promise.all([
+      app.db
+        .select({
+          deptCode: deptPermission.deptCode,
+          name: department.name,
+          jobTier: deptPermission.jobTier,
+          includeSubDepts: deptPermission.includeSubDepts,
+          code: permission.code,
+        })
+        .from(deptPermission)
+        .innerJoin(department, eq(department.deptCode, deptPermission.deptCode))
+        .innerJoin(permission, eq(permission.permissionId, deptPermission.permissionId))
+        .orderBy(asc(deptPermission.deptCode), asc(permission.code)),
+      app.db
+        .select({ employeeNo: user.employeeNo, name: user.displayName, validTo: userPermission.validTo, code: permission.code })
+        .from(userPermission)
+        .innerJoin(user, eq(user.userId, userPermission.userId))
+        .innerJoin(permission, eq(permission.permissionId, userPermission.permissionId))
+        .where(or(isNull(userPermission.validTo), gt(userPermission.validTo, now)))
+        .orderBy(asc(user.employeeNo), asc(permission.code)),
+    ]);
+    return { departments, users };
+  });
 
   // ───────── 個人權限 ─────────
 
