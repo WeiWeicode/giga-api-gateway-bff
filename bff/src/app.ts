@@ -73,7 +73,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(notifyInbox);
   await app.register(healthRoutes);
   await app.register(registration, { config });
-  await app.register(rbacAdmin);
+  await app.register(rbacAdmin, { config });
   await app.register(rolesAdmin);
   await app.register(routingAdmin, { config });
   await app.register(routeTest, { config });

@@ -31,9 +31,11 @@ import {
   rowVerToHex,
   user,
 } from '../../db/schema/index.js';
+import type { AppConfig } from '../../config.js';
 import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
 import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
+import { openCompanyIds } from '../rbac/login-companies.js';
 import { appsOf, bumpAllPermVersions, loadUserFacts, permissionsOf, resolveRoles, type AuthzFacts } from '../rbac/permission.js';
 import { hasCondition, parseJobLevels } from '../rbac/rules.js';
 import { audit } from './route-import.js';
@@ -67,7 +69,7 @@ const ruleProps = {
 type PermNode = { code: string; name: string; kind: string; sort: number | null; children: PermNode[] };
 type DeptNode = { deptCode: string; name: string; companyId: number | null; userCount: number; children: DeptNode[] };
 
-const rbacRoutes: FastifyPluginAsync = async (app) => {
+const rbacRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config }) => {
   const apiKeys = new ApiKeyService(app.db, app.redis, app.log);
 
   /** API Key(系統帳號)或登入者;回傳寫入稽核用的操作人 */
@@ -367,10 +369,20 @@ const rbacRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/api/admin/departments', async (req) => {
     await authorize(req, READ);
+    // 分階段開放:只列開放公司的部門(company_id 為 NULL 的部門不屬任何公司,一併略過)
+    const open = await openCompanyIds(app.db, config.loginCompanies);
+    if (open && !open.length) return { companies: [], items: [], syncedAt: null };
     const [depts, counts, companies] = await Promise.all([
-      app.db.select().from(department).where(eq(department.isEnabled, true)),
+      app.db
+        .select()
+        .from(department)
+        .where(and(eq(department.isEnabled, true), open ? inArray(department.companyId, open) : undefined)),
       app.db.select({ deptCode: user.deptCode, n: count() }).from(user).where(eq(user.isDisabled, false)).groupBy(user.deptCode),
-      app.db.select({ companyId: company.companyId, name: company.compName }).from(company).where(eq(company.isEnabled, true)).orderBy(asc(company.compName)),
+      app.db
+        .select({ companyId: company.companyId, name: company.compName })
+        .from(company)
+        .where(and(eq(company.isEnabled, true), open ? inArray(company.companyId, open) : undefined))
+        .orderBy(asc(company.compName)),
     ]);
     const userCount = new Map(counts.map((c) => [c.deptCode, c.n]));
     const nodes = new Map<string, DeptNode>(

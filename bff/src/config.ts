@@ -140,6 +140,19 @@ const configSchema = z.object({
         .filter(Boolean),
     ),
   /**
+   * 分階段開放(2026-10-05 需求方決定):只有所屬公司(gw.company.comp_name,含 LOS 與 BPM 兩種名稱)在此清單內的使用者可登入,
+   * 管理端人員與部門清單也只列這些公司;逗號分隔,空 = 全部公司。
+   */
+  loginCompanies: z
+    .string()
+    .default('')
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  /**
    * 舊單一入口帳號遷移(PRD §8.2.5、DATABASE.md §9):預設關閉,以現行系統的測試帳號確認密文一致(P-15)後才開啟。
    * 金鑰字串與伺服器常數只放 Docker secret(LEGACY_PORTAL_KEY_FILE、LEGACY_PORTAL_SERVER_KEY_FILE),不入版控。
    */
@@ -192,6 +205,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     },
     passwordResetFallbackTo: env.PASSWORD_RESET_FALLBACK_TO || undefined,
     alertEmailTo: env.ALERT_EMAIL_TO,
+    loginCompanies: env.LOGIN_COMPANIES,
     legacyPortal: {
       enabled: env.LEGACY_MIGRATION_ENABLED,
       key: readSecret(env, 'LEGACY_PORTAL_KEY'),

@@ -155,6 +155,7 @@ flowchart LR
 - **AD**:測試區使用與正式區相同的網域,另建測試帳號供自動化測試。
 - **人員同步**(2026-10-02):worker 每小時以 BPM / LOS 唯讀資料更新測試庫的 `gw.user`(只寫 `giganexus_gw_test`);手動觸發 `POST /api/admin/employee-sync/runs` 或 `npm run gw -- employee:sync`。
 - **告警**:設定 `ALERT_EMAIL_TO`(IT 信箱)後,worker 對通知死信、人員 / 部門同步中止與連續失敗、離職標記與新公司寄告警信;測試區同樣改寄 `MAIL_REDIRECT_TO`。
+- **分階段開放的公司**:`<區域>.env` 的 `LOGIN_COMPANIES`(`gw.company.comp_name`,逗號分隔;空白 = 全部公司)。只有所屬公司在清單內的使用者可登入 / 換發 Token(其餘回 `COMPANY_NOT_OPEN`),管理端 `GET /api/admin/users`、`GET /api/admin/departments` 也只列這些公司。2026-10-05 起只開放碩禾與禾迅:`LOGIN_COMPANIES=碩禾,碩禾電子材料,禾迅`(碩禾人員在 LOS 叫「碩禾」、BPM 部門樹叫「碩禾電子材料」)。全面開放時清空即可。
 - **舊單一入口帳號遷移**:預設關閉(`LEGACY_MIGRATION_ENABLED=false`)。P-15 測試帳號驗證通過後,把兩個演算法常數放入機密目錄 `legacy_portal_key`、`legacy_portal_server_key`,並在 `<區域>.env` 設 `LEGACY_MIGRATION_ENABLED=true`、`LEGACY_PORTAL_KEY_FILE`、`LEGACY_PORTAL_SERVER_KEY_FILE`(見 `deploy/test.env.example`)。
 - **稽核表保存**:由 DBA 以 `db/dba/04-retention-job.sql` 在兩區各建一個 SQL Agent 作業(每天 02:30 分批刪除)。
 

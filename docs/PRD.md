@@ -281,6 +281,7 @@ sequenceDiagram
 | `ACCOUNT_NOT_REGISTERED` | 401 | 所屬公司沒有 AD 網域,且沒有本機帳號與舊單一入口帳號 | 引導至 `/register` |
 | `ACCOUNT_LOCKED` | 401 | 本機帳號連續失敗 10 次已鎖定 | 引導忘記密碼或聯絡 IT |
 | `ACCOUNT_DISABLED` | 403 | Gateway 停用,或 AD 帳號已停用 | 顯示「帳號已停用,請聯絡 IT」 |
+| `COMPANY_NOT_OPEN` | 403 | 分階段開放:帳密正確,但所屬公司都不在 `LOGIN_COMPANIES`(或沒有所屬公司資料);Refresh 時同條件改回 `REFRESH_TOKEN_INVALID` 並撤銷 | 顯示「您所屬的公司尚未開放使用,請聯絡 IT」 |
 | `AD_PASSWORD_EXPIRED` | 401 | AD 密碼已過期或須於下次登入時變更 | 提示至 Windows 變更 AD 密碼 |
 | `LOGIN_THROTTLED` | 429 | **v0.10 暫停,目前不會回傳**(原為同帳號 15 分鐘內失敗 5 次,暫停嘗試) | 提示 15 分鐘後再試 |
 | `PASSWORD_CHANGE_REQUIRED` | 403 | 舊單一入口帳號首次登入,或 IT 代建 / 重設後首次登入;回應只附 10 分鐘有效的限定憑證 | 導向設定新密碼畫面 |

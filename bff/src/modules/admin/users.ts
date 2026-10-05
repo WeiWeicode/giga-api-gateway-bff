@@ -38,6 +38,7 @@ import {
 import { GwError } from '../../errors.js';
 import { normalizeEmpNo } from '../auth/profile.js';
 import { revokeUserSessions, userSessionCount } from '../auth/session.js';
+import { openCompanyIds } from '../rbac/login-companies.js';
 import { parseGroups, permissionsOf } from '../rbac/permission.js';
 import { writeAudit } from './audit-log.js';
 import { createAuthorizer } from './authorize.js';
@@ -119,6 +120,14 @@ const users: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config })
       await authorize(req, USER_READ);
       const { q, companyId, deptCode, disabled, authType, page = 1, pageSize = 50 } = req.query;
       const conds: (SQL | undefined)[] = [];
+      // 分階段開放:只列屬於開放公司的人員
+      const open = await openCompanyIds(app.db, config.loginCompanies);
+      if (open)
+        conds.push(
+          open.length
+            ? inArray(user.userId, app.db.select({ id: userCompany.userId }).from(userCompany).where(inArray(userCompany.companyId, open)))
+            : sql`1 = 0`,
+        );
       if (q?.trim()) conds.push(or(like(user.employeeNo, likeOf(q.trim())), like(user.displayName, likeOf(q.trim())), like(user.email, likeOf(q.trim()))));
       if (companyId) conds.push(inArray(user.userId, app.db.select({ id: userCompany.userId }).from(userCompany).where(eq(userCompany.companyId, companyId))));
       if (deptCode) conds.push(eq(user.deptCode, deptCode));

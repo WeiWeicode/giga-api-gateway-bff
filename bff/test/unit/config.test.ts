@@ -4,6 +4,7 @@ import path from 'node:path';
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { loadConfig, readSecret } from '../../src/config.js';
+import { companyOpen } from '../../src/modules/rbac/login-companies.js';
 
 const base = {
   GW_DB_HOST: 'sql2012',
@@ -56,5 +57,16 @@ describe('loadConfig', () => {
     expect(await ip('::ffff:172.30.0.5')).toBe('10.1.2.3');
     // 直連 BFF(不經 Nginx)偽造的 X-Forwarded-For 不採用
     expect(await ip('10.9.9.9')).toBe('10.9.9.9');
+  });
+
+  it('LOGIN_COMPANIES:未設定不限公司;設定後只開放清單內的公司', () => {
+    expect(loadConfig(base).loginCompanies).toEqual([]);
+    const allowed = loadConfig({ ...base, LOGIN_COMPANIES: ' 碩禾 ,碩禾電子材料,, 禾迅 ' }).loginCompanies;
+    expect(allowed).toEqual(['碩禾', '碩禾電子材料', '禾迅']);
+    expect(companyOpen([], [])).toBe(true);
+    expect(companyOpen(allowed, ['芯和', '禾迅'])).toBe(true);
+    expect(companyOpen(allowed, ['國碩'])).toBe(false);
+    // 沒有所屬公司資料的人員不開放
+    expect(companyOpen(allowed, [])).toBe(false);
   });
 });

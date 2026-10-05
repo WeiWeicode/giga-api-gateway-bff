@@ -14,6 +14,7 @@ import { localAccountToken, localCredential, user } from '../../db/schema/index.
 import { GwError } from '../../errors.js';
 import { loginTotal } from '../../plugins/metrics.js';
 import type { RouteTable } from '../router/table.js';
+import { companyOpen } from '../rbac/login-companies.js';
 import { buildIdentity } from './identity.js';
 import { FORGOT_MESSAGE, LocalAccountService } from './local-account.js';
 import { writeAuthLog } from './login.js';
@@ -95,6 +96,18 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
   async function startSession(req: FastifyRequest, reply: FastifyReply, userId: number, amr: 'ad' | 'local', remember: boolean) {
     const identity = await buildIdentity(app.db, app.redis, userId, amr);
     if (identity.isDisabled) throw new GwError('ACCOUNT_DISABLED');
+    if (!companyOpen(config.loginCompanies, identity.me.companies)) {
+      await writeAuthLog(app.db, {
+        username: identity.claims.emp,
+        userId,
+        authMethod: amr,
+        event: 'login_fail',
+        reason: `COMPANY_NOT_OPEN: ${identity.me.companies.join(',') || '(無所屬公司)'}`.slice(0, 200),
+        ip: req.ip,
+        userAgent: ua(req),
+      });
+      throw new GwError('COMPANY_NOT_OPEN');
+    }
     // 「記住我」僅限公司內網來源(PRD Q4)
     await app.sessions.issue(reply, identity, { remember: remember && app.isInternalIp(req.ip), ip: req.ip, userAgent: ua(req) });
     return identity.me;
@@ -130,7 +143,7 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
       throw new GwError('REFRESH_TOKEN_INVALID');
     }
     const identity = await buildIdentity(app.db, app.redis, outcome.userId, outcome.amr);
-    if (identity.isDisabled) {
+    if (identity.isDisabled || !companyOpen(config.loginCompanies, identity.me.companies)) {
       await app.sessions.revokeFamily(outcome.familyId, outcome.userId);
       app.sessions.clearCookies(reply);
       throw new GwError('REFRESH_TOKEN_INVALID');
