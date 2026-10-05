@@ -167,6 +167,6 @@ describe('matchDeptGrants(v0.12)', () => {
     expect(matchDeptGrants(grants, f, tree).map((x) => x.permissionCode)).toEqual(['it.all', 'hr.all']);
   });
   it('沒有部門資料不取得任何部門權限', () => {
-    expect(matchDeptGrants(grants, { memberships: [{ companyId: null, deptCode: null }], jobLevel: '1', title: null }, tree)).toEqual([]);
+    expect(matchDeptGrants(grants, { memberships: [{ companyId: null, deptCode: null }], jobLevel: '1' }, tree)).toEqual([]);
   });
 });
