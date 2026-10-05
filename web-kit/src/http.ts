@@ -19,6 +19,11 @@ export class ApiError extends Error {
 }
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
+/**
+ * 遇 401 不做 Refresh 的端點(登入、換發、登出、註冊驗證、密碼變更 / 忘記 / 重設)。
+ * /api/auth/me 不在此列:Access Token 過期或權限版本遞增後,換頁時第一個請求就是 me,必須先 Refresh 再重試。
+ */
+const NO_REFRESH = /^\/api\/auth\/(login|refresh|logout|register|password)(\/|\?|$)/;
 
 export function readCookie(name: string): string | undefined {
   const hit = document.cookie.split('; ').find((c) => c.startsWith(`${name}=`));
@@ -64,7 +69,7 @@ export async function request<T = unknown>(method: string, url: string, body?: u
   }
   const res = await fetch(url, { method: m, headers, body: payload, credentials: 'same-origin', signal: opts.signal });
 
-  if (res.status === 401 && !retried && !url.startsWith('/api/auth/')) {
+  if (res.status === 401 && !retried && !NO_REFRESH.test(url)) {
     if (await refreshSession()) return request<T>(method, url, body, opts, true);
     if (opts.redirectOnAuthFailure !== false) redirectToLogin();
   }

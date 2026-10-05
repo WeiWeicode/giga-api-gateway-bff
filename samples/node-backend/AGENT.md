@@ -7,6 +7,39 @@
 
 ---
 
+## AI 分工(Claude / Gemini)— 必讀
+
+同 Gateway 專案根目錄 `AGENT.md` §10.8(複製成獨立 repo 後為 `../giga-api-gateway-bff/AGENT.md`)(有出入時以該節為準)。
+
+寫程式、寫測試、寫文件由 **Claude** 負責;**Gemini** 只負責執行測試、撰寫測試報告,以及非邏輯性的修改。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
+
+| 工作 | Claude | Gemini |
+| --- | --- | --- |
+| 寫程式(新功能、業務邏輯、API、權限、資料存取、狀態管理、修 bug、重構) | ✅ | ❌ |
+| 寫測試(單元 / 整合 / E2E 測試碼、測試用 fixture 的邏輯) | ✅ | ❌ |
+| 寫文件(`AGENT.md`、`README.md`、`docs/`、`PROJECT-MAP.md`、架構 JSON、修正紀錄) | ✅ | ❌(測試報告除外) |
+| 執行測試(既有的 `npm test`、`test:int`、E2E、`cargo test` 等)並撰寫測試報告 | ✅ | ✅ |
+| 非邏輯性修改:前端 mock / 假資料、版面與樣式(CSS、間距、顏色、排版)、畫面文案錯字 | ✅ | ✅ |
+| CI/CD 與容器、部署設定 | ✅ | ❌ **禁止** |
+
+**Gemini 禁止修改**(即使只改一行):
+
+- CI/CD:`.gitlab-ci.yml`、`ci-templates/`、Runner 設定。
+- 容器與部署:`Dockerfile*`、`docker-compose*`、`.dockerignore`、`deploy/`、`nginx/`、部署腳本、`.env*`、`Web.config` / 發佈設定。
+- 相依與建置設定:`package.json`(含 scripts)、lock 檔、`Cargo.toml`、`tsconfig*.json`、`vite.config.*`。
+- 資料庫:schema、migration、seed。
+- 測試程式碼:測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
+
+**測試報告**(Gemini 執行測試後必寫):
+
+- 位置:該 repo 的 `docs/test-reports/YYYY-MM-DD-<主題>.md`。
+- 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議交給 Claude 處理的項目。
+- 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
+
+**判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+
+---
+
 ## 0. 複製樣本後的第一步:請工程師命名專案(AI 必須先問)
 
 複製成新 repo 後,**在做任何修改之前,先詢問工程師以下名稱,不要自行猜測或沿用樣本值**:
