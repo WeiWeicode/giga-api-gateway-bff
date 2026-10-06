@@ -3,7 +3,8 @@
  *
  *   POST /api/admin/registrations      後端服務啟動時以 API Key 送出 OpenAPI → 寫入草稿(不發佈,由 IT 核可發佈)
  *                                      權限 gw.admin.route.register;只能註冊 API Key 代碼 = x-gateway.upstream 的服務
- *   GET  /api/admin/routes/catalog     查詢既有路由(含說明、Gherkin 與開發專案),新增 API 前先查,避免重複開發
+ *   GET  /api/admin/routes/catalog     查詢既有路由(含說明、Gherkin 與開發專案),新增 API 前先查,避免重複開發;
+ *                                      預設一併列出 BFF 內建 API(routeType builtin,唯讀;builtin=0 不列,W9-5)
  *                                      權限 gw.admin.route.read;API Key 或登入者皆可
  *
  * 測試區與正式區各自一套資料庫(PRD Q3),各區由後端各自註冊;上游位址的部署區取自本 BFF 的 GW_ENV(dev 視同 test)。
@@ -14,6 +15,7 @@ import type { AppConfig } from '../../config.js';
 import { apiRoute, upstream } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
 import { ApiKeyService } from '../auth/api-key.js';
+import { filterBuiltin } from './builtin-routes.js';
 import { ImportError, importOpenApiDoc } from './route-import.js';
 
 const CATALOG_LIMIT = 200;
@@ -65,13 +67,18 @@ const registration: FastifyPluginAsync<{ config: AppConfig }> = async (app, { co
     },
   );
 
-  app.get<{ Querystring: { q?: string; system?: string; status?: string } }>(
+  app.get<{ Querystring: { q?: string; system?: string; status?: string; builtin?: string } }>(
     '/api/admin/routes/catalog',
     {
       schema: {
         querystring: {
           type: 'object',
-          properties: { q: { type: 'string', maxLength: 100 }, system: { type: 'string', maxLength: 30 }, status: { type: 'string', maxLength: 60 } },
+          properties: {
+            q: { type: 'string', maxLength: 100 },
+            system: { type: 'string', maxLength: 30 },
+            status: { type: 'string', maxLength: 60 },
+            builtin: { type: 'string', enum: ['0', '1'] },
+          },
         },
       },
     },
@@ -123,7 +130,9 @@ const registration: FastifyPluginAsync<{ config: AppConfig }> = async (app, { co
         .leftJoin(upstream, eq(apiRoute.upstreamId, upstream.upstreamId))
         .where(and(...conds))
         .orderBy(asc(apiRoute.routeCode));
-      return { environment: env, total: Math.min(rows.length, CATALOG_LIMIT), truncated: rows.length > CATALOG_LIMIT, items: rows.slice(0, CATALOG_LIMIT) };
+      const builtin = req.query.builtin === '0' ? [] : filterBuiltin({ q, system: req.query.system, statuses });
+      const items = [...rows.slice(0, CATALOG_LIMIT), ...builtin];
+      return { environment: env, total: items.length, truncated: rows.length > CATALOG_LIMIT, items };
     },
   );
 };

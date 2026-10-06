@@ -45,6 +45,8 @@ const CSRF_EXEMPT = new Set([
   '/api/auth/password/forgot',
   '/api/auth/password/reset',
   '/api/admin/registrations',
+  // 前端健康度回報:sendBeacon 無法帶 CSRF 標頭,只寫監控資料(MONITORING-PLAN D12)
+  '/api/telemetry/web',
 ]);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 

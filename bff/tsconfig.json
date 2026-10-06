@@ -15,7 +15,9 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "forceConsistentCasingInFileNames": true,
-    "sourceMap": true
+    "sourceMap": true,
+    // SDK(../sdk/node/src)以原始碼編入 BFF(W9-3 發佈前):fastify 型別一律用 BFF 這份,module augmentation 才會生效
+    "paths": { "fastify": ["./node_modules/fastify"] }
   },
   "include": ["src", "test", "scripts", "../db/seed", "vitest.config.ts"]
 }

@@ -4,3 +4,5 @@ coverage/
 db/migrations/
 docs/
 package-lock.json
+# 由 npm run gen:builtin 產生(單元測試比對內容,不以 prettier 排版)
+src/modules/admin/builtin-routes.generated.json

@@ -12,6 +12,8 @@ RUN npm ci --include=dev
 COPY bff/tsconfig.json bff/tsconfig.build.json ./
 COPY bff/src ./src
 COPY db/seed /repo/db/seed
+# backend-sdk 的監控模組以原始碼編入(MONITORING-PLAN W9-6;SDK 發佈到 Registry 後改為一般相依)
+COPY sdk/node/src /repo/sdk/node/src
 RUN npm run build
 
 FROM node:22-alpine AS prod-deps

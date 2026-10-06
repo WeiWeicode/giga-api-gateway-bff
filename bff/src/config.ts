@@ -156,6 +156,18 @@ const configSchema = z.object({
    * 舊單一入口帳號遷移(PRD §8.2.5、DATABASE.md §9):預設關閉,以現行系統的測試帳號確認密文一致(P-15)後才開啟。
    * 金鑰字串與伺服器常數只放 Docker secret(LEGACY_PORTAL_KEY_FILE、LEGACY_PORTAL_SERVER_KEY_FILE),不入版控。
    */
+  /**
+   * giga-observe 監控(MONITORING-PLAN.md;各部署區各一套,不可跨區):
+   *   apiKey     scope ingest,服務 gw-bff:BFF 每筆請求(含轉送上游的 routeCode / upstream)、心跳
+   *   webApiKey  scope ingest-web:轉送前端事件(POST /api/telemetry/web)
+   * 未設定 url 或 Key 時對應功能停用;enabled 預設 test / prod 開啟、dev 關閉
+   */
+  monitor: z.object({
+    url: z.string().url().optional(),
+    apiKey: z.string().optional(),
+    webApiKey: z.string().optional(),
+    enabled: bool.optional(),
+  }),
   legacyPortal: z.object({
     enabled: bool.default(false),
     key: z.string().optional(),
@@ -206,6 +218,12 @@ export function loadConfig(env: Env = process.env): AppConfig {
     passwordResetFallbackTo: env.PASSWORD_RESET_FALLBACK_TO || undefined,
     alertEmailTo: env.ALERT_EMAIL_TO,
     loginCompanies: env.LOGIN_COMPANIES,
+    monitor: {
+      url: env.MONITOR_URL || undefined,
+      apiKey: readSecret(env, 'MONITOR_API_KEY'),
+      webApiKey: readSecret(env, 'MONITOR_WEB_API_KEY'),
+      enabled: env.MONITOR_ENABLED || undefined,
+    },
     legacyPortal: {
       enabled: env.LEGACY_MIGRATION_ENABLED,
       key: readSecret(env, 'LEGACY_PORTAL_KEY'),

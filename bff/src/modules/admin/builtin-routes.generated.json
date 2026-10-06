@@ -1,0 +1,1062 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/admin/api-clients",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.client.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/api-clients.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/api-clients",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.client.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/api-clients.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/api-clients/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.client.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/api-clients.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/api-clients/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.client.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/api-clients.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/api-clients/:id/rotate",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.client.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/api-clients.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/apps",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/audit-logs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.audit.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/audit-query.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/auth-logs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.audit.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/audit-query.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/companies",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.company.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/companies/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.company.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/companies/:id/ad-domains",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.company.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/companies/:id/roles",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.company.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/db/tables",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/admin/db-viewer.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/db/tables/:table",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/admin/db-viewer.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/demo/catalog",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/onboarding.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/demo/openapi-preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/onboarding.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/demo/route-preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/onboarding.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/demo/who-can-access",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/onboarding.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/departments",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/dept-permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/dept-permissions/:deptCode",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/dept-permissions/:deptCode",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/direct-grants",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/employee-sync/runs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.sync"
+    ],
+    "summary": null,
+    "module": "modules/admin/employee-sync.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/employee-sync/runs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.sync"
+    ],
+    "summary": null,
+    "module": "modules/admin/employee-sync.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/employee-sync/runs/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.sync"
+    ],
+    "summary": null,
+    "module": "modules/admin/employee-sync.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/imports",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/imports.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/imports",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/imports.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/imports/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/imports.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/imports/:id/commit",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/imports.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/imports/template",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.import"
+    ],
+    "summary": null,
+    "module": "modules/admin/imports.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/job-tiers",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/local-accounts",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/local-accounts",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/local-accounts/:id/approve",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/local-accounts/:id/disable",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/local-accounts/:id/reset-password",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/local-accounts/:id/unlock",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.local.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/notify/logs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/notify/templates",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/notify/templates",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/notify/templates/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/notify/templates/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/notify/templates/:id/preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-admin.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/permissions/:code",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/permissions/:code",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/permissions/:code/includes",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/permissions/:code/who-can-access",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/access.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/rate-limit-policies",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/rate-limit-policies",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/rate-limit-policies/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/rate-limit-policies/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/rbac/preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/registrations",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.register"
+    ],
+    "summary": null,
+    "module": "modules/admin/registration.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/releases",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.release"
+    ],
+    "summary": null,
+    "module": "modules/admin/releases.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/releases",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.release"
+    ],
+    "summary": null,
+    "module": "modules/admin/releases.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/releases/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.release"
+    ],
+    "summary": null,
+    "module": "modules/admin/releases.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/releases/:id/rollback",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.release"
+    ],
+    "summary": null,
+    "module": "modules/admin/releases.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/releases/preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.release"
+    ],
+    "summary": null,
+    "module": "modules/admin/releases.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/roles",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/roles",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/roles/:role",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/roles/:role",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/roles/:role/ad-groups",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/roles/:role/ad-groups",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/roles.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/roles/:role/permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/roles/:role/permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/roles/:role/rules",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/roles/:role/rules",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/roles/:role/rules/:ruleId",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/roles/:role/rules/:ruleId",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/rbac.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/routes",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/routes",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/routes/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/routes/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/routes/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/routes/:id/steps",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/routes/:id/test",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/route-test.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/routes/:id/who-can-access",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/access.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/routes/catalog",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.route.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/registration.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/upstreams",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/upstreams",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/admin/upstreams/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/upstreams/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/upstreams/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/upstreams/:id/health-check",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.upstream.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/routing.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/user-permissions/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/user-permissions/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/grants.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/admin/users/:id",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/users/:id/effective-permissions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.rbac.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/access.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/admin/users/:id/revoke-sessions",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/login",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/password/change",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/password/forgot",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/password/reset",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/register",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/auth/register/verify",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/messages",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/notify/inbox.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/messages/:id/read",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/notify/inbox.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/messages/read-all",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/notify/inbox.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/send",
+    "auth": "permission",
+    "permissions": [
+      "notify.message.send"
+    ],
+    "summary": null,
+    "module": "modules/notify/routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/telemetry/web",
+    "auth": "public",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/telemetry/routes.ts"
+  }
+]

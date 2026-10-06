@@ -24,12 +24,14 @@ import notifyInbox from './modules/notify/inbox.js';
 import notifyPlugin from './modules/notify/plugin.js';
 import notifyRoutes from './modules/notify/routes.js';
 import notifyWs from './modules/notify/ws.js';
+import telemetryRoutes from './modules/telemetry/routes.js';
 import routerPlugin from './modules/router/plugin.js';
 import webhookRoutes from './modules/webhook/routes.js';
 import dbPlugin from './plugins/db.js';
 import docsPlugin from './plugins/docs.js';
 import errorsPlugin from './plugins/errors.js';
 import metricsPlugin from './plugins/metrics.js';
+import observePlugin from './plugins/observe.js';
 import queuesPlugin from './plugins/queues.js';
 import redisPlugin from './plugins/redis.js';
 
@@ -61,6 +63,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(errorsPlugin);
   // 指標 hook 與文件需在所有路由之前註冊(W3-5.11)
   await app.register(metricsPlugin);
+  // API 監控(giga-observe,MONITORING-PLAN W9-6)同樣需在路由之前
+  await app.register(observePlugin, { config });
   await app.register(docsPlugin, { config });
   await app.register(dbPlugin, { config });
   await app.register(redisPlugin, { config });
@@ -73,6 +77,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(notifyRoutes);
   await app.register(notifyInbox);
   await app.register(healthRoutes);
+  await app.register(telemetryRoutes, { config });
   await app.register(registration, { config });
   await app.register(rbacAdmin, { config });
   await app.register(rolesAdmin);

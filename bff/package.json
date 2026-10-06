@@ -24,7 +24,8 @@
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
     "db:reset-test": "tsx --env-file-if-exists=.env scripts/reset-test-db.ts",
-    "gw": "tsx --env-file-if-exists=.env src/cli/index.ts"
+    "gw": "tsx --env-file-if-exists=.env src/cli/index.ts",
+    "gen:builtin": "tsx scripts/gen-builtin-routes.ts"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",
