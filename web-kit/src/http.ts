@@ -58,6 +58,30 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+/** API 失敗(網路錯誤 status = 0,或 5xx);前端監控(monitor.ts)以此回報,帶 X-Request-Id 對到後端紀錄 */
+export interface ApiFailure {
+  method: string;
+  url: string;
+  status: number;
+  requestId: string | null;
+  durationMs: number;
+  message: string;
+}
+
+let apiFailureHook: ((f: ApiFailure) => void) | null = null;
+
+export function setApiFailureHook(fn: ((f: ApiFailure) => void) | null): void {
+  apiFailureHook = fn;
+}
+
+function notifyFailure(f: ApiFailure): void {
+  try {
+    apiFailureHook?.(f);
+  } catch {
+    // 監控不能影響呼叫端
+  }
+}
+
 export async function request<T = unknown>(method: string, url: string, body?: unknown, opts: RequestOptions = {}, retried = false): Promise<T> {
   const m = method.toUpperCase();
   const headers: Record<string, string> = { Accept: 'application/json', ...(SAFE.has(m) ? {} : csrfHeader()), ...opts.headers };
@@ -67,7 +91,20 @@ export async function request<T = unknown>(method: string, url: string, body?: u
     headers['Content-Type'] = 'application/json';
     payload = JSON.stringify(body);
   }
-  const res = await fetch(url, { method: m, headers, body: payload, credentials: 'same-origin', signal: opts.signal });
+  const started = performance.now();
+  let res: Response;
+  try {
+    res = await fetch(url, { method: m, headers, body: payload, credentials: 'same-origin', signal: opts.signal });
+  } catch (err) {
+    const durationMs = Math.round(performance.now() - started);
+    if ((err as Error)?.name !== 'AbortError')
+      notifyFailure({ method: m, url, status: 0, requestId: null, durationMs, message: (err as Error)?.message ?? String(err) });
+    throw err;
+  }
+  if (res.status >= 500) {
+    const durationMs = Math.round(performance.now() - started);
+    notifyFailure({ method: m, url, status: res.status, requestId: res.headers.get('X-Request-Id'), durationMs, message: res.statusText });
+  }
 
   if (res.status === 401 && !retried && !NO_REFRESH.test(url)) {
     if (await refreshSession()) return request<T>(method, url, body, opts, true);

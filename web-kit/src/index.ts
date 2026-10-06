@@ -5,14 +5,17 @@
  *   const { user, can } = useAuth()
  *   await http.get('/api/mes/work-orders')
  *   const { menu, trail, isOpen, toggle } = useMenuTree(MENU)   // 多層側邊選單(§7.5)
+ *   installMonitor({ app: 'itapp-web', router, vueApp: app })   // 前端健康度回報(MONITORING-PLAN W9-9)
  */
 import type { App } from 'vue';
 import type { Router } from 'vue-router';
 import { loadMe, useAuth } from './auth';
 import { redirectToLogin } from './http';
 
-export { ApiError, http, readCookie, redirectToLogin, refreshSession, request } from './http';
-export type { RequestOptions } from './http';
+export { ApiError, http, readCookie, redirectToLogin, refreshSession, request, setApiFailureHook } from './http';
+export type { ApiFailure, RequestOptions } from './http';
+export { installMonitor, rate, WebMonitorCore } from './monitor';
+export type { WebEvent, WebEventType, WebMonitorOptions } from './monitor';
 export { loadMe, logout, setMe, useAuth } from './auth';
 export type { Me, MeMenu } from './auth';
 export { filterMenu, findTrail, flattenMenu, menuKeys, pathMatches } from './menu';
