@@ -37,6 +37,7 @@ export interface CatalogRoute {
   systemCode: string;
   method: string;
   publicPath: string;
+  /** proxy / aggregate / internal / mock;builtin = BFF 內建 API(唯讀,不經路由表) */
   routeType: string;
   upstream: string | null;
   /** 開發專案:實作此路由上游服務的 repo 資料夾名稱(x-gateway.project);未登記為 null */
@@ -44,6 +45,8 @@ export interface CatalogRoute {
   upstreamPath: string | null;
   authMode: string;
   permissionCode: string | null;
+  /** builtin 才有:任一即可的權限代碼 */
+  permissions?: string[];
   status: 'draft' | 'published' | 'deprecated' | 'disabled';
   tags: string | null;
   description: string | null;

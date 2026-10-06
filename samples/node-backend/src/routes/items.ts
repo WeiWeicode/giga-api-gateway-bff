@@ -130,7 +130,10 @@ const itemRoutes: FastifyPluginAsync = async (app) => {
         createdBy: req.identity?.emp ?? req.identity?.sub ?? '',
         createdAt: new Date().toISOString(),
       };
+      const t0 = performance.now();
       items.push(item);
+      // 記錄步驟(資料庫、外部 API…),架構觀測頁的請求明細會依序列出;未啟用監控時為 no-op
+      req.monitor.action('db', 'memory.items', Math.round(performance.now() - t0), 'insert');
       return reply.status(201).send(item);
     },
   );

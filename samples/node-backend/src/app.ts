@@ -3,9 +3,11 @@
  *   - 驗證 X-Internal-Token(BACKEND-GUIDE.md §4.2),身分放在 req.identity;x-permission: public 的 API 可不帶 Token
  *   - 錯誤格式 { code, message, requestId, details? }(§5.3),不回傳堆疊或 SQL
  *   - GET /healthz(必備)、GET /readyz、GET /openapi.json(§5.4、§6)
+ *   - setupGateway:API 監控送 giga-observe、開始服務後自動註冊(§7.5、§11);req.monitor.action() 記錄步驟
  */
 import swagger from '@fastify/swagger';
 import { createTokenVerifier, errorBody, INTERNAL_TOKEN_HEADER, type GatewayIdentity } from '@giganexus/backend-sdk';
+import { setupGateway } from '@giganexus/backend-sdk/fastify';
 import Fastify, { type FastifyInstance } from 'fastify';
 import type { Config } from './config.js';
 import { AppError } from './errors.js';
@@ -31,6 +33,8 @@ export async function buildApp(config: Config): Promise<FastifyInstance> {
   const verify = createTokenVerifier({ jwksUrl: config.gateway.jwksUrl!, audience: config.gateway.serviceCode });
 
   await app.register(swagger, swaggerOptions(config.gateway.serviceCode, config.gateway.project));
+  // 監控 + 自動註冊;需在路由之前註冊。version 隨心跳回報,架構圖的服務詳情會顯示
+  await app.register(setupGateway, { env: config.gateway, monitor: config.monitor, version: process.env.npm_package_version });
 
   app.decorateRequest('identity', null);
   app.addHook('onRequest', async (req) => {
