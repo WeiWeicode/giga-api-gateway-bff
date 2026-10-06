@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.6(2026-10-05,§6.1 `x-permissions` 只宣告 API 權限,畫面節點由前端應用登記並以 `includes` 綁定;API 權限要切得出讀 / 寫);v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.7(2026-10-06,新增 §11 API 監控:setupGateway 一鍵接入、req.monitor、排程回報、環境變數、套件安裝;§10 檢查清單加入監控);v0.6(2026-10-05,§6.1 `x-permissions` 只宣告 API 權限,畫面節點由前端應用登記並以 `includes` 綁定;API 權限要切得出讀 / 寫);v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -501,3 +501,83 @@ flowchart LR
 - [ ] 新增的 API 已查過既有路由,沒有重複(§7.5)
 - [ ] 測試區、正式區各自的 API Key 已存入 Docker secret,`GW_ENV` 設定正確,啟動日誌顯示自動註冊成功
 - [ ] 敏感 API 設定 `x-audit-level`
+- [ ] 已以 `setupGateway` 接上監控(§11),測試區、正式區各自的 giga-observe ingest Key 已存入 Docker secret;架構觀測頁看得到本服務的心跳與紀錄
+
+---
+
+## 11. API 監控(giga-observe)
+
+> 規劃與決策見 [MONITORING-PLAN.md](MONITORING-PLAN.md)。畫面在 GigaItApp「API Gateway 管理 › 架構觀測」;資料存在 giga-observe(測試區、正式區各一套,不可跨區送)。
+
+### 11.1 一鍵接入(Node.js / Fastify)
+
+`@giganexus/backend-sdk` 的 `setupGateway` 一次掛上**監控**與**自動註冊**(§7.5),工程師不用自己寫回報程式:
+
+```ts
+import { loadGatewayEnv, loadMonitorEnv } from @giganexus/backend-sdk;
+import { setupGateway } from @giganexus/backend-sdk/fastify;
+
+const gateway = loadGatewayEnv();
+await app.register(swagger, …);                      // 先註冊 @fastify/swagger(自動註冊用 app.swagger())
+await app.register(setupGateway, {                   // 需在路由之前
+  env: gateway,
+  monitor: loadMonitorEnv(gateway.gwEnv),
+  version: process.env.npm_package_version,
+  // 選用:monitorOptions: { ignorePaths, maskFields, sampleRate, deps: async () => [{ name: mssql, ok: true, latencyMs: 3 }] }
+});
+// 開始服務(app.listen)後在背景自動註冊;dev 不註冊、不監控
+```
+
+完整範例:[samples/node-backend](../samples/node-backend)。`/healthz`、`/readyz` 與 `X-Internal-Token` 驗證仍由服務自己提供(§4.2、§5.4)。
+
+### 11.2 記錄了什麼
+
+| 欄位 | 內容 |
+| --- | --- |
+| 每筆請求 | 時間、方法、路徑與路徑樣板、狀態碼、耗時、使用者工號(`req.identity.emp`)、來源 IP、`X-Request-Id`(traceId,與 BFF、Nginx、前端同一請求串接) |
+| body | 成功只存前 1 KB 摘要;5xx 與自報錯誤存完整(32 KB 截斷,90 天後裁成摘要);password、token、secret、authorization、cookie 等欄位一律遮罩,另可用 `maskFields` 指定 |
+| 心跳 | 每 30 秒,含版本、運作時間、`deps` 相依服務狀態;90 秒沒有心跳也探測失敗即顯示「失聯」 |
+| 不記錄 | `/healthz`、`/readyz`、`/metrics`(`ignorePaths` 可增減) |
+
+### 11.3 步驟與自報錯誤
+
+```ts
+const t0 = performance.now();
+const rows = await db.query(…);
+req.monitor.action(db, mssql.work_orders, Math.round(performance.now() - t0), select);   // 明細頁依序列出
+if (fallback) req.monitor.fail(err, 已改用快取);                                           // 回 200 也記為錯誤
+```
+
+### 11.4 排程工作
+
+```ts
+const job = app.monitor.job(nightly-sync, { params: { company: 碩禾 } });
+try { job.action(db, bpm.emp, 120); await job.success({ synced: 30 }); } catch (err) { await job.fail(err); }
+```
+
+### 11.5 環境變數
+
+| 變數 | 說明 |
+| --- | --- |
+| `MONITOR_URL` | giga-observe 位址;與 Gateway 同主機時 `http://observe-api:51202`(容器加入 Gateway 網路) |
+| `MONITOR_API_KEY_FILE` | ingest Key 檔(Docker secret);dev 可用 `MONITOR_API_KEY`,正式區只接受 `_FILE` |
+| `MONITOR_ENABLED` | 預設 test / prod 開啟、dev 關閉;未設定 URL 或 Key 時自動停用(不影響服務) |
+
+Key 向 Gateway 負責人申請(giga-observe 以 `createApiKey.js --service <服務代碼> --scope ingest` 建立,明文只顯示一次);服務代碼需先登錄到 giga-observe 的拓樸(`backend/config/topology.json`)才會出現在架構圖。
+
+監控失敗**不會影響服務**:非同步批次送出、1 秒逾時、送不出去保留重送,緩衝滿了丟最舊的紀錄。
+
+### 11.6 套件安裝
+
+`@giganexus/backend-sdk`、`@giganexus/web-kit` 由 Gateway Pipeline 在 `develop` 發佈到公司 GitLab 的 npm Package Registry(版本號改變才發佈)。專案根目錄 `.npmrc`:
+
+```ini
+@giganexus:registry=http://10.10.130.123/api/v4/packages/npm/
+//10.10.130.123/api/v4/packages/npm/:_authToken=${GITLAB_NPM_TOKEN}
+```
+
+`GITLAB_NPM_TOKEN` 為具 `read_api`(或 Deploy Token 的 `read_package_registry`)權限的 Token,放在環境變數,不寫進 repo。
+
+### 11.7 其他語言
+
+尚無 SDK 的語言(Go、.NET…)直接呼叫 giga-observe Ingest API(`POST /api/v1/ingest/logs`、`POST /api/v1/heartbeat`,`X-API-Key`),格式見 `giga-observe/docs/API_CONTRACT.md` §2;需遵守同樣的鐵則(非同步、1 秒逾時、失敗不影響服務)。

@@ -226,3 +226,17 @@ await app.register(setupGateway, {
 3. Gateway `test.env` 設定 `MONITOR_URL=http://observe-api:51202` 與三個 `MONITOR_*_API_KEY_FILE`,推送 BFF(develop)部署
 4. 新增上游 `observe-api`(`http://observe-api:51202`),匯入 `http://observe-api:51202/openapi.json` 並發佈;giga-observe 設 `GW_JWKS_URL`
 5. 套用 GigaItApp `deploy/gateway-rbac.yaml`(需先有 `observe.*` 權限),推送 GigaItApp(develop)部署
+
+### 8.2 測試區部署紀錄(2026-10-06)
+
+- giga-observe:主機 2 `/srv/giganexus/giga-observe`(compose 專案 `giga-observe-test`,`backend/.env.test` 隨機密碼);備份排程已設定回報 Key
+- Gateway 機密目錄:`monitor_api_key`(gw-bff)、`monitor_web_api_key`(gw-bff-web,ingest-web)、`monitor_nginx_api_key`(gw-nginx);`test.env` 加入 `MONITOR_*`(備份 `test.env.bak-20261006-monitor`)
+- 上游 `observe-api` 與 13 條 `/api/observe/*` 已發佈(版本 37);GigaItApp 權限已由 CI rbac-test 套用
+
+### 8.3 正式區(注記,隨 W3-M 於主機 3 建置)
+
+1. giga-observe 另起一套:`OBSERVE_ENV=prod`、`backend/.env.prod`(新密碼,不可沿用測試區)、`deploy/prod.env`,資料目錄 `data/prod/`;**不可**讓正式區服務送到測試區,反之亦然
+2. Key 重新建立(正式區只接受 `*_FILE`):`monitor_api_key`、`monitor_web_api_key`、`monitor_nginx_api_key`,`prod.env` 設定 `MONITOR_*`
+3. 正式區 Gateway 匯入 `http://observe-api:51202/openapi.json` 並發佈;GigaItApp `gateway-rbac.yaml` 以 prod 套用
+4. 拓樸:`backend/config/topology.json` 的 healthUrl 為測試區網址;主機 3 部署後改成正式區位址(該目錄以 volume 掛載,改完呼叫 `POST /api/v1/admin/topology/reload` 即生效)
+5. 告警 Email 通知、Web Vitals 抽樣比例依正式流量再調整
