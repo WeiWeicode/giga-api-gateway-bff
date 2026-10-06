@@ -1,6 +1,7 @@
 # GigaNexus Gateway Pipeline(DEPLOYMENT.md §2)
 #   check        所有分支:lint、型別、單元測試、2012 語法檢查、nginx -t
 #   build        develop / main:建置 bff、nginx、nginx-log-agent 映像檔並推送(tag = commit SHA)
+#                develop:@giganexus/backend-sdk、@giganexus/web-kit 發佈到本專案的 npm Package Registry(版本已存在則略過,W9-3)
 #   deploy-test  develop 自動部署測試區(主機 2,windows-runner)
 #   deploy-prod  main 手動核可部署正式區(主機 3,prod-deploy,Protected);拉取與測試區相同 SHA 的映像檔
 #
@@ -84,6 +85,34 @@ build:
     - docker push "$BFF_IMAGE:$CI_COMMIT_SHA"
     - docker push "$NGINX_IMAGE:$CI_COMMIT_SHA"
     - docker push "$LOG_AGENT_IMAGE:$CI_COMMIT_SHA"
+
+# 共用套件發佈(W9-3):以本 Pipeline 的 CI_JOB_TOKEN 發佈到本專案的 npm Registry;package.json 的 version 沒變就略過
+# 安裝端:@giganexus:registry=<GitLab>/api/v4/packages/npm/(BACKEND-GUIDE §11.6)
+publish:packages:
+  <<: *windows-runner
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+  script:
+    - |
+      set -e
+      REG="$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/npm/"
+      AUTH="${REG#http:}"; AUTH="${AUTH#https:}"
+      for P in sdk/node web-kit; do
+        cd "$CI_PROJECT_DIR/$P"
+        printf '@giganexus:registry=%s\n%s:_authToken=%s\n' "$REG" "$AUTH" "$CI_JOB_TOKEN" > .npmrc
+        NAME=$(node -p "require('./package.json').name"); VER=$(node -p "require('./package.json').version")
+        if npm view "$NAME@$VER" version >/dev/null 2>&1; then
+          echo "$NAME@$VER 已發佈,略過"
+        else
+          if [ "$P" = sdk/node ]; then npm ci --no-audit --no-fund; fi
+          npm publish --registry "$REG"
+          echo "已發佈 $NAME@$VER"
+        fi
+        rm -f .npmrc
+      done
+  after_script:
+    - rm -f sdk/node/.npmrc web-kit/.npmrc
 
 .deploy: &deploy
   script:
