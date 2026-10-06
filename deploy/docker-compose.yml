@@ -56,6 +56,10 @@ x-bff-env: &bff-env
   PASSWORD_RESET_FALLBACK_TO: ${PASSWORD_RESET_FALLBACK_TO:-}
   # 分階段開放:只有所屬公司在清單內的使用者可登入,管理端人員 / 部門清單也只列這些公司(逗號分隔 comp_name;空白 = 全部公司)
   LOGIN_COMPANIES: ${LOGIN_COMPANIES:-}
+  # 監控(giga-observe,MONITORING-PLAN W9-6):未設定 MONITOR_URL 或 Key 檔時停用;Key 檔放機密目錄後在 <區域>.env 指定路徑
+  MONITOR_URL: ${MONITOR_URL:-}
+  MONITOR_API_KEY_FILE: ${MONITOR_API_KEY_FILE:-}
+  MONITOR_WEB_API_KEY_FILE: ${MONITOR_WEB_API_KEY_FILE:-}
   # 舊單一入口帳號遷移(W3-4.16):以現行系統測試帳號驗證密文一致(P-15)後才開啟;
   # 開啟時在 <區域>.env 設 LEGACY_MIGRATION_ENABLED=true 與兩個 *_FILE=/run/secrets/gw/legacy_portal_key、legacy_portal_server_key(檔案放機密目錄)
   LEGACY_MIGRATION_ENABLED: ${LEGACY_MIGRATION_ENABLED:-false}
@@ -98,6 +102,7 @@ services:
     volumes:
       - gw_www:/srv/www:ro
       - ${GW_SECRETS_DIR}/pki:/etc/nginx/pki:ro
+      - nginx_logs:/var/log/nginx-gw
     # 同主機容器(GigaItApp 等)以 https://<GW_PUBLIC_HOST> 呼叫時直接解析到本容器,主機名稱符合 :443 憑證(Q1)
     networks:
       default:
@@ -148,6 +153,22 @@ services:
     depends_on:
       - nginx
 
+  # Nginx 流量 / 來源 IP 每分鐘彙總 → giga-observe(MONITORING-PLAN W9-7);未設定 MONITOR_URL 時只讀檔不回報,停掉不影響 Nginx
+  nginx-log-agent:
+    image: ${REGISTRY:-localhost:5050}/gateway/nginx-log-agent:${IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      MONITOR_URL: ${MONITOR_URL:-}
+      MONITOR_API_KEY_FILE: ${MONITOR_NGINX_API_KEY_FILE:-}
+      LOG_FILE: /var/log/nginx-gw/access.json
+      STUB_STATUS_URL: http://nginx:8081/stub_status
+      IMAGE_TAG: ${IMAGE_TAG}
+    volumes:
+      - nginx_logs:/var/log/nginx-gw
+      - ${GW_SECRETS_DIR}:/run/secrets/gw:ro
+    depends_on:
+      - nginx
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -176,6 +197,7 @@ services:
 
 volumes:
   gw_www:
+  nginx_logs:
   redis_data:
   bff1_var:
   bff2_var:

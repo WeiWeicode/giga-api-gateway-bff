@@ -1,6 +1,6 @@
 # GigaNexus Gateway Pipeline(DEPLOYMENT.md §2)
 #   check        所有分支:lint、型別、單元測試、2012 語法檢查、nginx -t
-#   build        develop / main:建置 bff、nginx 映像檔並推送(tag = commit SHA)
+#   build        develop / main:建置 bff、nginx、nginx-log-agent 映像檔並推送(tag = commit SHA)
 #   deploy-test  develop 自動部署測試區(主機 2,windows-runner)
 #   deploy-prod  main 手動核可部署正式區(主機 3,prod-deploy,Protected);拉取與測試區相同 SHA 的映像檔
 #
@@ -13,6 +13,7 @@ stages: [check, build, deploy-test, deploy-prod]
 variables:
   BFF_IMAGE: $CI_REGISTRY_IMAGE/gateway/bff
   NGINX_IMAGE: $CI_REGISTRY_IMAGE/gateway/nginx
+  LOG_AGENT_IMAGE: $CI_REGISTRY_IMAGE/gateway/nginx-log-agent
   COMPOSE: docker compose -f deploy/docker-compose.yml
   # 主機上的共用目錄(主機 2:/srv/giganexus/shared,擁有者 gitlab-runner)
   GW_SHARED_DIR: /srv/giganexus/shared/giga-api-gateway-bff
@@ -31,6 +32,18 @@ check:bff:
     - npm run format:check
     - npm run typecheck
     - npm run db:check-2012
+    - npm test
+    # nginx-log-agent(W9-7):無外部相依,直接以 node 執行測試
+    - node --test ../nginx/log-agent/agent.test.mjs
+
+# @giganexus/backend-sdk(監控、自動註冊;MONITORING-PLAN W9-2)
+check:sdk:
+  <<: *windows-runner
+  stage: check
+  script:
+    - cd sdk/node
+    - npm ci
+    - npm run typecheck
     - npm test
 
 check:nginx:
@@ -67,8 +80,10 @@ build:
     # --pull:一律以 Registry 的官方基底映像建置;主機上的 node:22-alpine 等標籤可能被其他專案覆寫(2026-10-02 發生,NODE_ENV=production 導致 tsc 不存在)
     - docker build --pull -f bff/Dockerfile -t "$BFF_IMAGE:$CI_COMMIT_SHA" .
     - docker build --pull -t "$NGINX_IMAGE:$CI_COMMIT_SHA" nginx/
+    - docker build --pull -t "$LOG_AGENT_IMAGE:$CI_COMMIT_SHA" nginx/log-agent/
     - docker push "$BFF_IMAGE:$CI_COMMIT_SHA"
     - docker push "$NGINX_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$LOG_AGENT_IMAGE:$CI_COMMIT_SHA"
 
 .deploy: &deploy
   script:
@@ -96,6 +111,8 @@ build:
     - $C up -d --no-deps nginx
     # 4a. Nginx 指標(W3-2.8;讀取 nginx:8081/stub_status)
     - $C up -d --no-deps nginx-exporter
+    # 4b. Nginx 流量彙總(W9-7;未設定 MONITOR_URL 時只讀檔不回報)
+    - $C up -d --no-deps nginx-log-agent
     # 5. 記錄已部署版本(giga-Portal 套用權限時以同一個映像執行 CLI)
     - echo "$CI_COMMIT_SHA" > "$(dirname "$GW_SHARED_DIR")/gateway-image-tag"
     # 6. 冒煙測試

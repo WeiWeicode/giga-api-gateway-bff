@@ -7,6 +7,8 @@ COPY snippets/ /etc/nginx/snippets/
 COPY conf.d/ /etc/nginx/conf.d/
 COPY allowlists/ /etc/nginx/allowlists/
 COPY templates/ /etc/nginx/templates/
+# nginx-log-agent 讀取的 access log(compose 掛共用 volume)
+RUN mkdir -p /var/log/nginx-gw
 # 部署區預設(可由 compose 覆寫)
 ENV GW_ENV=prod \
     ENDPOINT_WS_UPSTREAM=endpoint-server:51240 \
