@@ -13,6 +13,8 @@ COPY bff/tsconfig.json bff/tsconfig.build.json ./
 COPY bff/src ./src
 COPY db/seed /repo/db/seed
 # backend-sdk 的監控模組以原始碼編入(MONITORING-PLAN W9-6;SDK 發佈到 Registry 後改為一般相依)
+# package.json 一併複製:"type": "module",否則 tsc 將 SDK 原始碼視為 CommonJS
+COPY sdk/node/package.json /repo/sdk/node/package.json
 COPY sdk/node/src /repo/sdk/node/src
 RUN npm run build
 
