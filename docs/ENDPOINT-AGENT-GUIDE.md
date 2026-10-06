@@ -1,6 +1,6 @@
-# GigaNexus Gateway — Endpoint Server 與端點 Agent 開發手冊(Rust + WebSocket)
+# GigaNexus Gateway — Endpoint Server 與端點 Agent 開發手冊(Node.js 後端 + Rust Agent,WebSocket)
 
-> 適用對象:RustIt 的 Endpoint Server(`crates/server`,Rust + Axum)、Rust Agent(`crates/agent`)、Rust Watchdog 的開發者(W6)。
+> 適用對象:RustIt 的 Endpoint Server(`RustIt/ItAgentBack`,Node.js + Fastify)、Rust Agent(`RustIt/RustAgent/crates/agent`)、Rust Watchdog 的開發者(W6)。
 > 對應 PRD 版本:**v0.9**(2026-10-01)。相關規格:[PRD.md](PRD.md) §7.4(WebSocket)、§7.6(Agent 通道);[ARCHITECTURE.md](ARCHITECTURE.md) T6、T8、D2、D3;一般下游後端規範見 [BACKEND-GUIDE.md](BACKEND-GUIDE.md);RustIt 的產品規格見 `../RustIt/docs/PRD.md`。
 
 ---
@@ -9,13 +9,13 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.3(2026-10-01:Agent 通道由 gRPC 改為 HTTPS / WebSocket,Agent、Watchdog、Endpoint Server 改為 Rust) |
+| 文件版本 | v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
 | 維護者 | Gateway 負責人(通道規格)、W6 負責人(§5–§7 的程式規範) |
 
-**為什麼不用 gRPC(2026-09-29 決定)**:1,000 台以內的端點,一條 WebSocket 接收指令、HTTPS 回報資料已足夠;gRPC 的效益在萬台規模才明顯。WebSocket 可直接沿用 Nginx、瀏覽器與 Axum 的既有支援,除錯工具也較普及。
+**為什麼不用 gRPC(2026-09-29 決定)**:1,000 台以內的端點,一條 WebSocket 接收指令、HTTPS 回報資料已足夠;gRPC 的效益在萬台規模才明顯。WebSocket 可直接沿用 Nginx、瀏覽器與 Node.js(`ws`)的既有支援,除錯工具也較普及。
 
 **HTTPS / WebSocket 經 `:9443` 只用在端點電腦**。其他後端(例如 MES)對外的 API 一律走 HTTP/JSON,經 BFF 轉送([BACKEND-GUIDE.md](BACKEND-GUIDE.md))。`:9443` 只接受 Agent 專用中繼 CA 簽發的裝置憑證。
 
@@ -24,7 +24,8 @@
 | 項目 | 狀態 |
 | --- | --- |
 | Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ⚠ **仍為 gRPC 版**(`grpc_pass`,2026-09-25 實測通過)。依 §4 改寫為 `proxy_pass` + WebSocket,**W6-1 訊息協定定版後進行** |
-| §3.4、§5–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
+| §3.4、§6–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
+| Endpoint Server(`RustIt/ItAgentBack`,§5) | 規劃中;整合計畫 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
 
 ---
 
@@ -49,7 +50,7 @@ flowchart LR
         BFF["BFF"]
     end
 
-    subgraph EPS ["Endpoint Server(RustIt,Rust + Axum)"]
+    subgraph EPS ["Endpoint Server(RustIt/ItAgentBack,Node.js)"]
         G[":51241<br/>Agent 通道 HTTPS / WSS"]
         H[":51240<br/>管理 API / 瀏覽器 WebSocket"]
     end
@@ -197,7 +198,7 @@ location / {
 
 ---
 
-## 5. Endpoint Server 規範(RustIt `crates/server`)
+## 5. Endpoint Server 規範(RustIt `ItAgentBack`,Node.js + Fastify)
 
 ### 5.1 監聽與 TLS
 
@@ -206,25 +207,20 @@ location / {
 - 不要求用戶端憑證(Nginx 不會出示);裝置身分只看 §4.1 的標頭。
 - `:51240`(管理 API、瀏覽器 WebSocket)與 `:51241` 分開監聽,避免 Agent 通道的路由被瀏覽器流量誤用。
 
-### 5.2 裝置身分(Axum extractor)
+### 5.2 裝置身分(Fastify hook)
 
-所有 Agent 通道的 handler 都以 extractor 取得裝置,未通過一律 401,不進入業務邏輯:
+`:51241` 的所有路由都先經過身分 hook 取得裝置,未通過一律 401,不進入業務邏輯(`:51240` 是另一個 Fastify 實例,只認 `X-Internal-Token`,兩者不共用 hook):
 
-```rust
-pub struct Device { pub dn: String, pub fp: String }
-
+```ts
 // 只信任 Nginx 以 proxy_set_header 設定的值(Agent 自送的同名標頭會被覆寫)
-impl<S: Send + Sync> FromRequestParts<S> for Device {
-    type Rejection = StatusCode;
-    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        let h = |k| parts.headers.get(k).and_then(|v| v.to_str().ok()).unwrap_or("");
-        if h("x-client-verify") != "SUCCESS" || h("x-client-cert-dn").is_empty() || h("x-client-cert-fp").is_empty() {
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-        // 以 DN 查裝置登錄表(§3.3):停用 → 403;新指紋 → 更新並寫稽核
-        Ok(Device { dn: h("x-client-cert-dn").into(), fp: h("x-client-cert-fp").into() })
-    }
-}
+agentApp.addHook('onRequest', async (req, reply) => {
+  const h = (k: string) => String(req.headers[k] ?? '');
+  if (h('x-client-verify') !== 'SUCCESS' || !h('x-client-cert-dn') || !h('x-client-cert-fp')) {
+    return reply.code(401).send({ code: 'DEVICE_UNAUTHORIZED' });
+  }
+  // 以完整 DN 查裝置登錄表(§3.3):停用 → 403;新指紋 → 更新並寫稽核
+  req.device = await devices.identify({ dn: h('x-client-cert-dn'), fp: h('x-client-cert-fp') });
+});
 ```
 
 ### 5.3 WebSocket 長連線與離線判斷
@@ -232,7 +228,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Device {
 - 每台 Agent 只維持**一條** WebSocket(`GET /agent/v1/ws`),用來接收指令、送心跳與指令進度;資產與事件等資料量大的回報走 HTTPS(§6.3),不佔用 WebSocket。
 - WebSocket 的 ping / pong frame 會穿過 Nginx,但**仍要有應用層心跳**:Agent 每 30 秒送一則 `heartbeat` 訊息,Endpoint Server 回 `heartbeat_ack`。心跳同時帶 Agent 狀態,也確保兩個方向都有資料,不會被 Nginx 的 1 小時逾時切斷。
 - 連續 3 次(90 秒)沒收到心跳即判定離線;WebSocket 關閉也立即標記離線。
-- Nginx 對上游不做多工:**每一條 Agent WebSocket 都是 Nginx 到 Endpoint Server 的一條獨立 TCP / TLS 連線**。200 台 × 1 條 ≈ 200 條長連線,Axum(tokio)可輕鬆處理,連線數監控以此估算。
+- Nginx 對上游不做多工:**每一條 Agent WebSocket 都是 Nginx 到 Endpoint Server 的一條獨立 TCP / TLS 連線**。200 台 × 1 條 ≈ 200 條長連線,Node.js 可輕鬆處理(1,000 條上限以實測為準),連線數監控以此估算。
 
 ### 5.4 撤銷與停用
 
@@ -246,7 +242,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Device {
 
 ### 5.6 訊息格式與相容性
 
-- WebSocket 使用 **JSON 文字訊息**,共用信封:`{ "v": 1, "type": "<類型>", "id": "<UUID>", "body": { ... } }`。正式類型清單由 W6-1 定義,資料結構放在 RustIt 的共用 crate,Agent 與 Server 共用同一份型別。
+- WebSocket 使用 **JSON 文字訊息**,共用信封:`{ "v": 1, "type": "<類型>", "id": "<UUID>", "body": { ... } }`。正式類型清單由 W6-1 定義,資料結構以 `RustIt/docs/contracts/` 的 JSON Schema 與範例檔為準,Agent(Rust)與 Server(Node.js)各自以同一份範例做契約測試。
 - 路徑帶版本:`/agent/v1/...`。Agent 是分批升級的,**Endpoint Server 必須同時支援目前版本與前一版的 Agent**。
 - 只新增欄位、不改既有欄位的意義;收到不認得的欄位忽略、不認得的 `type` 回 `unsupported`。不相容的變更以新路徑(`/agent/v2/`)並存。
 - Agent 在 WebSocket 的第一則訊息 `hello` 回報自己的版本(並以 `user-agent: giganexus-agent/<版本>` 標示),Endpoint Server 依版本決定可用的功能。
@@ -264,7 +260,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Device {
 
 ---
 
-## 6. Rust Agent 規範(RustIt `crates/agent`)
+## 6. Rust Agent 規範(RustIt `RustAgent/crates/agent`)
 
 ### 6.1 安裝型態
 
@@ -301,7 +297,7 @@ Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟�
 
 ## 7. Rust Watchdog 與本機通道
 
-> 原規劃為 C# Watchdog(2026-09-24),2026-10-01 改為 Rust,與 Agent 同在 RustIt 的 Cargo workspace(`crates/watchdog`,規劃中),共用憑證來源與訊息型別。
+> 原規劃為 C# Watchdog(2026-09-24),2026-10-01 改為 Rust,與 Agent 同在 RustIt 的 Cargo workspace(`RustAgent/crates/watchdog`,規劃中),共用憑證來源與訊息契約。
 
 ### 7.1 定位
 
@@ -390,13 +386,13 @@ sequenceDiagram
 ```
                         ┌─ /it/api/*        ─▶ itapp-api (Node)            選單、Tab、按鈕顯示權限、IT 人員與部門
 IT 前端 /it/ ─▶ Nginx ─┤
-                        ├─ /api/endpoint/*  ─▶ BFF ─▶ Endpoint Server (Rust)   電腦清單、指令(權限在 BFF 檢查)
-                        └─ /ws/endpoint/*   ─▶ Endpoint Server (Rust)          遠端畫面(Nginx 先向 BFF 驗證)
+                        ├─ /api/endpoint/*  ─▶ BFF ─▶ Endpoint Server (Node.js)   電腦清單、指令(權限在 BFF 檢查)
+                        └─ /ws/endpoint/*   ─▶ Endpoint Server (Node.js)          遠端畫面(Nginx 先向 BFF 驗證)
 
-Rust Agent ×200 ─▶ Nginx :9443 ─▶ Endpoint Server (Rust)   指令即時從 Agent 的 WebSocket 推送
+Rust Agent ×200 ─▶ Nginx :9443 ─▶ Endpoint Server (Node.js)   指令即時從 Agent 的 WebSocket 推送
 ```
 
-| 項目 | itapp-api(Node) | BFF | Endpoint Server(Rust) | IT 前端 |
+| 項目 | itapp-api(Node) | BFF | Endpoint Server(Node.js) | IT 前端 |
 | --- | --- | --- | --- | --- |
 | 選單、Tab、按鈕要不要顯示 | ✅(職級 × 部門) | 提供 `/api/auth/me` 的權限 | — | 取兩者交集(§8.6) |
 | 能不能查詢電腦、下指令 | ❌ 不檢查、不轉送 | ✅ 依路由的 `endpoint.*` 權限 | 資料範圍(§8.2)、指令類型與路徑相符 | — |
@@ -405,7 +401,7 @@ Rust Agent ×200 ─▶ Nginx :9443 ─▶ Endpoint Server (Rust)   指令即時
 | 稽核 | IT 應用本身的操作 | 路由 `x-audit-level: meta` | ✅ 每一筆指令(§8.5) | — |
 
 - itapp-api **不轉送**端點 API,也**不持有**能呼叫 Endpoint Server 的服務帳號;端點相關的請求一律由瀏覽器帶著 Gateway 的登入狀態經 BFF。
-- Rust 與 Node 兩個後端**不互相呼叫**;Endpoint Server 需要的操作人資訊都在內部 Token 裡。
+- `ItAgentBack`(Endpoint Server)與 `itapp-api` 兩個 Node.js 後端**不互相呼叫**;Endpoint Server 需要的操作人資訊都在內部 Token 裡。
 
 ### 8.2 權限代碼(BFF)
 
@@ -423,7 +419,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 
 ### 8.3 API 草案
 
-以 `endpoint-api`(`:51240`)提供,OpenAPI 自動註冊為草稿後由 IT 發佈([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6、§7.5;目前只有 Node.js SDK,Rust 需自行呼叫 `POST /api/admin/registrations`,OpenAPI 根層必須帶 `x-gateway.project: RustIt`,BACKEND-GUIDE §6.1)。路徑中的 `{deviceId}` 由 Endpoint Server 指派(電腦名稱可能重複,§3.2),畫面上顯示電腦名稱。
+以 `endpoint-api`(`:51240`)提供,OpenAPI 自動註冊為草稿後由 IT 發佈([BACKEND-GUIDE.md](BACKEND-GUIDE.md) §6、§7.5;Endpoint Server 使用 Node.js `@giganexus/backend-sdk` 自動註冊,OpenAPI 根層必須帶 `x-gateway.project: RustIt`,BACKEND-GUIDE §6.1)。路徑中的 `{deviceId}` 由 Endpoint Server 指派(電腦名稱可能重複,§3.2),畫面上顯示電腦名稱。
 
 | 方法 | 對外路徑 | `x-permission` | 說明 |
 | --- | --- | --- | --- |
@@ -522,7 +518,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | **待 W6-1 訊息協定定版** |
 | G1 | CRL 定期更新並 reload Nginx | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
 | G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | **已接受**(2026-10-01 需求方確認) |
-| G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 Rust 或 k6 測試工具 |
+| G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 k6 或自寫 Node.js / Rust 測試工具 |
 | G4 | Windows 主機上 Nginx 看到的來源 IP | 主機 2 已以 Traefik + PROXY protocol 保留來源 IP(`:443`,2026-10-01);`:9443` 開放時在 Traefik 加 `agent` 入口 → `127.0.0.1:19443`(Nginx 已有 `19443 proxy_protocol`,[DEPLOYMENT.md](DEPLOYMENT.md) §6.1)。`limit_conn` 以裝置憑證計算 | `:443` 已處理;`:9443` 待 Agent 上線 |
 | G5 | 子公司經 NAT 連入 | 同一公司的電腦共用來源 IP;`limit_conn` 已改以裝置憑證計算,不受影響 | 已處理(2026-09-25) |
 | G6 | reload 時,舊的 Nginx worker 要等 WebSocket 結束才會退出(未設定 `worker_shutdown_timeout`) | CRL 更新頻繁 reload 時,舊 worker 可能累積最多 1 小時 | 建議與 G1 一起處理 |

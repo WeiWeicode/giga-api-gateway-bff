@@ -203,7 +203,7 @@
 sequenceDiagram
     participant AG as Rust Agent (Windows 服務)
     participant NX as Nginx :9443(Agent 專用)
-    participant EP as Endpoint Server :51241(RustIt,Rust + Axum)
+    participant EP as Endpoint Server :51241(RustIt/ItAgentBack,Node.js)
     AG->>NX: TLS ClientHello + 裝置憑證
     NX->>NX: ssl_verify_client on<br/>驗證簽發 CA、效期、CRL
     alt 憑證無效

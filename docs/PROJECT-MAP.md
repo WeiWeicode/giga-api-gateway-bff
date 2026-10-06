@@ -85,7 +85,7 @@ giga-api-gateway-bff/
 | 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `OrganizationUnit` / `Organization` → `gw.department`,樹變更遞增全體 pv) |
 | 自行註冊 / 忘記密碼 | `modules/auth/routes.ts` → `local-account.ts`(AD 查詢、`profile.ts` 查 LOS / BPM、`gw.local_credential` / `local_account_token`)→ `app.notifier` 寄連結 |
 | Webhook | Nginx `portal.conf` `/webhook/`(IP 白名單)→ `modules/webhook/routes.ts`(驗簽 → 時間戳 → 去重 → `gw.webhook_log` → BullMQ `webhook`)→ `worker.ts` → `workers/webhook.worker.ts`(依 `dispatch_target` 處理) |
-| 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt`,Rust + Axum);BFF 不經手 |
+| 端點 Agent | Nginx `conf.d/agent.conf`(:9443 mTLS)→ `proxy_pass`(HTTPS / WebSocket)→ Endpoint Server(W6,`../RustIt/ItAgentBack`,Node.js + Fastify);BFF 不經手 |
 
 ## 4. 要改什麼 → 看哪裡
 

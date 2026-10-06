@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-06 Endpoint Server 改為 Node.js(ItAgentBack),文件同步
+- 工作項目:W6(端點管理)文件
+- 內容:依需求方決定,Endpoint Server 由 Rust Axum 改為 Node.js(`RustIt/ItAgentBack`,Fastify),Rust 只負責端點(`RustIt/RustAgent`:Agent、Watchdog、托盤);儲存為 SQL Server `giganexus_It_Agent` + MongoDB + Redis。`ENDPOINT-AGENT-GUIDE.md` 升 v0.4(標題、適用對象、§2 圖、§5 改 Fastify hook 範例、§5.6 契約改以 JSON Schema、§8.1 / §8.3 與 G3 用語);`AGENT.md` §10.2 / §10.3 / §10.7.2、`PROJECT-MAP.md`、`ARCHITECTURE.md` 的 Axum 字樣。通道、port、權限代碼、API 路徑**不變**。僅文件,無程式變更。配合 RustIt `docs/decisions/0004-node-endpoint-server.md`。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`、`AGENT.md`、`docs/PROJECT-MAP.md`、`docs/ARCHITECTURE.md`
+- 驗證:`grep Axum` 僅剩版本說明中的歷史描述;文件內連結路徑檢查。
+
 ## 2026-10-06 API / Nginx 監控(W9):SDK 監控、BFF 接 giga-observe、Nginx 流量彙總、前端監控、套件 Registry
 - 工作項目:W9-1 ~ W9-9(GigaItApp 畫面 W9-10 / 11 見其紀錄)
 - 內容:① 規劃 `docs/MONITORING-PLAN.md`(決策 D1–D13:監控放進 backend-sdk、資料後端為由 DevOpsDiagram 複製的 giga-observe、測試 / 正式區隔離、舊系統留原平台、保存期限)。② **backend-sdk 0.3.0**:`Monitor`(非同步批次、1 秒逾時、緩衝丟最舊、遮罩、心跳、排程回報)、`@giganexus/backend-sdk/fastify` 的 `setupGateway`(監控 + `req.monitor` + 背景自動註冊);樣本後端改用。③ **BFF**:`plugins/observe.ts` 每筆請求帶 routeCode / upstream / routeType、心跳帶 SQL Server / Redis;`POST /api/telemetry/web` 前端事件轉送(sendBeacon、依 IP 限流、CSRF 豁免);`scripts/gen-builtin-routes.ts` 解析原始碼產生 109 支內建 API 與權限,路由目錄預設併入(builtin,唯讀)。④ **nginx-log-agent**:另寫 access log 到共用 volume,每分鐘彙總流量、Top 20 IP / 路徑送 giga-observe。⑤ **web-kit 0.2.0**:`installMonitor`(JS 錯誤、API 失敗帶 requestId、Web Vitals 抽樣、換頁)。⑥ CI:`check:sdk`、build 加 nginx-log-agent、`publish:packages` 發佈 SDK / web-kit 到 GitLab npm Registry。⑦ 文件:BACKEND-GUIDE v0.7 §11 API 監控。⑧ 修正:CI 無 `sdk/node/node_modules` 時 tsconfig paths 需指向 `fastify.d.ts`;Docker 建置需複製 `sdk/node/package.json`(type: module)。

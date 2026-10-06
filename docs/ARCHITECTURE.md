@@ -33,7 +33,7 @@ flowchart LR
     subgraph SVC ["後端服務(port 51200–51300)"]
         MES["Go MES"]
         CORE["Node 核心服務<br/>HRM / FMS"]
-        EP["Endpoint Server<br/>(RustIt,Rust + Axum)"]
+        EP["Endpoint Server<br/>(RustIt/ItAgentBack,Node.js)"]
         ERP["ERP 適配層"]
         BPM["BPM 引擎"]
     end
