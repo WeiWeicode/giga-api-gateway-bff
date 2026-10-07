@@ -71,7 +71,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(dbPlugin, { config });
   await app.register(redisPlugin, { config });
   await app.register(queuesPlugin, { config });
-  await app.register(notifyPlugin);
+  await app.register(notifyPlugin, { config });
   await app.register(authPlugin, { config });
   await app.register(routerPlugin, { config });
   await app.register(authRoutes, { config, routes: app.routeTable });

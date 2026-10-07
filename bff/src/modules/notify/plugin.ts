@@ -1,4 +1,5 @@
 import fp from 'fastify-plugin';
+import type { AppConfig } from '../../config.js';
 import { AnnouncementDirectory } from './announce.js';
 import { NotifyService } from './send.js';
 import { SettingsStore } from './settings.js';
@@ -15,9 +16,9 @@ declare module 'fastify' {
 }
 
 export default fp(
-  async (app) => {
+  async (app, opts: { config: AppConfig }) => {
     app.decorate('notifier', new NotifyService(app.db, app.redis, app.queues.notify, app.log));
-    app.decorate('announcements', new AnnouncementDirectory(app.db));
+    app.decorate('announcements', new AnnouncementDirectory(app.db, opts.config.loginCompanies));
     app.decorate('notifySettings', new SettingsStore(app.db));
   },
   { name: 'notify', dependencies: ['db', 'redis', 'queues'] },

@@ -88,7 +88,11 @@ class Cached<T> {
   }
 }
 
-export async function loadPopulation(db: GwDatabase): Promise<Person[]> {
+/**
+ * 在職人員(公告對象的母體)。loginCompanies(LOGIN_COMPANIES 分階段開放)不為空時,只留所屬公司已開放的人:
+ * 未開放公司的人無法登入,全公司公告與 Email 都不發給他們(與 auth companyOpen 相同以公司名稱比對)。
+ */
+export async function loadPopulation(db: GwDatabase, loginCompanies: string[] = []): Promise<Person[]> {
   const users = await db
     .select({
       userId: user.userId,
@@ -103,13 +107,14 @@ export async function loadPopulation(db: GwDatabase): Promise<Person[]> {
     .from(user)
     .where(and(eq(user.isDisabled, false), eq(user.isVirtual, false), or(isNull(user.employmentStatus), ne(user.employmentStatus, 'resigned'))));
   const memberships = await db
-    .select({ userId: userCompany.userId, companyId: userCompany.companyId, deptCode: userCompany.deptCode })
+    .select({ userId: userCompany.userId, companyId: userCompany.companyId, deptCode: userCompany.deptCode, compName: company.compName })
     .from(userCompany)
     .innerJoin(company, eq(company.companyId, userCompany.companyId))
     .where(eq(company.isEnabled, true));
   const byUser = new Map<number, { companyId: number | null; deptCode: string | null }[]>();
   for (const m of memberships) byUser.set(m.userId, [...(byUser.get(m.userId) ?? []), { companyId: m.companyId, deptCode: m.deptCode }]);
-  return users.map((u) => ({
+  const openUsers = loginCompanies.length ? new Set(memberships.filter((m) => loginCompanies.includes(m.compName)).map((m) => m.userId)) : null;
+  return users.filter((u) => !openUsers || openUsers.has(u.userId)).map((u) => ({
     userId: u.userId,
     employeeNo: u.employeeNo,
     displayName: u.displayName,
@@ -128,8 +133,12 @@ export class AnnouncementDirectory {
   private readonly tree: Cached<DeptTree>;
   private readonly index: Cached<IndexEntry[]>;
 
-  constructor(private readonly db: GwDatabase) {
-    this.population = new Cached(POPULATION_TTL_MS, () => loadPopulation(db));
+  /** loginCompanies:分階段開放的公司名稱(config.loginCompanies),空陣列 = 不限 */
+  constructor(
+    private readonly db: GwDatabase,
+    loginCompanies: string[] = [],
+  ) {
+    this.population = new Cached(POPULATION_TTL_MS, () => loadPopulation(db, loginCompanies));
     this.tree = new Cached(TREE_TTL_MS, () => loadDeptTree(db));
     this.index = new Cached(INDEX_TTL_MS, () => this.loadIndex());
   }

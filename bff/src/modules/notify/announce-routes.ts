@@ -38,6 +38,7 @@ import { GwError } from '../../errors.js';
 import { fanoutPublishJobId } from '../../plugins/queues.js';
 import { writeAudit } from '../admin/audit-log.js';
 import { JOB_TIERS } from '../rbac/job-tiers.js';
+import { openCompanyIds } from '../rbac/login-companies.js';
 import { loadUserFacts } from '../rbac/permission.js';
 import {
   ANNOUNCE_CHANNELS,
@@ -288,16 +289,24 @@ const announceRoutes: FastifyPluginAsync<{ config: AppConfig }> = async (app, { 
 
   app.get('/api/notify/compose-options', async (req) => {
     const { p, canAll } = await publisher(req);
-    const [facts, settings, companies, depts] = await Promise.all([
+    // 分階段開放(LOGIN_COMPANIES):公司與部門只列開放的公司,與 GigaItApp「人員與部門」一致
+    const open = await openCompanyIds(db, config.loginCompanies);
+    const [facts, settings, allCompanies, depts] = await Promise.all([
       factsOf(p.userId, p.claims.emp),
       app.notifySettings.get(),
-      db.select({ id: company.companyId, name: company.compName }).from(company).where(eq(company.isEnabled, true)).orderBy(asc(company.companyId)),
+      db
+        .select({ id: company.companyId, name: company.compName })
+        .from(company)
+        .where(and(eq(company.isEnabled, true), open ? inArray(company.companyId, open) : undefined))
+        .orderBy(asc(company.companyId)),
       db
         .select({ code: department.deptCode, name: department.name, parentCode: department.parentDeptCode, companyId: department.companyId })
         .from(department)
-        .where(eq(department.isEnabled, true))
+        .where(and(eq(department.isEnabled, true), open ? inArray(department.companyId, open) : undefined))
         .orderBy(asc(department.deptCode)),
     ]);
+    // 只列有部門的公司(LOS 名稱如「碩禾」在部門以 BPM 名稱「碩禾電子材料」出現)
+    const companies = allCompanies.filter((c) => depts.some((d) => d.companyId === c.id));
     return {
       channels: ANNOUNCE_CHANNELS.map((c) => ({
         code: c,

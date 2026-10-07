@@ -26,9 +26,9 @@ export const ANNOUNCEMENT_TEMPLATE = 'ANNOUNCEMENT';
 const BATCH = 200;
 const ORPHAN_ASSET_DAYS = 7;
 
-export function createAnnounceProcessor(deps: { db: GwDatabase; pub: Redis; notifyQueue: Queue<NotifyJob>; settings: SettingsStore; log: Logger }) {
+export function createAnnounceProcessor(deps: { db: GwDatabase; pub: Redis; notifyQueue: Queue<NotifyJob>; settings: SettingsStore; log: Logger; loginCompanies?: string[] }) {
   const { db, pub, notifyQueue, settings, log } = deps;
-  const dir = new AnnouncementDirectory(db);
+  const dir = new AnnouncementDirectory(db, deps.loginCompanies);
 
   /** 逐人寄:寫 notify_log(沒有 Email 記為 skipped)→ 入列 notify;requestedBy 區分發布與提醒 */
   async function enqueueEmails(announcementId: number, people: Person[], requestedBy: string) {
