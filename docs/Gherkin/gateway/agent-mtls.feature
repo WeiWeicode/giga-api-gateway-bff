@@ -5,10 +5,10 @@
   身為 Gateway 維運人員
   我需要在獨立 port 強制驗證裝置憑證,且不影響瀏覽器使用者
 
-  # 未實作(2026-10-01):nginx/conf.d/agent.conf 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫(ENDPOINT-AGENT-GUIDE §10 G0)
-
-  # 2026-10-01 由 gRPC 改為 HTTPS / WebSocket(PRD v0.9 §7.6)。
-  # 現行 nginx/conf.d/agent.conf 仍為 gRPC 版,改寫後以本檔為準。
+  # 2026-10-07 agent.conf 已改為 HTTPS / WebSocket(ENDPOINT-AGENT-GUIDE §10 G0),測試區已部署。
+  # 已自動化(bff/test/e2e/01-nginx-entry.test.ts):沒有出示憑證 400、Agent 中繼 CA 簽發的憑證轉送到 Endpoint Server、
+  #   企業 CA 但非 Agent 中繼 CA 簽發 403。已手動驗證:RustIt Agent 經 :9443 建立 WebSocket(hello / heartbeat)與 HTTPS 回報(RustIt M4)。
+  # 其餘場景(過期 / 撤銷、11 MB、1 小時 / 200 條、limit_conn)尚未自動化,保留 @wip。
 
   背景:
     假如 Nginx 在 ":9443" 啟用 "ssl_verify_client on"

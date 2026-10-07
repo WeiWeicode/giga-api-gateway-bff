@@ -515,7 +515,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 
 | # | 項目 | 影響 | 狀態 |
 | --- | --- | --- | --- |
-| G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | ✅ 2026-10-07 設定完成;帶裝置憑證的通道 E2E 待 Endpoint Server 部署後補上 |
+| G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | ✅ 2026-10-07 完成;E2E `01-nginx-entry`(無憑證 400、Agent CA 憑證轉送、非 Agent CA 403) |
 | G1 | CRL 定期更新並 reload Nginx | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
 | G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | **已接受**(2026-10-01 需求方確認) |
 | G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 k6 或自寫 Node.js / Rust 測試工具 |

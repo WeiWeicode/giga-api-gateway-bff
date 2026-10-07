@@ -14,7 +14,7 @@ giga-api-gateway-bff/
 ├─ nginx/                     反向代理(Docker 映像)
 │  ├─ nginx.conf
 │  ├─ conf.d/portal.conf      :80 轉址、:443 瀏覽器 / 系統對系統、SPA 子路徑、/api → BFF、/ws
-│  ├─ conf.d/agent.conf       :9443 端點 Agent 專用(mTLS + HTTPS / WebSocket → Endpoint Server;現行為 gRPC 版,待改寫)
+│  ├─ conf.d/agent.conf       :9443 端點 Agent 專用(mTLS + HTTPS / WebSocket → Endpoint Server `endpoint-server:51241`;2026-10-07 起)
 │  ├─ snippets/               共用片段:ssl、security-headers、proxy-bff、websocket、spa-*、json-errors
 │  ├─ templates/              依部署區不同的值(envsubst)
 │  └─ allowlists/<dev|test|prod>/  Agent 簽發者、內部服務、Webhook 來源(webhook-sources.conf)

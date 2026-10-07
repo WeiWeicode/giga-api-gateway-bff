@@ -80,9 +80,9 @@ flowchart LR
 | --- | --- | --- | --- | --- | --- |
 | 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
-| 51240 | Endpoint | `endpoint-api` | HTTP | W6 負責人 | 規劃中 |
+| 51240 | Endpoint | `endpoint-api`(RustIt `ItAgentBack` 管理 API,系統代碼 `endpoint`,API `/api/endpoint/*`) | HTTP | W6 負責人 | 測試區 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
-| 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名) | HTTPS / WebSocket(TLS) | W6 負責人 | 規劃中 |
+| 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名;RustIt `ItAgentBack`,容器 `endpoint-server`) | HTTPS / WebSocket(TLS) | W6 負責人 | 測試區 |
 | 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 
 ---

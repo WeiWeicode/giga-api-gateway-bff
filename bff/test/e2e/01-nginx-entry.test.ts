@@ -102,10 +102,23 @@ describe('Nginx :443 入口', () => {
 
 describe('Nginx :9443 Agent 通道', () => {
   it('沒有裝置憑證的連線不會到達 Endpoint Server(握手後回 400,ENDPOINT-AGENT-GUIDE §10 G2)', async () => {
-    // 測試區 :9443 尚未對區網開放(防火牆與 L4 轉送於 Agent 上線時設定),在主機上直接連 Nginx 驗證
+    // 在主機上直接連 Nginx 驗證(區網的 :9443 防火牆只開放端點網段,執行 E2E 的電腦不一定在內)
     const code = (await remote("curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:9443/")).trim();
     expect(code).toBe('400');
   });
+
+  it('臨時 Agent 中繼 CA 簽發的裝置憑證轉送到 Endpoint Server;非 Agent CA 簽發者 403(§4、§4.2)', async () => {
+    // 一次性容器在 Gateway 網路內以測試區 pki 現場簽發憑證(不落地),經 https://nginx:9443 呼叫 Endpoint Server 的 /healthz(不需裝置登錄)
+    const out = await remote(`docker run --rm --network giganexus-gw_default -v /srv/giganexus/deploy/secrets/pki:/ca:ro alpine:3.20 sh -c '
+set -e; apk add -q openssl curl; cd /tmp
+sign() { openssl req -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout $1.key -out $1.csr -subj "/O=GigaNexus E2E/CN=e2e-$1" 2>/dev/null
+  printf "extendedKeyUsage=clientAuth\n" > c.ext
+  openssl x509 -req -in $1.csr -CA /ca/$2.crt -CAkey /ca/$2.key -set_serial 0x$(openssl rand -hex 8) -days 1 -extfile c.ext -out $1.crt 2>/dev/null; }
+sign device agent-ca; sign rootsigned ca
+for n in device rootsigned; do echo "$n=$(curl -sk -o /dev/null -w "%{http_code}" --cert $n.crt --key $n.key https://nginx:9443/healthz)"; done'`);
+    expect(out).toContain('device=200');
+    expect(out).toContain('rootsigned=403');
+  }, 60_000);
 });
 
 describe('來源 IP(DEPLOYMENT.md §6.1)', () => {

@@ -143,7 +143,7 @@
 
 | # | 剩餘工作(隨 W6) | 文件 |
 | --- | --- | --- |
-| W6-G0 | `agent.conf` 由 `grpc_pass` 改為 `proxy_pass https://` + WebSocket 升級;環境變數改名 `ENDPOINT_AGENT_UPSTREAM`;補上 HTTPS / WebSocket 通道的 E2E | ENDPOINT-AGENT-GUIDE §4、§10 G0 |
+| ~~W6-G0~~ | ✅ 2026-10-07 完成:`agent.conf` 改為 `proxy_pass https://` + WebSocket;`ENDPOINT_AGENT_UPSTREAM`;E2E `01-nginx-entry` | ENDPOINT-AGENT-GUIDE §4、§10 G0 |
 | W6-G1 | CRL:Pipeline 定期下載並 reload | ENDPOINT-AGENT-GUIDE §10 G1 |
 | W6-G3 | 200 條 WebSocket 長連線維持 1 小時 | ENDPOINT-AGENT-GUIDE §10 G3 |
 

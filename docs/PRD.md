@@ -197,7 +197,7 @@
 
 ### 7.6 Agent 專用通道:mTLS + HTTPS / WebSocket
 
-> **v0.9(2026-10-01)改為 Rust + WebSocket**:端點 Agent 由 RustIt 以 Rust 開發,1,000 台以內 WebSocket 已足夠,不再使用 gRPC。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版(`grpc_pass`),**待 W6-1 訊息協定定版後依本節改寫**,E2E `06-websocket-agent` 同步改寫。
+> **v0.9(2026-10-01)改為 Rust + WebSocket**:端點 Agent 由 RustIt 以 Rust 開發,1,000 台以內 WebSocket 已足夠,不再使用 gRPC。`nginx/conf.d/agent.conf` 已於 2026-10-07 依本節改寫為 `proxy_pass` + WebSocket 並部署測試區(E2E 見 `bff/test/e2e/01-nginx-entry.test.ts`)。
 
 ```mermaid
 sequenceDiagram
