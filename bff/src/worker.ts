@@ -92,10 +92,14 @@ notify.on('error', (err) => log.error({ err: err.message }, '通知 worker 錯�
 const fanoutLog = log.child({ queue: QUEUE_NOTIFY_FANOUT });
 const notifyQueue = new Queue<NotifyJob>(QUEUE_NOTIFY, { connection });
 const fanoutQueue = new Queue<NotifyFanoutJob>(QUEUE_NOTIFY_FANOUT, { connection });
-const fanout = new Worker<NotifyFanoutJob>(QUEUE_NOTIFY_FANOUT, createAnnounceProcessor({ db, pub, notifyQueue, settings: notifySettings, log: fanoutLog, loginCompanies: config.loginCompanies }), {
-  connection,
-  concurrency: 2,
-});
+const fanout = new Worker<NotifyFanoutJob>(
+  QUEUE_NOTIFY_FANOUT,
+  createAnnounceProcessor({ db, pub, notifyQueue, settings: notifySettings, log: fanoutLog, loginCompanies: config.loginCompanies }),
+  {
+    connection,
+    concurrency: 2,
+  },
+);
 fanout.on('failed', (job, err) => {
   if (!job) return;
   fanoutLog.error(

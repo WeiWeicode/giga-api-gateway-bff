@@ -26,7 +26,14 @@ export const ANNOUNCEMENT_TEMPLATE = 'ANNOUNCEMENT';
 const BATCH = 200;
 const ORPHAN_ASSET_DAYS = 7;
 
-export function createAnnounceProcessor(deps: { db: GwDatabase; pub: Redis; notifyQueue: Queue<NotifyJob>; settings: SettingsStore; log: Logger; loginCompanies?: string[] }) {
+export function createAnnounceProcessor(deps: {
+  db: GwDatabase;
+  pub: Redis;
+  notifyQueue: Queue<NotifyJob>;
+  settings: SettingsStore;
+  log: Logger;
+  loginCompanies?: string[];
+}) {
   const { db, pub, notifyQueue, settings, log } = deps;
   const dir = new AnnouncementDirectory(db, deps.loginCompanies);
 

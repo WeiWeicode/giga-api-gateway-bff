@@ -114,18 +114,20 @@ export async function loadPopulation(db: GwDatabase, loginCompanies: string[] = 
   const byUser = new Map<number, { companyId: number | null; deptCode: string | null }[]>();
   for (const m of memberships) byUser.set(m.userId, [...(byUser.get(m.userId) ?? []), { companyId: m.companyId, deptCode: m.deptCode }]);
   const openUsers = loginCompanies.length ? new Set(memberships.filter((m) => loginCompanies.includes(m.compName)).map((m) => m.userId)) : null;
-  return users.filter((u) => !openUsers || openUsers.has(u.userId)).map((u) => ({
-    userId: u.userId,
-    employeeNo: u.employeeNo,
-    displayName: u.displayName,
-    email: u.email?.trim() || null,
-    deptCode: u.deptCode,
-    department: u.department,
-    adGroups: parseGroups(u.adGroups),
-    // 與 rbac/permission.ts loadUserFacts 相同:沒有所屬公司資料時以 gw.user.dept_code 比對
-    memberships: byUser.get(u.userId) ?? [{ companyId: null, deptCode: u.deptCode }],
-    jobLevel: u.jobLevel,
-  }));
+  return users
+    .filter((u) => !openUsers || openUsers.has(u.userId))
+    .map((u) => ({
+      userId: u.userId,
+      employeeNo: u.employeeNo,
+      displayName: u.displayName,
+      email: u.email?.trim() || null,
+      deptCode: u.deptCode,
+      department: u.department,
+      adGroups: parseGroups(u.adGroups),
+      // 與 rbac/permission.ts loadUserFacts 相同:沒有所屬公司資料時以 gw.user.dept_code 比對
+      memberships: byUser.get(u.userId) ?? [{ companyId: null, deptCode: u.deptCode }],
+      jobLevel: u.jobLevel,
+    }));
 }
 
 export class AnnouncementDirectory {
