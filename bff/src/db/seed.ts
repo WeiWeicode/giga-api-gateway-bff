@@ -65,7 +65,7 @@ export async function runSeed(db: GwDatabase): Promise<SeedResult> {
           .where(
             inArray(
               permission.code,
-              ADMIN_PERMISSIONS.map((p) => p.code),
+              [...ADMIN_PERMISSIONS, ...SERVICE_PERMISSIONS].map((p) => p.code),
             ),
           )
       ).map((p) => [p.code, p.id]),

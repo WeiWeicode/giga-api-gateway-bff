@@ -1,6 +1,6 @@
 /**
  * Worker 進入點(DEPLOYMENT.md §3.1:與 BFF 共用映像檔,以 `node dist/bff/src/worker.js` 啟動)。
- * 處理 BullMQ 佇列:webhook(W3-5.10)、notify(W3-5.8)、employee-sync(部門樹與人員各每小時,P2-3a / W3-4.6b)。BullMQ 確保多個 worker 不會重複處理同一個工作。
+ * 處理 BullMQ 佇列:webhook(W3-5.10)、notify(W3-5.8)、notify-fanout(公告分送與每日保留期限清理,NOTIFY-PLAN §6.3)、employee-sync(部門樹與人員各每小時,P2-3a / W3-4.6b)。BullMQ 確保多個 worker 不會重複處理同一個工作。
  * 告警(死信、同步中止、離職標記與新公司)寄給 ALERT_EMAIL_TO(workers/alert.ts)。
  */
 import { Queue, Worker } from 'bullmq';
@@ -9,11 +9,22 @@ import { pino } from 'pino';
 import { loadConfig } from './config.js';
 import { createGwDb, openPool } from './db/client.js';
 import { KeyStore } from './modules/auth/keys.js';
+import { SettingsStore } from './modules/notify/settings.js';
 import { PermissionService } from './modules/rbac/permission.js';
-import { QUEUE_EMPLOYEE_SYNC, QUEUE_NOTIFY, QUEUE_WEBHOOK, type EmployeeSyncJob, type NotifyJob, type WebhookJob } from './plugins/queues.js';
+import {
+  QUEUE_EMPLOYEE_SYNC,
+  QUEUE_NOTIFY,
+  QUEUE_NOTIFY_FANOUT,
+  QUEUE_WEBHOOK,
+  type EmployeeSyncJob,
+  type NotifyFanoutJob,
+  type NotifyJob,
+  type WebhookJob,
+} from './plugins/queues.js';
 import { createAlerter } from './workers/alert.js';
+import { createAnnounceProcessor } from './workers/announce.worker.js';
 import { createEmployeeSyncProcessor } from './workers/employee-sync.worker.js';
-import { createMailer, createNotifyProcessor, recordNotifyFailure } from './workers/notify.worker.js';
+import { createAnnouncementMailer, createMailer, createNotifyProcessor, recordNotifyFailure } from './workers/notify.worker.js';
 import { createRouteDispatcher, createWebhookProcessor, recordWebhookFailure } from './workers/webhook.worker.js';
 
 const config = loadConfig();
@@ -52,7 +63,9 @@ webhook.on('failed', (job, err) => {
 webhook.on('error', (err) => log.error({ err: err.message }, 'Webhook worker 錯誤'));
 
 const notifyLog = log.child({ queue: QUEUE_NOTIFY });
-const notify = new Worker<NotifyJob>(QUEUE_NOTIFY, createNotifyProcessor({ db, pub, mailer, mail: config.mail, log: notifyLog }), {
+const notifySettings = new SettingsStore(db);
+const announcementMail = createAnnouncementMailer(db, notifySettings, config.publicBaseUrl);
+const notify = new Worker<NotifyJob>(QUEUE_NOTIFY, createNotifyProcessor({ db, pub, mailer, mail: config.mail, log: notifyLog, announcementMail }), {
   connection,
   concurrency: 5,
   // SMTP 伺服器限制(PRD §8.5 限速)
@@ -75,6 +88,30 @@ notify.on('failed', (job, err) => {
 });
 notify.on('error', (err) => log.error({ err: err.message }, '通知 worker 錯誤'));
 
+// 公告分送:一則公告一個工作(廣播、展開 Email);每日 03:00(台北)依保留期限清理
+const fanoutLog = log.child({ queue: QUEUE_NOTIFY_FANOUT });
+const notifyQueue = new Queue<NotifyJob>(QUEUE_NOTIFY, { connection });
+const fanoutQueue = new Queue<NotifyFanoutJob>(QUEUE_NOTIFY_FANOUT, { connection });
+const fanout = new Worker<NotifyFanoutJob>(QUEUE_NOTIFY_FANOUT, createAnnounceProcessor({ db, pub, notifyQueue, settings: notifySettings, log: fanoutLog }), {
+  connection,
+  concurrency: 2,
+});
+fanout.on('failed', (job, err) => {
+  if (!job) return;
+  fanoutLog.error(
+    { jobId: job.id, kind: job.data.kind, announcementId: job.data.announcementId, attempts: job.attemptsMade, err: err.message },
+    '公告分送失敗',
+  );
+  if (job.attemptsMade >= (job.opts.attempts ?? 1))
+    void alert('announce-dead', '公告分送最終失敗', [`工作 ${job.data.kind}、公告 #${job.data.announcementId ?? '-'}`, err.message]).catch(() => undefined);
+});
+fanout.on('error', (err) => fanoutLog.error({ err: err.message }, '公告分送 worker 錯誤'));
+await fanoutQueue.upsertJobScheduler(
+  'retention',
+  { pattern: '0 3 * * *', tz: 'Asia/Taipei' },
+  { name: 'retention', data: { kind: 'retention' }, opts: { removeOnComplete: 7, removeOnFail: 20 } },
+);
+
 // 人事同步:部門樹與人員(每小時;BPM / LOS 皆未設定時不排程)
 const syncLog = log.child({ queue: QUEUE_EMPLOYEE_SYNC });
 const syncQueue = new Queue<EmployeeSyncJob>(QUEUE_EMPLOYEE_SYNC, { connection });
@@ -91,7 +128,7 @@ else syncLog.warn('未設定 BPM_DB_HOST / LOS_DB_HOST,不排程人員同步');
 
 log.info(
   {
-    queues: [QUEUE_WEBHOOK, QUEUE_NOTIFY, QUEUE_EMPLOYEE_SYNC],
+    queues: [QUEUE_WEBHOOK, QUEUE_NOTIFY, QUEUE_NOTIFY_FANOUT, QUEUE_EMPLOYEE_SYNC],
     mail: config.mail.host ? `${config.mail.host}:${config.mail.port}` : null,
     redirectTo: config.mail.redirectTo ?? null,
   },
@@ -101,7 +138,7 @@ log.info(
 const shutdown = async (signal: string) => {
   log.info({ signal }, '收到結束訊號,等待執行中的工作完成');
   try {
-    await Promise.all([webhook.close(), notify.close(), employeeSync.close(), syncQueue.close()]);
+    await Promise.all([webhook.close(), notify.close(), fanout.close(), notifyQueue.close(), fanoutQueue.close(), employeeSync.close(), syncQueue.close()]);
     await sync.close();
     await dispatcher.close();
     mailer?.close();

@@ -6,6 +6,8 @@ import type { AppConfig } from '../config.js';
 /** BullMQ 佇列名稱(Redis 鍵 bull:<名稱>:*,DATABASE.md §6) */
 export const QUEUE_WEBHOOK = 'webhook';
 export const QUEUE_NOTIFY = 'notify';
+/** 公告分送(NOTIFY-PLAN §6.3):發布 / 撤回 / 提醒未讀 / 保留期限清理;一則公告一個工作,由 worker 展開成廣播與逐人 Email */
+export const QUEUE_NOTIFY_FANOUT = 'notify-fanout';
 /** 人事同步排程(DATABASE.md §6 bull:employee-sync:*):部門樹(departments)、人員(employees),各每小時;人員同步可由管理 API 手動觸發 */
 export const QUEUE_EMPLOYEE_SYNC = 'employee-sync';
 
@@ -25,6 +27,15 @@ export interface WebhookJob {
   payload: string;
 }
 
+/** 公告分送工作;publish 的 jobId 為 ann-pub-{id}(排程發布為延遲工作,撤回時移除) */
+export interface NotifyFanoutJob {
+  kind: 'publish' | 'revoke' | 'remind' | 'retention';
+  announcementId?: number;
+  requestedBy?: string;
+}
+
+export const fanoutPublishJobId = (announcementId: number) => `ann-pub-${announcementId}`;
+
 /** 一則通知 = 一位收件人 × 一個通道(對應一筆 gw.notify_log) */
 export interface NotifyJob {
   logId: number;
@@ -35,11 +46,13 @@ export interface NotifyJob {
   /** email 收件地址 */
   address: string | null;
   data: Record<string, unknown>;
+  /** 公告 Email(templateCode = ANNOUNCEMENT):內容取自 gw.notify_announcement */
+  announcementId?: number;
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
-    queues: { webhook: Queue<WebhookJob>; notify: Queue<NotifyJob>; employeeSync: Queue<EmployeeSyncJob> };
+    queues: { webhook: Queue<WebhookJob>; notify: Queue<NotifyJob>; notifyFanout: Queue<NotifyFanoutJob>; employeeSync: Queue<EmployeeSyncJob> };
   }
 }
 
@@ -53,10 +66,11 @@ export default fp<{ config: AppConfig }>(
     connection.on('error', (err) => app.log.warn({ err: err.message }, 'Redis 佇列連線錯誤'));
     const webhook = new Queue<WebhookJob>(QUEUE_WEBHOOK, { connection });
     const notify = new Queue<NotifyJob>(QUEUE_NOTIFY, { connection });
+    const notifyFanout = new Queue<NotifyFanoutJob>(QUEUE_NOTIFY_FANOUT, { connection });
     const employeeSync = new Queue<EmployeeSyncJob>(QUEUE_EMPLOYEE_SYNC, { connection });
-    app.decorate('queues', { webhook, notify, employeeSync });
+    app.decorate('queues', { webhook, notify, notifyFanout, employeeSync });
     app.addHook('onClose', async () => {
-      await Promise.all([webhook.close(), notify.close(), employeeSync.close()]).catch(() => undefined);
+      await Promise.all([webhook.close(), notify.close(), notifyFanout.close(), employeeSync.close()]).catch(() => undefined);
       connection.disconnect();
     });
   },

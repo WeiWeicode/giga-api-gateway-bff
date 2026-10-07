@@ -387,6 +387,36 @@
   },
   {
     "method": "GET",
+    "path": "/api/admin/notify/settings",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-settings.ts"
+  },
+  {
+    "method": "PUT",
+    "path": "/api/admin/notify/settings",
+    "auth": "permission",
+    "permissions": [
+      "notify.settings.write"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-settings.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/admin/notify/settings/retention-preview",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.notify.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/notify-settings.ts"
+  },
+  {
+    "method": "GET",
     "path": "/api/admin/notify/templates",
     "auth": "permission",
     "permissions": [
@@ -1016,6 +1046,161 @@
     "permissions": [],
     "summary": null,
     "module": "modules/auth/routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/announcements",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/announcements/:id",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/notify/announcements/:id",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements/:id/ack",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements/:id/read",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/announcements/:id/receipts",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements/:id/remind",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements/:id/revoke",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/announcements/preview",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/archive",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "POST",
+    "path": "/api/notify/assets",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/assets/:id",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/compose-options",
+    "auth": "permission",
+    "permissions": [
+      "notify.announce.publish",
+      "notify.announce.publish.all"
+    ],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
+  },
+  {
+    "method": "GET",
+    "path": "/api/notify/feed",
+    "auth": "authenticated",
+    "permissions": [],
+    "summary": null,
+    "module": "modules/notify/announce-routes.ts"
   },
   {
     "method": "GET",

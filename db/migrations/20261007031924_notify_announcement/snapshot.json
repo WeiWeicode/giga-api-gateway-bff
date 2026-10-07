@@ -1,0 +1,7837 @@
+{
+  "version": "2",
+  "dialect": "mssql",
+  "id": "c19bb752-bfcc-4bc8-83f5-f625e05c2191",
+  "prevIds": [
+    "77161db2-b1a0-4be3-9b84-ef57c60831b8"
+  ],
+  "ddl": [
+    {
+      "name": "aggregate_step",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_import_batch",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_import_item",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_route",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "config_release",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "rate_limit_policy",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "upstream",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "upstream_target",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_client",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_client_permission",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "app",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "company",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "company_ad_domain",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "department",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "dept_permission",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "local_account_token",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "local_credential",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "permission",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "permission_include",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "role",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "role_ad_group",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "role_company",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "role_permission",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "role_rule",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "user",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "user_company",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "user_permission",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "user_role",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_announcement",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_announcement_asset",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_log",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_message",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_receipt",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_setting",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_template",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "notify_webhook_subscription",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "webhook_endpoint",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "webhook_log",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "api_access_log",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "audit_log",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "auth_log",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "name": "employee_sync_run",
+      "entityType": "tables",
+      "schema": "gw"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "step_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "route_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "step_key",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "step_order",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "varchar(300)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "path_template",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "required",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "timeout_ms",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "permission_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "transform",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "aggregate_step"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "batch_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "source_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "nvarchar(260)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "char(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "file_hash",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "varchar(12)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "total",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "skipped",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "errors",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_batch"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "item_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "batch_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_no",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "route_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "action",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "payload",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "nvarchar(1000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "error_message",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_import_item"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "route_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "route_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "system_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(300)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "public_path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "route_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(300)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "auth_mode",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "permission_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "rate_limit_policy_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "cache_ttl_sec",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "cache_scope",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "timeout_ms",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "max_body_kb",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "request_headers_add",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "response_headers_remove",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "mock_response",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "audit_level",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "priority",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(12)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "deprecated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "version_tag",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "tags",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "owner",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "source",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "import_batch_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(1000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "gherkin",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_route"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "release_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "snapshot",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "diff_summary",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "nvarchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "note",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "published_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "published_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "rolled_back_from",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "config_release"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "policy_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "limit_count",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "window_sec",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "key_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "burst",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "rate_limit_policy"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "upstream_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "system_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "protocol",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "lb_strategy",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "timeout_ms",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "tinyint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "retry_count",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "circuit_fail_threshold",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "health_check_path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "tls_verify",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "forward_cookies",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "owner",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "project",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "archatlas_node_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "nvarchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "target_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "varchar(300)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "base_url",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "weight",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "environment",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "upstream_target"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "client_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "char(8)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "key_prefix",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "key_hash",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "allowed_ips",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "last_used_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_client_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "app_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "nvarchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "base_path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "icon",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "sort",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "app"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "nvarchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "comp_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "comp_full_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "comp_db",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "bpm_org_oid",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "varchar(5)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "emp_prefix",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company_ad_domain"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "domain_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company_ad_domain"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "try_order",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "company_ad_domain"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "parent_dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "bpm_unit_oid",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "synced_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "department"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "job_tier",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "include_sub_depts",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "dept_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "token_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "purpose",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "char(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "token_hash",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "expires_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "used_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "varchar(45)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "created_ip",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_account_token"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "password_hash",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "failed_count",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "locked_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "must_change_password",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "password_changed_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "nvarchar(1000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "password_history",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "registered_via",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "legacy_migrated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "approved_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "approved_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "manager_notified_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "local_credential"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "system_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "resource",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "action",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "nvarchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "kind",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "parent_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "smallint",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "sort",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "icon",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission_include"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "included_permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission_include"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission_include"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "permission_include"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "nvarchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_system",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_ad_group"
+    },
+    {
+      "type": "nvarchar(400)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "ad_group_dn",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_ad_group"
+    },
+    {
+      "type": "uniqueidentifier",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ad_group_guid",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_ad_group"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_ad_group"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_ad_group"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_company"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_company"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_company"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_company"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_permission"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "rule_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "include_sub_depts",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "job_levels",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "description",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "role_rule"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "employee_no",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_virtual",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "base_employee_no",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "auth_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "uniqueidentifier",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ad_object_guid",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ad_domain",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(128)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upn",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "display_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(128)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "email",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "department",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "org_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "job_level",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "manager_employee_no",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "employment_status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "profile_source",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "char(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "profile_hash",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "profile_synced_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ad_groups",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "notify_pref",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "perm_version",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_disabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "last_login_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "varchar(45)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "last_login_ip",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "company_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "via_employee_no",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "dept_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "department",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_virtual",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_primary",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_company"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "permission_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "valid_to",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "reason",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_permission"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "role_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "valid_from",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "valid_to",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "reason",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "user_role"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "announcement_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "body_html",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(4000)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "body_text",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "link_url",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "level",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(4000)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "audience",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "channels",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "require_ack",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "publish_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "expire_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "published_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "publisher_title",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "target_count",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "revoked_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "revoked_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "idempotency_key",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "asset_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "bigint",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "announcement_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "content_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "size_bytes",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "varbinary(max)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "data",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "log_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "template_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "channel",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "recipient_user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "recipient_address",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "retry_count",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "provider_msg_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "error_message",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "idempotency_key",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "requested_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "bigint",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "announcement_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "queued_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "sent_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_log"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "message_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "title",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "body",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "link_url",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_read",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "read_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_message"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "announcement_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "first_seen_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "seen_via",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "read_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ack_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_receipt"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "setting_key",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "setting_value",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_setting"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "template_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "channels",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "email_subject",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "email_body",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "inapp_body",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_template"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "subscription_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "app_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "nvarchar(500)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "events",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "target_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(50)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "upstream_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "url",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "secret_ref",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "endpoint_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "source_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(20)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "verify_method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "secret_ref",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "signature_header",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(500)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "allowed_ips",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "dispatch_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "varchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "dispatch_target",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "is_enabled",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "rowversion",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "row_ver",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_endpoint"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "log_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "endpoint_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "varchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "idempotency_key",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "varchar(45)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "remote_ip",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "bit",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "verified",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "smallint",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "status_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "payload",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "received_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "processed_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "error_message",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "webhook_log"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "log_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "occurred_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "varchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "route_code",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "client_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "nvarchar(1000)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "path",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "smallint",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "duration_ms",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "body",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "api_access_log"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "audit_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "occurred_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "actor_user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "nvarchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "actor_name",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "varchar(45)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "actor_ip",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "varchar(60)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "action",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "varchar(40)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "entity_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "varchar(100)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "entity_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "before_json",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "nvarchar(max)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "after_json",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "varchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "audit_log"
+    },
+    {
+      "type": "bigint",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "log_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "occurred_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "nvarchar(128)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "username",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "user_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "auth_method",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "varchar(30)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "event",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "nvarchar(200)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "reason",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "varchar(45)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "ip",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "nvarchar(400)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "user_agent",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "auth_log"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": {
+        "seed": 1,
+        "increment": 1
+      },
+      "name": "run_id",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "varchar(10)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "trigger_type",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "started_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "datetime2(3)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "finished_at",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "varchar(12)",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "bpm_rows",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "los_rows",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "created",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "updated",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "unchanged",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "int",
+      "notNull": true,
+      "generated": null,
+      "identity": null,
+      "name": "resigned_flagged",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "nvarchar(2000)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "error_message",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "type": "nvarchar(64)",
+      "notNull": false,
+      "generated": null,
+      "identity": null,
+      "name": "triggered_by",
+      "schema": "gw",
+      "entityType": "columns",
+      "table": "employee_sync_run"
+    },
+    {
+      "columns": [
+        {
+          "value": "route_id",
+          "isExpression": false
+        },
+        {
+          "value": "step_key",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_aggregate_step_route_key",
+      "entityType": "indexes",
+      "table": "aggregate_step",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "batch_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_api_import_item_batch",
+      "entityType": "indexes",
+      "table": "api_import_item",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "route_code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_api_route_code",
+      "entityType": "indexes",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "method",
+          "isExpression": false
+        },
+        {
+          "value": "public_path",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "[status] <> 'disabled'",
+      "name": "uq_api_route_method_path_active",
+      "entityType": "indexes",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "system_code",
+          "isExpression": false
+        },
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_api_route_system_status",
+      "entityType": "indexes",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "upstream_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_api_route_upstream",
+      "entityType": "indexes",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "permission_code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_api_route_permission",
+      "entityType": "indexes",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_rate_limit_policy_code",
+      "entityType": "indexes",
+      "table": "rate_limit_policy",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_upstream_code",
+      "entityType": "indexes",
+      "table": "upstream",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "upstream_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_upstream_target_upstream",
+      "entityType": "indexes",
+      "table": "upstream_target",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_api_client_code",
+      "entityType": "indexes",
+      "table": "api_client",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "key_prefix",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_api_client_key_prefix",
+      "entityType": "indexes",
+      "table": "api_client",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_app_code",
+      "entityType": "indexes",
+      "table": "app",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "comp_name",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_company_comp_name",
+      "entityType": "indexes",
+      "table": "company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "parent_dept_code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_department_parent",
+      "entityType": "indexes",
+      "table": "department",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "permission_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_dept_permission_permission",
+      "entityType": "indexes",
+      "table": "dept_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "token_hash",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_local_account_token_hash",
+      "entityType": "indexes",
+      "table": "local_account_token",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "purpose",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_local_account_token_user_purpose",
+      "entityType": "indexes",
+      "table": "local_account_token",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_local_credential_status",
+      "entityType": "indexes",
+      "table": "local_credential",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_permission_code",
+      "entityType": "indexes",
+      "table": "permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "included_permission_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_permission_include_included",
+      "entityType": "indexes",
+      "table": "permission_include",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_role_code",
+      "entityType": "indexes",
+      "table": "role",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "permission_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_role_permission_permission",
+      "entityType": "indexes",
+      "table": "role_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "role_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_role_rule_role",
+      "entityType": "indexes",
+      "table": "role_rule",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "employee_no",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_user_employee_no",
+      "entityType": "indexes",
+      "table": "user",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "ad_object_guid",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "[ad_object_guid] IS NOT NULL",
+      "name": "uq_user_ad_object_guid",
+      "entityType": "indexes",
+      "table": "user",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "base_employee_no",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_user_base_employee_no",
+      "entityType": "indexes",
+      "table": "user",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "company_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_user_company_company",
+      "entityType": "indexes",
+      "table": "user_company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "permission_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_user_permission_permission",
+      "entityType": "indexes",
+      "table": "user_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "role_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_user_role_role",
+      "entityType": "indexes",
+      "table": "user_role",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        },
+        {
+          "value": "publish_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_announcement_status_publish",
+      "entityType": "indexes",
+      "table": "notify_announcement",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "created_by",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_announcement_created_by",
+      "entityType": "indexes",
+      "table": "notify_announcement",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "announcement_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_announcement_asset_announcement",
+      "entityType": "indexes",
+      "table": "notify_announcement_asset",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "queued_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_log_queued_at",
+      "entityType": "indexes",
+      "table": "notify_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "recipient_user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_log_recipient",
+      "entityType": "indexes",
+      "table": "notify_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "idempotency_key",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_log_idempotency",
+      "entityType": "indexes",
+      "table": "notify_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "announcement_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_log_announcement",
+      "entityType": "indexes",
+      "table": "notify_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "is_read",
+          "isExpression": false
+        },
+        {
+          "value": "created_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_message_user_read",
+      "entityType": "indexes",
+      "table": "notify_message",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_notify_receipt_user",
+      "entityType": "indexes",
+      "table": "notify_receipt",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_notify_template_code",
+      "entityType": "indexes",
+      "table": "notify_template",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "app_code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_notify_webhook_subscription_app",
+      "entityType": "indexes",
+      "table": "notify_webhook_subscription",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "source_code",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "name": "uq_webhook_endpoint_source",
+      "entityType": "indexes",
+      "table": "webhook_endpoint",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "received_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_webhook_log_received_at",
+      "entityType": "indexes",
+      "table": "webhook_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "occurred_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_api_access_log_occurred_at",
+      "entityType": "indexes",
+      "table": "api_access_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "occurred_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_audit_log_occurred_at",
+      "entityType": "indexes",
+      "table": "audit_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "entity_type",
+          "isExpression": false
+        },
+        {
+          "value": "entity_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_audit_log_entity",
+      "entityType": "indexes",
+      "table": "audit_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "occurred_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_auth_log_occurred_at",
+      "entityType": "indexes",
+      "table": "auth_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "occurred_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "name": "ix_auth_log_user",
+      "entityType": "indexes",
+      "table": "auth_log",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "route_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "api_route",
+      "columnsTo": [
+        "route_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "aggregate_step_route_id_api_route_route_id_fk",
+      "entityType": "fks",
+      "table": "aggregate_step",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "upstream_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "upstream",
+      "columnsTo": [
+        "upstream_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "aggregate_step_upstream_id_upstream_upstream_id_fk",
+      "entityType": "fks",
+      "table": "aggregate_step",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_code"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "code"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "aggregate_step_permission_code_permission_code_fk",
+      "entityType": "fks",
+      "table": "aggregate_step",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "upstream_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "upstream",
+      "columnsTo": [
+        "upstream_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_import_batch_upstream_id_upstream_upstream_id_fk",
+      "entityType": "fks",
+      "table": "api_import_batch",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "batch_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "api_import_batch",
+      "columnsTo": [
+        "batch_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_import_item_batch_id_api_import_batch_batch_id_fk",
+      "entityType": "fks",
+      "table": "api_import_item",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "upstream_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "upstream",
+      "columnsTo": [
+        "upstream_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_route_upstream_id_upstream_upstream_id_fk",
+      "entityType": "fks",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_code"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "code"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_route_permission_code_permission_code_fk",
+      "entityType": "fks",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "rate_limit_policy_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "rate_limit_policy",
+      "columnsTo": [
+        "policy_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_route_rate_limit_policy_id_rate_limit_policy_policy_id_fk",
+      "entityType": "fks",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "import_batch_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "api_import_batch",
+      "columnsTo": [
+        "batch_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_route_import_batch_id_api_import_batch_batch_id_fk",
+      "entityType": "fks",
+      "table": "api_route",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "upstream_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "upstream",
+      "columnsTo": [
+        "upstream_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "upstream_target_upstream_id_upstream_upstream_id_fk",
+      "entityType": "fks",
+      "table": "upstream_target",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "client_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "api_client",
+      "columnsTo": [
+        "client_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_client_permission_client_id_api_client_client_id_fk",
+      "entityType": "fks",
+      "table": "api_client_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "api_client_permission_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "api_client_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "company_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "company",
+      "columnsTo": [
+        "company_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "company_ad_domain_company_id_company_company_id_fk",
+      "entityType": "fks",
+      "table": "company_ad_domain",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "company_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "company",
+      "columnsTo": [
+        "company_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "department_company_id_company_company_id_fk",
+      "entityType": "fks",
+      "table": "department",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "dept_code"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "department",
+      "columnsTo": [
+        "dept_code"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "dept_permission_dept_code_department_dept_code_fk",
+      "entityType": "fks",
+      "table": "dept_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "dept_permission_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "dept_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "local_account_token_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "local_account_token",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "local_credential_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "local_credential",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "permission_include_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "permission_include",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "included_permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "permission_include_included_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "permission_include",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "role_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "role",
+      "columnsTo": [
+        "role_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_ad_group_role_id_role_role_id_fk",
+      "entityType": "fks",
+      "table": "role_ad_group",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "role_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "role",
+      "columnsTo": [
+        "role_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_company_role_id_role_role_id_fk",
+      "entityType": "fks",
+      "table": "role_company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "company_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "company",
+      "columnsTo": [
+        "company_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_company_company_id_company_company_id_fk",
+      "entityType": "fks",
+      "table": "role_company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "role_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "role",
+      "columnsTo": [
+        "role_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_permission_role_id_role_role_id_fk",
+      "entityType": "fks",
+      "table": "role_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_permission_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "role_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "role_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "role",
+      "columnsTo": [
+        "role_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_rule_role_id_role_role_id_fk",
+      "entityType": "fks",
+      "table": "role_rule",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "company_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "company",
+      "columnsTo": [
+        "company_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "role_rule_company_id_company_company_id_fk",
+      "entityType": "fks",
+      "table": "role_rule",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_company_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "user_company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "company_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "company",
+      "columnsTo": [
+        "company_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_company_company_id_company_company_id_fk",
+      "entityType": "fks",
+      "table": "user_company",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_permission_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "user_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "permission_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "permission",
+      "columnsTo": [
+        "permission_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_permission_permission_id_permission_permission_id_fk",
+      "entityType": "fks",
+      "table": "user_permission",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_role_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "user_role",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "role_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "role",
+      "columnsTo": [
+        "role_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "user_role_role_id_role_role_id_fk",
+      "entityType": "fks",
+      "table": "user_role",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "announcement_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "notify_announcement",
+      "columnsTo": [
+        "announcement_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "notify_announcement_asset_announcement_id_notify_announcement_announcement_id_fk",
+      "entityType": "fks",
+      "table": "notify_announcement_asset",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "notify_message_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "notify_message",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "announcement_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "notify_announcement",
+      "columnsTo": [
+        "announcement_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "notify_receipt_announcement_id_notify_announcement_announcement_id_fk",
+      "entityType": "fks",
+      "table": "notify_receipt",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "user_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "user",
+      "columnsTo": [
+        "user_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "notify_receipt_user_id_user_user_id_fk",
+      "entityType": "fks",
+      "table": "notify_receipt",
+      "schema": "gw"
+    },
+    {
+      "columns": [
+        "endpoint_id"
+      ],
+      "nameExplicit": false,
+      "schemaTo": "gw",
+      "tableTo": "webhook_endpoint",
+      "columnsTo": [
+        "endpoint_id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "NO ACTION",
+      "name": "webhook_log_endpoint_id_webhook_endpoint_endpoint_id_fk",
+      "entityType": "fks",
+      "table": "webhook_log",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "client_id",
+        "permission_id"
+      ],
+      "name": "pk_api_client_permission",
+      "entityType": "pks",
+      "table": "api_client_permission",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "company_id",
+        "domain_code"
+      ],
+      "name": "pk_company_ad_domain",
+      "entityType": "pks",
+      "table": "company_ad_domain",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "dept_code",
+        "permission_id",
+        "job_tier"
+      ],
+      "name": "pk_dept_permission",
+      "entityType": "pks",
+      "table": "dept_permission",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "permission_id",
+        "included_permission_id"
+      ],
+      "name": "pk_permission_include",
+      "entityType": "pks",
+      "table": "permission_include",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "role_id",
+        "ad_group_dn"
+      ],
+      "name": "pk_role_ad_group",
+      "entityType": "pks",
+      "table": "role_ad_group",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "role_id",
+        "company_id"
+      ],
+      "name": "pk_role_company",
+      "entityType": "pks",
+      "table": "role_company",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "role_id",
+        "permission_id"
+      ],
+      "name": "pk_role_permission",
+      "entityType": "pks",
+      "table": "role_permission",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "user_id",
+        "company_id",
+        "via_employee_no"
+      ],
+      "name": "pk_user_company",
+      "entityType": "pks",
+      "table": "user_company",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "user_id",
+        "permission_id"
+      ],
+      "name": "pk_user_permission",
+      "entityType": "pks",
+      "table": "user_permission",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "user_id",
+        "role_id"
+      ],
+      "name": "pk_user_role",
+      "entityType": "pks",
+      "table": "user_role",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        "announcement_id",
+        "user_id"
+      ],
+      "name": "pk_notify_receipt",
+      "entityType": "pks",
+      "table": "notify_receipt",
+      "schema": "gw"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "step_id"
+      ],
+      "name": "aggregate_step_pkey",
+      "table": "aggregate_step",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "batch_id"
+      ],
+      "name": "api_import_batch_pkey",
+      "table": "api_import_batch",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "item_id"
+      ],
+      "name": "api_import_item_pkey",
+      "table": "api_import_item",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "route_id"
+      ],
+      "name": "api_route_pkey",
+      "table": "api_route",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "release_id"
+      ],
+      "name": "config_release_pkey",
+      "table": "config_release",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "policy_id"
+      ],
+      "name": "rate_limit_policy_pkey",
+      "table": "rate_limit_policy",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "upstream_id"
+      ],
+      "name": "upstream_pkey",
+      "table": "upstream",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "target_id"
+      ],
+      "name": "upstream_target_pkey",
+      "table": "upstream_target",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "client_id"
+      ],
+      "name": "api_client_pkey",
+      "table": "api_client",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "app_id"
+      ],
+      "name": "app_pkey",
+      "table": "app",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "company_id"
+      ],
+      "name": "company_pkey",
+      "table": "company",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "dept_code"
+      ],
+      "name": "department_pkey",
+      "table": "department",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "token_id"
+      ],
+      "name": "local_account_token_pkey",
+      "table": "local_account_token",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "user_id"
+      ],
+      "name": "local_credential_pkey",
+      "table": "local_credential",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "permission_id"
+      ],
+      "name": "permission_pkey",
+      "table": "permission",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "role_id"
+      ],
+      "name": "role_pkey",
+      "table": "role",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "rule_id"
+      ],
+      "name": "role_rule_pkey",
+      "table": "role_rule",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "user_id"
+      ],
+      "name": "user_pkey",
+      "table": "user",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "announcement_id"
+      ],
+      "name": "notify_announcement_pkey",
+      "table": "notify_announcement",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "asset_id"
+      ],
+      "name": "notify_announcement_asset_pkey",
+      "table": "notify_announcement_asset",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "log_id"
+      ],
+      "name": "notify_log_pkey",
+      "table": "notify_log",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "message_id"
+      ],
+      "name": "notify_message_pkey",
+      "table": "notify_message",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "setting_key"
+      ],
+      "name": "notify_setting_pkey",
+      "table": "notify_setting",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "template_id"
+      ],
+      "name": "notify_template_pkey",
+      "table": "notify_template",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "subscription_id"
+      ],
+      "name": "notify_webhook_subscription_pkey",
+      "table": "notify_webhook_subscription",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "endpoint_id"
+      ],
+      "name": "webhook_endpoint_pkey",
+      "table": "webhook_endpoint",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "log_id"
+      ],
+      "name": "webhook_log_pkey",
+      "table": "webhook_log",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "log_id"
+      ],
+      "name": "api_access_log_pkey",
+      "table": "api_access_log",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "audit_id"
+      ],
+      "name": "audit_log_pkey",
+      "table": "audit_log",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "log_id"
+      ],
+      "name": "auth_log_pkey",
+      "table": "auth_log",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "run_id"
+      ],
+      "name": "employee_sync_run_pkey",
+      "table": "employee_sync_run",
+      "schema": "gw",
+      "entityType": "pks"
+    },
+    {
+      "column": "required",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "aggregate_step_required_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "aggregate_step"
+    },
+    {
+      "column": "timeout_ms",
+      "nameExplicit": false,
+      "default": "((5000))",
+      "name": "aggregate_step_timeout_ms_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "aggregate_step"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "aggregate_step_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "aggregate_step"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "aggregate_step_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "aggregate_step"
+    },
+    {
+      "column": "total",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "api_import_batch_total_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "created",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "api_import_batch_created_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "updated",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "api_import_batch_updated_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "skipped",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "api_import_batch_skipped_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "errors",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "api_import_batch_errors_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_import_batch_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_import_batch_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_import_batch"
+    },
+    {
+      "column": "audit_level",
+      "nameExplicit": false,
+      "default": "('none')",
+      "name": "api_route_audit_level_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "priority",
+      "nameExplicit": false,
+      "default": "((100))",
+      "name": "api_route_priority_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "status",
+      "nameExplicit": false,
+      "default": "('draft')",
+      "name": "api_route_status_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "source",
+      "nameExplicit": false,
+      "default": "('manual')",
+      "name": "api_route_source_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_route_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_route_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_route"
+    },
+    {
+      "column": "published_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "config_release_published_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "config_release"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "config_release_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "config_release"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "rate_limit_policy_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "rate_limit_policy"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "rate_limit_policy_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "rate_limit_policy"
+    },
+    {
+      "column": "protocol",
+      "nameExplicit": false,
+      "default": "('http')",
+      "name": "upstream_protocol_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "lb_strategy",
+      "nameExplicit": false,
+      "default": "('round_robin')",
+      "name": "upstream_lb_strategy_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "timeout_ms",
+      "nameExplicit": false,
+      "default": "((10000))",
+      "name": "upstream_timeout_ms_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "retry_count",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "upstream_retry_count_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "circuit_fail_threshold",
+      "nameExplicit": false,
+      "default": "((10))",
+      "name": "upstream_circuit_fail_threshold_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "tls_verify",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "upstream_tls_verify_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "forward_cookies",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "upstream_forward_cookies_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "upstream_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "upstream_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "upstream_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream"
+    },
+    {
+      "column": "weight",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "upstream_target_weight_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream_target"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "upstream_target_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream_target"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "upstream_target_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream_target"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "upstream_target_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "upstream_target"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "api_client_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_client"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_client_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_client"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_client_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_client"
+    },
+    {
+      "column": "sort",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "app_sort_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "app"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "app_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "app"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "app_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "app"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "app_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "app"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "company_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "company"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "company_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "company"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "company_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "company"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "department_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "department"
+    },
+    {
+      "column": "include_sub_depts",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "dept_permission_include_sub_depts_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "dept_permission"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "dept_permission_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "dept_permission"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "local_account_token_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "local_account_token"
+    },
+    {
+      "column": "failed_count",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "local_credential_failed_count_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "local_credential"
+    },
+    {
+      "column": "must_change_password",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "local_credential_must_change_password_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "local_credential"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "local_credential_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "local_credential"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "local_credential_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "local_credential"
+    },
+    {
+      "column": "kind",
+      "nameExplicit": false,
+      "default": "('api')",
+      "name": "permission_kind_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "permission"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "permission_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "permission"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "permission_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "permission"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "permission_include_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "permission_include"
+    },
+    {
+      "column": "is_system",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "role_is_system_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_ad_group_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_ad_group"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_company_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_company"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_permission_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_permission"
+    },
+    {
+      "column": "include_sub_depts",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "role_rule_include_sub_depts_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_rule"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "role_rule_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_rule"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_rule_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_rule"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "role_rule_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "role_rule"
+    },
+    {
+      "column": "is_virtual",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "user_is_virtual_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user"
+    },
+    {
+      "column": "perm_version",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "user_perm_version_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user"
+    },
+    {
+      "column": "is_disabled",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "user_is_disabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "user_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "user_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user"
+    },
+    {
+      "column": "is_virtual",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "user_company_is_virtual_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user_company"
+    },
+    {
+      "column": "is_primary",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "user_company_is_primary_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user_company"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "user_permission_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user_permission"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "user_role_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "user_role"
+    },
+    {
+      "column": "require_ack",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "notify_announcement_require_ack_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_announcement"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_announcement_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_announcement"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_announcement_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_announcement"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_announcement_asset_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_announcement_asset"
+    },
+    {
+      "column": "retry_count",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "notify_log_retry_count_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_log"
+    },
+    {
+      "column": "queued_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_log_queued_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_log"
+    },
+    {
+      "column": "is_read",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "notify_message_is_read_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_message"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_message_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_message"
+    },
+    {
+      "column": "first_seen_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_receipt_first_seen_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_receipt"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_setting_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_setting"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_setting_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_setting"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "notify_template_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_template"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_template_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_template"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_template_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_template"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "notify_webhook_subscription_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_webhook_subscription_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "notify_webhook_subscription_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "notify_webhook_subscription"
+    },
+    {
+      "column": "is_enabled",
+      "nameExplicit": false,
+      "default": "((1))",
+      "name": "webhook_endpoint_is_enabled_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "webhook_endpoint"
+    },
+    {
+      "column": "created_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "webhook_endpoint_created_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "webhook_endpoint"
+    },
+    {
+      "column": "updated_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "webhook_endpoint_updated_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "webhook_endpoint"
+    },
+    {
+      "column": "received_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "webhook_log_received_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "webhook_log"
+    },
+    {
+      "column": "occurred_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "api_access_log_occurred_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "api_access_log"
+    },
+    {
+      "column": "occurred_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "audit_log_occurred_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "audit_log"
+    },
+    {
+      "column": "occurred_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "auth_log_occurred_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "auth_log"
+    },
+    {
+      "column": "started_at",
+      "nameExplicit": false,
+      "default": "(sysutcdatetime())",
+      "name": "employee_sync_run_started_at_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "employee_sync_run"
+    },
+    {
+      "column": "created",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "employee_sync_run_created_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "employee_sync_run"
+    },
+    {
+      "column": "updated",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "employee_sync_run_updated_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "employee_sync_run"
+    },
+    {
+      "column": "unchanged",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "employee_sync_run_unchanged_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "employee_sync_run"
+    },
+    {
+      "column": "resigned_flagged",
+      "nameExplicit": false,
+      "default": "((0))",
+      "name": "employee_sync_run_resigned_flagged_default",
+      "entityType": "defaults",
+      "schema": "gw",
+      "table": "employee_sync_run"
+    }
+  ],
+  "renames": []
+}

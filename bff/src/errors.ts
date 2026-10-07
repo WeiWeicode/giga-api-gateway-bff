@@ -37,6 +37,7 @@ export const ERROR_MESSAGES = {
   WEBHOOK_SOURCE_NOT_FOUND: '沒有此來源的 Webhook 設定',
   WEBHOOK_SIGNATURE_INVALID: 'Webhook 簽章驗證失敗',
   WEBHOOK_TIMESTAMP_INVALID: 'Webhook 時間戳超出允許範圍',
+  AUDIENCE_NOT_ALLOWED: '公告對象超出您可發布的範圍',
 } as const;
 
 export type ErrorCode = keyof typeof ERROR_MESSAGES;
@@ -76,6 +77,7 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   WEBHOOK_SOURCE_NOT_FOUND: 404,
   WEBHOOK_SIGNATURE_INVALID: 401,
   WEBHOOK_TIMESTAMP_INVALID: 401,
+  AUDIENCE_NOT_ALLOWED: 403,
 };
 
 export class GwError extends Error {

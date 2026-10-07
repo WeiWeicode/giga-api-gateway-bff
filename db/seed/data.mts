@@ -68,6 +68,28 @@ export const SERVICE_PERMISSIONS = [
     resource: "message",
     action: "send",
   },
+  // 公告(NOTIFY-PLAN §7):一般發布只能發給本部門;.all 可發全公司、看與撤回所有人的公告;設定只給超級管理員
+  {
+    code: "notify.announce.publish",
+    name: "公告:發布(本部門)",
+    systemCode: "notify",
+    resource: "announce",
+    action: "publish",
+  },
+  {
+    code: "notify.announce.publish.all",
+    name: "公告:發布(全公司)與管理所有公告",
+    systemCode: "notify",
+    resource: "announce",
+    action: "publish_all",
+  },
+  {
+    code: "notify.settings.write",
+    name: "通知設定:修改(保留期限等)",
+    systemCode: "notify",
+    resource: "settings",
+    action: "write",
+  },
 ] as const;
 
 /**
@@ -78,7 +100,12 @@ export const ROLE_PERMISSIONS: Record<
   (typeof ROLES)[number]["code"],
   readonly string[]
 > = {
-  "gw-super-admin": ADMIN_PERMISSIONS.map((p) => p.code),
+  "gw-super-admin": [
+    ...ADMIN_PERMISSIONS.map((p) => p.code),
+    "notify.announce.publish",
+    "notify.announce.publish.all",
+    "notify.settings.write",
+  ],
   "gw-it-admin": ADMIN_PERMISSIONS.map((p) => p.code).filter(
     (c) =>
       ![

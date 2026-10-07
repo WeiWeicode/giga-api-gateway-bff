@@ -98,7 +98,7 @@ new Gauge({
   async collect() {
     const queues = source?.queues;
     if (!queues) return;
-    for (const q of [queues.webhook, queues.notify, queues.employeeSync]) {
+    for (const q of [queues.webhook, queues.notify, queues.notifyFanout, queues.employeeSync]) {
       try {
         const counts = await q.getJobCounts(...QUEUE_STATES);
         for (const state of QUEUE_STATES) this.set({ queue: q.name, state }, counts[state] ?? 0);

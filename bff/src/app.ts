@@ -9,6 +9,7 @@ import employeeSyncAdmin from './modules/admin/employee-sync.js';
 import grantsAdmin from './modules/admin/grants.js';
 import importsAdmin from './modules/admin/imports.js';
 import notifyAdmin from './modules/admin/notify-admin.js';
+import notifySettingsAdmin from './modules/admin/notify-settings.js';
 import onboarding from './modules/admin/onboarding.js';
 import rbacAdmin from './modules/admin/rbac.js';
 import registration from './modules/admin/registration.js';
@@ -20,6 +21,7 @@ import usersAdmin from './modules/admin/users.js';
 import authPlugin from './modules/auth/plugin.js';
 import authRoutes from './modules/auth/routes.js';
 import healthRoutes from './modules/health/routes.js';
+import announceRoutes from './modules/notify/announce-routes.js';
 import notifyInbox from './modules/notify/inbox.js';
 import notifyPlugin from './modules/notify/plugin.js';
 import notifyRoutes from './modules/notify/routes.js';
@@ -76,6 +78,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(notifyWs);
   await app.register(notifyRoutes);
   await app.register(notifyInbox);
+  await app.register(announceRoutes, { config });
   await app.register(healthRoutes);
   await app.register(telemetryRoutes, { config });
   await app.register(registration, { config });
@@ -91,6 +94,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(employeeSyncAdmin);
   await app.register(importsAdmin, { config });
   await app.register(notifyAdmin);
+  await app.register(notifySettingsAdmin, { config });
   await app.register(auditQuery);
   await app.register(webhookRoutes, { config });
   // 資料庫檢視為 demo 用,正式區不提供
