@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-07 web-kit 0.3.0 通知與公告模組
+- 工作項目:W10-3(NOTIFY-PLAN N2)
+- 內容:`notifyApi`(發布端與收件端全部 API)、`createNotifyClient`(/ws/notify?app=,指數退避重連,4401 先換發 Token)、`useNotifyCenter(app)`(同一應用共用收件匣狀態、未讀數、onArrive / onRevoked、已讀 / 確認)、`useAnnouncementArchive`、桌面通知 L1(`enableDesktopNotify`,分頁在背景時跳 Windows 通知)、`sanitizeHtml`(DOMParser 白名單清洗,不引入第三方套件,避免入口網以原始碼引用 web-kit 時缺套件)、`notify-content.css`。純邏輯在 `notify-core.ts`。FRONTEND-GUIDE §7.6。
+- 檔案:`web-kit/src/notify.ts`、`notify-core.ts`、`notify-content.css`、`index.ts`、`web-kit/package.json`(0.3.0)、`bff/test/unit/web-kit-notify.test.ts`、`docs/FRONTEND-GUIDE.md`
+- 驗證:單元 9 項;以 GigaItApp 的 vue-tsc(DOM、Vue 型別)檢查 web-kit 原始碼通過。`sanitizeHtml` 於 N3 瀏覽器實測。
+
 ## 2026-10-07 公告(全公司通知)BFF:資料表、API、廣播、Email 逐人寄、設定
 - 工作項目:W10-2(NOTIFY-PLAN N1)
 - 內容:情境「總經理告知全體員工特休」。一則公告一筆 `gw.notify_announcement`(不逐人複製),對象 = 指定工號 ∪ AD 群組 ∪ ((全公司 ∪ 公司 ∪ 部門含下層) ∩ 職級門檻),展開 `gw.user`(人員同步的全體在職員工)。管道:`portal` / `itapp` 經 Redis `gw:notify:broadcast` 一則廣播,各 BFF 以 `/ws/notify?app=` 連線的使用者比對後推播,收件匣 `/api/notify/feed` 補漏;`email` 逐人寫 `gw.notify_log` 入既有 `notify` 佇列(沿用 `MAIL_RATE_PER_SEC`,圖片 CID 內嵌);`agent` 待 N4。內文 HTML 以 sanitize-html 白名單清洗,圖片只接受 `/api/notify/assets/{id}`(以檔頭判斷格式、不收 SVG)。已讀 / 確認已閱讀回條、已讀名單 CSV、撤回、提醒未讀、排程發布(延遲工作)、公告查詢(含已到期)、通知設定(保留期限預設永久,每日 03:00 清理)。權限 `notify.announce.publish`(只能發本部門)、`.publish.all`、`notify.settings.write`,seed 給 `gw-super-admin`;新錯誤代碼 `AUDIENCE_NOT_ALLOWED`。新套件 sanitize-html、html-to-text。

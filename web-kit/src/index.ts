@@ -6,6 +6,7 @@
  *   await http.get('/api/mes/work-orders')
  *   const { menu, trail, isOpen, toggle } = useMenuTree(MENU)   // 多層側邊選單(§7.5)
  *   installMonitor({ app: 'itapp-web', router, vueApp: app })   // 前端健康度回報(MONITORING-PLAN W9-9)
+ *   useNotifyCenter('itapp').start()                             // 通知與公告(NOTIFY-PLAN §6.5);內文樣式 import '@giganexus/web-kit/src/notify-content.css'
  */
 import type { App } from 'vue';
 import type { Router } from 'vue-router';
@@ -22,6 +23,27 @@ export { filterMenu, findTrail, flattenMenu, menuKeys, pathMatches } from './men
 export type { MenuNode, VisibleMenuNode } from './menu';
 export { GnMenuTree, useMenuTree } from './menu-tree';
 export type { MenuItemSlotProps, MenuTreeOptions } from './menu-tree';
+export { createNotifyClient, desktopPermission, enableDesktopNotify, notifyApi, sanitizeHtml, useAnnouncementArchive, useNotifyCenter } from './notify';
+export type { ArriveMessage, DesktopPermission, NotifyCenter, NotifyClient } from './notify';
+export { LEVEL_NAMES, presentationOf, reconnectDelay } from './notify-core';
+export type {
+  AnnounceChannel,
+  AnnouncementDetail,
+  AnnouncementInput,
+  AnnouncementRow,
+  AnnouncementStatus,
+  Audience,
+  AudienceDept,
+  AudiencePreview,
+  ComposeOptions,
+  Feed,
+  FeedItem,
+  NotifyApp,
+  NotifyLevel,
+  NotifySettings,
+  NotifySocketMessage,
+  Receipts,
+} from './notify-core';
 
 declare module 'vue-router' {
   interface RouteMeta {

@@ -10,7 +10,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.4(2026-10-05:§7.5 重寫為目錄 / 選單 / Tab / 按鈕權限的完整做法,畫面節點綁定 API,GigaItApp 為範本)。v0.3:§7.5 多層選單,web-kit `useMenuTree` / `GnMenuTree`;權限可直接授予部門與個人。v0.2:§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供 |
+| 文件版本 | v0.5(2026-10-07:§7.6 通知與公告,web-kit 0.3.0 `useNotifyCenter` / `notifyApi` / `sanitizeHtml`)。v0.4(2026-10-05:§7.5 重寫為目錄 / 選單 / Tab / 按鈕權限的完整做法,畫面節點綁定 API,GigaItApp 為範本)。v0.3:§7.5 多層選單,web-kit `useMenuTree` / `GnMenuTree`;權限可直接授予部門與個人。v0.2:§7.2 `me` 新增 `apps`、職級;§7.4 應用切換與應用層守衛;§7.5 選單 / Tab / 按鈕權限分類;登入頁由員工入口網 giga-Portal 提供 |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的 Vue 專案(必須遵守);既有專案遷移時比照(見 §10) |
 | 維護者 | Gateway 負責人 |
@@ -365,6 +365,30 @@ const { menu, trail, crumbs, isOpen, toggle } = useMenuTree(MENU, { storageKey: 
 | 純函式 | `filterMenu`、`findTrail`、`flattenMenu`、`pathMatches`、`menuKeys`(不依賴 Vue,可在非側欄處重用,例如首頁捷徑) |
 
 - GigaItApp 維持兩層(自有 `AppLayout`,邏輯同上:名稱 / 圖示 / 順序 / 歸屬以 BFF 為準);三層以上的應用(如員工入口網)改用上述元件。
+
+### 7.6 通知與公告(NOTIFY-PLAN §6.5,web-kit 0.3.0)
+
+收件端與發布端的資料、連線邏輯都在 web-kit,各應用只做畫面(GigaItApp「通知中心」為範本,入口網複製後換樣式)。
+
+```ts
+import { useNotifyCenter, notifyApi, sanitizeHtml, enableDesktopNotify } from '@giganexus/web-kit';
+import '@giganexus/web-kit/src/notify-content.css';   // 公告內文排版(class gn-notify-content)
+
+const center = useNotifyCenter('itapp');              // 同一應用共用一份狀態(鈴鐺、儀表板卡片、收件匣)
+center.start();                                       // 登入後於 Layout 呼叫一次:連 /ws/notify?app=itapp,斷線自動重連並補查
+center.onArrive((m, how) => (how.dialog ? openDialog(m) : toast(m.title)));
+center.unread.value;                                  // 未讀數(公告 + 個人通知)
+await center.markRead({ kind: 'announcement', id });  // 或 center.ack(id):確認已閱讀
+```
+
+| 規則 | 說明 |
+| --- | --- |
+| 應用代碼 | `portal`(員工入口網)、`itapp`(GigaItApp);發布人勾選的管道決定哪個應用收得到 |
+| 即時 vs 正確 | WebSocket 只負責即時;收到推播、(重)連上時一律重新查 `/api/notify/feed`,不要只靠推播內容更新畫面 |
+| 顯示 HTML | 公告內文一律 `v-html="sanitizeHtml(bodyHtml)"`,外層加 `class="gn-notify-content"`;不可直接 `v-html` API 回傳值 |
+| 桌面通知 | `enableDesktopNotify()` 只能在使用者點擊時呼叫(瀏覽器規定);授權後分頁在背景時自動跳 Windows 通知 |
+| 發布端 | `notifyApi.composeOptions()` 取得管道是否開放、職級門檻、部門樹;`preview()` 預估人數;`uploadAsset()` 上傳內文圖片後以回傳的 `url` 插入 `<img>` |
+| 依賴 | web-kit 不引入第三方套件(入口網以原始碼引用 web-kit);HTML 清洗以瀏覽器 DOMParser 實作,白名單與 BFF 相同 |
 
 ---
 
