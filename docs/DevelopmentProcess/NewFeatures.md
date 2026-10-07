@@ -2,6 +2,13 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-07 :9443 Agent 通道改 HTTPS / WebSocket、主機 2 開放 :9443(G0、G4)
+- 工作項目:W6-11(RustIt 整合 M4)
+- 內容:`agent.conf` 由 `grpc_pass` 改為 `proxy_pass https://$endpoint_agent_upstream`(HTTP/1.1、不開 http2、WebSocket Upgrade、身分標頭由 Nginx 覆寫、`proxy_ssl_verify` 以 `pki/ca.crt` 驗證 Endpoint Server);環境變數 `ENDPOINT_GRPC_UPSTREAM` 改名 `ENDPOINT_AGENT_UPSTREAM`(Dockerfile、compose、env 範本);`nginx.conf` 加 `map_hash_bucket_size 256`(DN 鍵值過長時 `nginx -t` 失敗);測試區 `agent-issuers.conf` 加入臨時 Agent 中繼 CA。主機 2:Traefik 加 `agent` 入口(備份 `*.bak-20261007-082032`),防火牆「GigaNexus Agent 9443」只允許 10.10.112.13。經需求方同意(2026-10-07)。配合 RustIt ItAgentBack 部署。
+- 檔案:`nginx/conf.d/agent.conf`、`nginx/nginx.conf`、`nginx/templates/00-env.conf.template`、`nginx/Dockerfile`、`nginx/allowlists/test/agent-issuers.conf`、`deploy/docker-compose.yml`、`deploy/*.env.example`、`deploy/windows-l4/`、`docs/ENDPOINT-AGENT-GUIDE.md`、`docs/DEPLOYMENT.md`
+- 驗證:主機 2 以測試區 pki 在 Gateway 網路執行 `nginx -t` 通過;自 10.10.112.13 連 `https://10.10.130.124:9443/` 無憑證回 400、`:443 /it/` 仍 200。
+
+
 ## 2026-10-06 Endpoint Server 改為 Node.js(ItAgentBack),文件同步
 - 工作項目:W6(端點管理)文件
 - 內容:依需求方決定,Endpoint Server 由 Rust Axum 改為 Node.js(`RustIt/ItAgentBack`,Fastify),Rust 只負責端點(`RustIt/RustAgent`:Agent、Watchdog、托盤);儲存為 SQL Server `giganexus_It_Agent` + MongoDB + Redis。`ENDPOINT-AGENT-GUIDE.md` 升 v0.4(標題、適用對象、§2 圖、§5 改 Fastify hook 範例、§5.6 契約改以 JSON Schema、§8.1 / §8.3 與 G3 用語);`AGENT.md` §10.2 / §10.3 / §10.7.2、`PROJECT-MAP.md`、`ARCHITECTURE.md` 的 Axum 字樣。通道、port、權限代碼、API 路徑**不變**。僅文件,無程式變更。配合 RustIt `docs/decisions/0004-node-endpoint-server.md`。

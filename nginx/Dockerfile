@@ -12,7 +12,7 @@ RUN mkdir -p /var/log/nginx-gw
 # 部署區預設(可由 compose 覆寫)
 ENV GW_ENV=prod \
     ENDPOINT_WS_UPSTREAM=endpoint-server:51240 \
-    ENDPOINT_GRPC_UPSTREAM=endpoint-server:51241 \
+    ENDPOINT_AGENT_UPSTREAM=endpoint-server:51241 \
     ITAPP_API_UPSTREAM=itapp-api:51291 \
     NGINX_ENVSUBST_FILTER="^(GW_|ENDPOINT_|ITAPP_)"
 EXPOSE 80 443 9443

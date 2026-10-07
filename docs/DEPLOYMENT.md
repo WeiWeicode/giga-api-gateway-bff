@@ -191,7 +191,7 @@ flowchart LR
 - Nginx:`nginx.conf` 的 `set_real_ip_from`(127.0.0.1、172.16.0.0/12)+ `real_ip_header proxy_protocol`,只有走 PROXY protocol 的連線會改寫 `$remote_addr`;限流、`geo` 白名單、access log、`X-Forwarded-For`(BFF `req.ip`)全部取得真實 IP。原本的 80 / 443 / 9443 保留給 CI 冒煙測試與同主機容器。
 - compose 只把 10080 / 10443 / 19443 綁在 `127.0.0.1`:區網無法直接連入 PROXY protocol 入口,不能偽造來源 IP。
 - Traefik 只綁主機 IP(不綁 0.0.0.0),避免與 WSL localhost 轉送(`127.0.0.1`、`::1`)衝突;Windows 防火牆規則「GigaNexus Gateway 80/443」為 port 規則,不需修改。
-- **`:9443` 尚未對區網開放**(防火牆與轉送皆未設定);Agent 上線時在 `dynamic.yml` 加 `agent` 入口(`<主機 IP>:9443` → `127.0.0.1:19443`)並開放端點網段的防火牆。
+- **`:9443`**:2026-10-07 主機 2 已在 `traefik.yml` / `dynamic.yml` 加 `agent` 入口(`<主機 IP>:9443` → `127.0.0.1:19443`;靜態設定變更需重啟 Traefik,80 / 443 中斷數秒),防火牆規則「GigaNexus Agent 9443」**暫時只允許 10.10.112.13**(RustIt M4 測試電腦);正式上線時改為端點網段。
 - 驗證(2026-10-01):自 10.10.112.13 連入,Nginx log `remote_addr` = `10.10.112.13`、BFF `gw.auth_log.ip` 相同(E2E `01-nginx-entry`「來源 IP」)。
 - 還原:`rollback.ps1`(停用 Traefik、重建 portproxy 80 / 443 → `::1`,來源 IP 會再次遺失)。
 

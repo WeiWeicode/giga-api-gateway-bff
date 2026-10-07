@@ -23,7 +23,7 @@
 
 | 項目 | 狀態 |
 | --- | --- |
-| Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ⚠ **仍為 gRPC 版**(`grpc_pass`,2026-09-25 實測通過)。依 §4 改寫為 `proxy_pass` + WebSocket,**W6-1 訊息協定定版後進行** |
+| Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ✅ 2026-10-07 改為 HTTPS / WebSocket(`proxy_pass https://$endpoint_agent_upstream`,HTTP/1.1,§4);測試區只信任臨時 Agent 中繼 CA(`allowlists/test/agent-issuers.conf`) |
 | §3.4、§6–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
 | Endpoint Server(`RustIt/ItAgentBack`,§5) | 規劃中;整合計畫 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
 
@@ -138,7 +138,7 @@ HTTP 用 `reqwest`、WebSocket 用 `tokio-tungstenite`,兩者共用同一個 `ru
 
 ## 4. Gateway 提供的 `:9443` 通道
 
-設定檔:`nginx/conf.d/agent.conf`(⚠ 現行為 gRPC 版,依本節改寫)。
+設定檔:`nginx/conf.d/agent.conf`(2026-10-07 已依本節改寫)。
 
 | 項目 | 規格 |
 | --- | --- |
@@ -515,11 +515,11 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 
 | # | 項目 | 影響 | 狀態 |
 | --- | --- | --- | --- |
-| G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | **待 W6-1 訊息協定定版** |
+| G0 | `agent.conf` 由 gRPC 改為 HTTPS / WebSocket(§4),環境變數改名 `ENDPOINT_AGENT_UPSTREAM`,並補上通道的 E2E | Agent 上線前必須完成 | ✅ 2026-10-07 設定完成;帶裝置憑證的通道 E2E 待 Endpoint Server 部署後補上 |
 | G1 | CRL 定期更新並 reload Nginx | **CRL 過期時 Nginx 會拒絕所有 Agent**(HTTP 400);撤銷的憑證也不會生效 | 未開始;**上線前必須完成** |
 | G2 | 無效憑證在 TLS 握手後才回 HTTP 400,不是在 TLS 層拒絕 | 與 PRD 舊版「TLS 層拒絕」字面不同;不會到達 Endpoint Server | **已接受**(2026-10-01 需求方確認) |
 | G3 | 200 條 WebSocket 維持 1 小時壓測 | — | 未做;需 k6 或自寫 Node.js / Rust 測試工具 |
-| G4 | Windows 主機上 Nginx 看到的來源 IP | 主機 2 已以 Traefik + PROXY protocol 保留來源 IP(`:443`,2026-10-01);`:9443` 開放時在 Traefik 加 `agent` 入口 → `127.0.0.1:19443`(Nginx 已有 `19443 proxy_protocol`,[DEPLOYMENT.md](DEPLOYMENT.md) §6.1)。`limit_conn` 以裝置憑證計算 | `:443` 已處理;`:9443` 待 Agent 上線 |
+| G4 | Windows 主機上 Nginx 看到的來源 IP | 主機 2 已以 Traefik + PROXY protocol 保留來源 IP(`:443`,2026-10-01);`:9443` 開放時在 Traefik 加 `agent` 入口 → `127.0.0.1:19443`(Nginx 已有 `19443 proxy_protocol`,[DEPLOYMENT.md](DEPLOYMENT.md) §6.1)。`limit_conn` 以裝置憑證計算 | `:443` 已處理;`:9443` 2026-10-07 已加 Traefik `agent` 入口,防火牆暫時只開放 10.10.112.13(S112009),上線時改端點網段 |
 | G5 | 子公司經 NAT 連入 | 同一公司的電腦共用來源 IP;`limit_conn` 已改以裝置憑證計算,不受影響 | 已處理(2026-09-25) |
 | G6 | reload 時,舊的 Nginx worker 要等 WebSocket 結束才會退出(未設定 `worker_shutdown_timeout`) | CRL 更新頻繁 reload 時,舊 worker 可能累積最多 1 小時 | 建議與 G1 一起處理 |
 | G7 | 只轉送已知路徑(例:`/agent/v1/*`) | 目前規劃轉送所有路徑,由 Endpoint Server 回 404 | 訊息協定定案後再評估 |

@@ -89,7 +89,7 @@ services:
     environment:
       GW_ENV: ${GW_ENV}
       ENDPOINT_WS_UPSTREAM: ${ENDPOINT_WS_UPSTREAM:-endpoint-server:51240}
-      ENDPOINT_GRPC_UPSTREAM: ${ENDPOINT_GRPC_UPSTREAM:-endpoint-server:51241}
+      ENDPOINT_AGENT_UPSTREAM: ${ENDPOINT_AGENT_UPSTREAM:-endpoint-server:51241}
       ITAPP_API_UPSTREAM: ${ITAPP_API_UPSTREAM:-itapp-api:51291}
     ports:
       - "${GW_HTTP_PORT:-80}:80"

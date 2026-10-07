@@ -20,6 +20,14 @@ entryPoints:
         readTimeout: 0
         writeTimeout: 0
         idleTimeout: 0
+  # Agent 通道(mTLS 在 Nginx 終止;Traefik 只轉 TCP)。防火牆另設規則,只開放端點網段(ENDPOINT-AGENT-GUIDE §10 G4)
+  agent:
+    address: "__HOST_IP__:9443"
+    transport:
+      respondingTimeouts:
+        readTimeout: 0
+        writeTimeout: 0
+        idleTimeout: 0
 
 providers:
   file:
