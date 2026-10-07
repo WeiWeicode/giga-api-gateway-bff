@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-07 :9443 轉送 X-Forwarded-For
+- 工作項目:W6(RustIt 監控接 giga-observe)
+- 內容:`agent.conf` 加 `proxy_set_header X-Forwarded-For $remote_addr`,讓 Endpoint Server 的監控紀錄顯示電腦來源 IP;**不作為身分依據**(身分只看 `x-client-cert-*`,電腦 IP 以 Agent 回報為準)。
+- 檔案:`nginx/conf.d/agent.conf`
+- 驗證:測試區部署 40d633a;giga-observe `endpoint-agent` 紀錄的來源 IP 為 10.10.112.13。
+
 ## 2026-10-07 :9443 Agent 通道改 HTTPS / WebSocket、主機 2 開放 :9443(G0、G4)
 - 工作項目:W6-11(RustIt 整合 M4)
 - 內容:`agent.conf` 由 `grpc_pass` 改為 `proxy_pass https://$endpoint_agent_upstream`(HTTP/1.1、不開 http2、WebSocket Upgrade、身分標頭由 Nginx 覆寫、`proxy_ssl_verify` 以 `pki/ca.crt` 驗證 Endpoint Server);環境變數 `ENDPOINT_GRPC_UPSTREAM` 改名 `ENDPOINT_AGENT_UPSTREAM`(Dockerfile、compose、env 範本);`nginx.conf` 加 `map_hash_bucket_size 256`(DN 鍵值過長時 `nginx -t` 失敗);測試區 `agent-issuers.conf` 加入臨時 Agent 中繼 CA。主機 2:Traefik 加 `agent` 入口(備份 `*.bak-20261007-082032`),防火牆「GigaNexus Agent 9443」只允許 10.10.112.13。經需求方同意(2026-10-07)。配合 RustIt ItAgentBack 部署。
