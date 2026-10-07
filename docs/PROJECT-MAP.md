@@ -1,6 +1,6 @@
 # 專案地圖 — giga-api-gateway-bff
 
-> **最後更新:2026-10-05**(畫面權限模型(PRD §8.3.2):選單目錄 `kind group`、圖示、畫面節點綁定 API `gw.permission_include`;部門 / 個人權限 `modules/admin/grants.ts` + `gw.dept_permission` / `gw.user_permission`、職級門檻 `modules/rbac/job-tiers.ts`;分階段開放公司 `modules/rbac/login-companies.ts`;web-kit 多層選單 `menu.ts` / `menu-tree.ts`、`/api/auth/me` 的 `menus`。2026-10-02:補齊未實作項目:`plugins/metrics.ts`(/metrics)、`plugins/docs.ts`(/docs);人員同步 `modules/auth/employee-sync.ts` + `workers/employee-sync.worker.ts`;舊帳號遷移 `modules/auth/legacy-cipher.ts`、`legacy-migration.ts`;管理 API `modules/admin/route-test.ts`、`roles.ts`、`api-clients.ts`、`access.ts`、`imports.ts`(+ `route-table.ts`)、`notify-admin.ts`、`audit-query.ts`、`employee-sync.ts`;收件匣 `modules/notify/inbox.ts`;告警 `workers/alert.ts`。2026-10-01:P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
+> **最後更新:2026-10-07**(公告 NOTIFY-PLAN N1:`modules/notify/announce*.ts`、`audience.ts`、`html.ts`、`settings.ts`、`modules/admin/notify-settings.ts`、`workers/announce.worker.ts`;`/ws/notify` 公告廣播。2026-10-05:畫面權限模型(PRD §8.3.2):選單目錄 `kind group`、圖示、畫面節點綁定 API `gw.permission_include`;部門 / 個人權限 `modules/admin/grants.ts` + `gw.dept_permission` / `gw.user_permission`、職級門檻 `modules/rbac/job-tiers.ts`;分階段開放公司 `modules/rbac/login-companies.ts`;web-kit 多層選單 `menu.ts` / `menu-tree.ts`、`/api/auth/me` 的 `menus`。2026-10-02:補齊未實作項目:`plugins/metrics.ts`(/metrics)、`plugins/docs.ts`(/docs);人員同步 `modules/auth/employee-sync.ts` + `workers/employee-sync.worker.ts`;舊帳號遷移 `modules/auth/legacy-cipher.ts`、`legacy-migration.ts`;管理 API `modules/admin/route-test.ts`、`roles.ts`、`api-clients.ts`、`access.ts`、`imports.ts`(+ `route-table.ts`)、`notify-admin.ts`、`audit-query.ts`、`employee-sync.ts`;收件匣 `modules/notify/inbox.ts`;告警 `workers/alert.ts`。2026-10-01:P2-3 使用者 / 公司 / 本機帳號管理 API:`modules/admin/users.ts`、`local-account-admin.ts`(CLI `local:*` 共用)、`audit-log.ts`;P2-1 / P2-2 路由設定與發佈管理 API:`modules/admin/routing.ts`、`routing-rules.ts`、`releases.ts`、`authorize.ts`;P2-3a 指派規則 / 部門樹 / 應用:`modules/rbac/rules.ts`、`department-sync.ts`、`modules/admin/rbac.ts`;W3-5.8 通知 `modules/notify/` + `workers/notify.worker.ts`、W3-5.8a/b 自行註冊與忘記密碼 `modules/auth/local-account.ts`、W3-5.10 Webhook `modules/webhook/`;BullMQ 佇列 `plugins/queues.ts`、worker 行程 `src/worker.ts`)。
 > 開發新功能後,在同一個變更內更新本文件(`AGENT.md` §10.7)。只寫結構與職責,細節連到 `docs/` 對應章節。
 
 Gateway:Nginx(`:443` 瀏覽器與系統對系統、`:9443` 端點 Agent mTLS)+ BFF(登入、權限、動態路由表)+ 前端 / 後端共用套件。**所有 GigaNexus 專案的上位規範**。
@@ -40,12 +40,14 @@ giga-api-gateway-bff/
 │  │  │  │                    第二階段:路由試打(route-test.ts)、角色 / 權限 / AD 群組(roles.ts)、API Key(api-clients.ts)、反查(access.ts)、
 │  │  │  │                    匯入(imports.ts;表格解析 route-table.ts 純函式;OpenAPI 共用 route-import.ts)、通知範本與紀錄(notify-admin.ts)、
 │  │  │  │                    稽核查詢(audit-query.ts)、人員同步紀錄與手動觸發(employee-sync.ts)
-│  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify、收件匣 /api/notify/messages(inbox.ts)
+│  │  │  ├─ notify/           通知:/api/notify/send(routes)、入列與收件人展開(send.ts,app.notifier)、範本(template.ts)、WebSocket /ws/notify(個人 + 公告廣播)、收件匣 /api/notify/messages(inbox.ts)
+│  │  │  │                    公告(NOTIFY-PLAN):API(announce-routes.ts)、對象展開與索引(announce.ts,app.announcements)、對象比對(audience.ts)、
+│  │  │  │                    HTML 清洗 / 純文字 / 圖片(html.ts)、通知設定(settings.ts,app.notifySettings);設定 API 在 admin/notify-settings.ts
 │  │  │  ├─ webhook/          /webhook/{source}:驗簽(signature.ts 純函式)、時間戳、去重、gw.webhook_log、入列
 │  │  │  └─ health/           /healthz、/readyz
 │  │  ├─ db/                  資料存取:client(連線池)、schema/(Drizzle)、external/(BPM、LOS、PortalSolar 唯讀)、
 │  │  │                       sync/release(發佈 → Redis)、migrate、seed、sql2012-guard
-│  │  ├─ workers/             佇列處理程序(由 worker.ts 啟動):webhook.worker(含路由分派)、notify.worker(Email / 站內通知)、
+│  │  ├─ workers/             佇列處理程序(由 worker.ts 啟動):webhook.worker(含路由分派)、notify.worker(Email / 站內通知 / 公告 Email)、announce.worker(公告分送、保留期限)、
 │  │  │                       employee-sync.worker(部門樹與人員同步)、alert(告警 Email)
 │  │  └─ cli/                 管理 CLI(`npm run gw`)、OpenAPI 轉路由草稿
 │  ├─ scripts/                開發工具:SQL 2012 語法檢查、重設整合測試庫
@@ -81,6 +83,7 @@ giga-api-gateway-bff/
 | 路由發佈 | CLI / 管理 API → `db/sync/release.ts`(SQL Server → Redis)→ 各 BFF `modules/router/sync.ts` 載入快照、原子替換路由樹 |
 | 下游後端上架 | 下游以 `sdk/node` 自動註冊 → `modules/admin/registration.ts` → `route-import.ts`(草稿)→ IT 發佈 |
 | 通知 | 其他系統 `X-Api-Key` → `modules/notify/routes.ts` → `send.ts`(範本、收件人 × 通道、`gw.notify_log`)→ BullMQ `notify` → `workers/notify.worker.ts`(nodemailer / `gw.notify_message` + Redis `gw:notify:user:*` → `notify/ws.ts` 推播) |
+| 公告 | 發布人 → `notify/announce-routes.ts`(清洗 HTML、對象範圍、`gw.notify_announcement`)→ BullMQ `notify-fanout` → `workers/announce.worker.ts`:Redis `gw:notify:broadcast` → 各 BFF `notify/ws.ts` 比對連線使用者後推播;Email 逐人寫 `gw.notify_log` → `notify` 佇列 → `notify.worker.ts`(圖片 CID 內嵌)。收件匣 / 公告查詢讀 `announce.ts` 的公告索引(30 秒快取,收到廣播即失效) |
 | 權限計算 | 登入 / Refresh / `me` / 權限試算 → `rbac/permission.ts`(`loadUserFacts` → `resolveRoles`:employee、AD 群組、公司、`rules.ts` 指派規則 + `gw.department` 樹、個別指派 → `permissionsOf` ∪ `resolveDirectGrants`(部門 / 個人)→ `expandIncludes`(畫面節點綁定的 API)→ `appsOf` / `menusOf`) |
 | 部門樹同步 | worker `employee-sync`(每小時)或 CLI `dept:sync` → `rbac/department-sync.ts`(BPM `OrganizationUnit` / `Organization` → `gw.department`,樹變更遞增全體 pv) |
 | 自行註冊 / 忘記密碼 | `modules/auth/routes.ts` → `local-account.ts`(AD 查詢、`profile.ts` 查 LOS / BPM、`gw.local_credential` / `local_account_token`)→ `app.notifier` 寄連結 |

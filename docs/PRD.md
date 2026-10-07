@@ -306,7 +306,8 @@ sequenceDiagram
 
 | code | HTTP | 產生者 | 情境 |
 | --- | --- | --- | --- |
-| `CHANNEL_NOT_SUPPORTED` | 400 | 通知 | 指定未開放的通道(例如 `line`,PRD Q7) |
+| `CHANNEL_NOT_SUPPORTED` | 400 | 通知 | 指定未開放的通道(例如 `line`,PRD Q7);公告指定尚未開放的管道(例如 `agent`) |
+| `AUDIENCE_NOT_ALLOWED` | 403 | 公告 | 沒有 `notify.announce.publish.all` 時,公告對象超出本部門(含下層) |
 | `WEBHOOK_SOURCE_NOT_FOUND` | 404 | Webhook | `/webhook/{source}` 沒有啟用的端點設定 |
 | `WEBHOOK_SIGNATURE_INVALID` | 401 | Webhook | 簽章驗證失敗 |
 | `WEBHOOK_TIMESTAMP_INVALID` | 401 | Webhook | 時間戳超出 ±5 分鐘(視為重放) |
@@ -718,6 +719,7 @@ sequenceDiagram
 - **站內通知收件匣**(v0.11):`GET /api/notify/messages?unread=&page=&pageSize=`(我的通知,新到舊,含未讀數)、`POST /api/notify/messages/:id/read`、`POST /api/notify/messages/read-all`;登入者只能讀寫自己的通知。`/ws/notify` 只推播新通知,未連線期間的通知以此查詢。
 - **紀錄**:每則發送寫入 `gw.notify_log`(狀態、重試次數、錯誤訊息、供應商回應 ID)。
 - **監控告警**:Prometheus Alertmanager 的 Email 告警亦可透過本服務的 webhook 端點發送。
+- **公告 / 廣播**(v0.13,2026-10-07,NOTIFY-PLAN N1 / 甘特圖 W10-2,BFF 已實作):一則公告一筆 `gw.notify_announcement`(不逐人複製);對象 = 指定工號 ∪ AD 群組 ∪ ((全公司 ∪ 公司 ∪ 部門含下層) ∩ 職級門檻),比對 `gw.user`(人員同步的全體在職員工);管道 `portal` / `itapp`(`/ws/notify?app=` 即時 + 收件匣)、`email`(逐人寄,沿用 `MAIL_RATE_PER_SEC`)、`agent`(N4 開放)。內文為 HTML,儲存前白名單清洗,圖片只接受 `/api/notify/assets/{id}`。權限:`notify.announce.publish`(只能發給本部門)、`notify.announce.publish.all`(全公司、管理所有公告)、`notify.settings.write`(通知設定),三者預設給 `gw-super-admin`。API:發布端 `GET /api/notify/compose-options`、`POST /api/notify/announcements[/preview]`、`PATCH /:id`、`GET /api/notify/announcements`、`GET /:id/receipts`(可 CSV)、`POST /:id/revoke`、`POST /:id/remind`、`POST /api/notify/assets`;收件端 `GET /api/notify/feed?app=`、`GET /api/notify/archive`、`GET /api/notify/announcements/:id`、`POST /:id/read`、`POST /:id/ack`、`GET /api/notify/assets/:id`;設定 `GET/PUT /api/admin/notify/settings`、`GET /api/admin/notify/settings/retention-preview`。新錯誤代碼 `AUDIENCE_NOT_ALLOWED`。設計與後續工作見 [NOTIFY-PLAN.md](NOTIFY-PLAN.md)。
 
 ### 8.6 Webhook 模組
 
@@ -752,6 +754,7 @@ sequenceDiagram
 | 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明、Gherkin 與開發專案;API Key 或登入者皆可) | `gw.admin.route.read` |
 | 限流政策 | `/api/admin/rate-limit-policies` | `gw.admin.route.write` |
 | 通知 | `GET/POST /api/admin/notify/templates`、`GET/PATCH /:id`、`POST /:id/preview`、`GET /api/admin/notify/logs` | `gw.admin.notify.*` |
+| 通知設定(公告) | `GET /api/admin/notify/settings`、`GET /api/admin/notify/settings/retention-preview`;`PUT /api/admin/notify/settings` | 讀 `gw.admin.notify.read`;寫 `notify.settings.write` |
 | 稽核 | `GET /api/admin/audit-logs`、`GET /api/admin/auth-logs` | `gw.admin.audit.read` |
 | 反查 | `GET /api/admin/routes/:id/who-can-access`、`GET /api/admin/permissions/:code/who-can-access`、`GET /api/admin/users/:id/effective-permissions` | `gw.admin.rbac.read` |
 

@@ -299,6 +299,13 @@ erDiagram
 | `gw.notify_template` | `template_id`、`code` UQ、`name`、`channels`(預設通道 JSON)、`email_subject`、`email_body`(HTML)、`inapp_body`、`is_enabled`、★共通 |
 | `gw.notify_log` | `log_id` BIGINT PK、`template_code`、`channel`、`recipient_user_id`、`recipient_address`、`status`(`queued`/`sent`/`failed`/`dead`/`skipped`;`skipped` = 查無工號、帳號停用或沒有 Email,不入列)、`retry_count`、`provider_msg_id`、`error_message`、`idempotency_key`、`requested_by`、`queued_at`、`sent_at` |
 | `gw.notify_message` | `message_id` BIGINT PK、`user_id`、`title`、`body`、`link_url`、`is_read`、`read_at`、`created_at`(站內通知) |
+| `gw.notify_announcement` | `announcement_id` BIGINT PK、`title`、`body_html`(NVARCHAR(MAX),白名單清洗後)、`body_text`(4000,純文字版)、`link_url`、`level`(`info`/`important`/`urgent`)、`audience`(對象 JSON)、`channels`(管道 JSON:`portal`/`itapp`/`agent`/`email`)、`require_ack`、`publish_at`、`expire_at`(NULL = 不到期)、`status`(`draft`/`scheduled`/`published`/`revoked`)、`published_by`、`publisher_title`、`target_count`(發布時人數快照)、`revoked_at` / `revoked_by`、`idempotency_key`、★共通;IX `(status, publish_at)`、`created_by`(公告,NOTIFY-PLAN §6.1,2026-10-07) |
+| `gw.notify_announcement_asset` | `asset_id` BIGINT PK、`announcement_id` FK NULL(草稿中未綁定)、`content_type`(png/jpeg/gif/webp,以檔頭判斷)、`file_name`、`size_bytes`、`data` VARBINARY(MAX)、`created_by`、`created_at`(公告內文圖片;未綁定超過 7 天由排程清除) |
+| `gw.notify_receipt` | PK `(announcement_id, user_id)`、`first_seen_at`、`seen_via`(`portal`/`itapp`/`agent`/`email`)、`read_at`、`ack_at`(已讀回條;第一次讀才寫,不預先展開對象) |
+| `gw.notify_setting` | `setting_key` PK、`setting_value`(JSON)、★共通(通知設定:保留年數、預設到期天數、到期公告可查、Email 收件人上限、圖片上限、全文連結;未設定用預設值) |
+| `gw.notify_webhook_subscription` | `subscription_id` PK、`app_code` UQ、`events`(JSON)、`target_type`(`internal`/`external`)、`upstream_code`、`path`、`url`、`secret_ref`、`is_enabled`、★共通(BFF 發出的 Webhook,N4 起使用) |
+
+`gw.notify_log` 另有 `announcement_id`(公告 Email 逐人寄的紀錄,`template_code = ANNOUNCEMENT`;IX)。公告預設**永久保留**;設定保留年數後由 worker 每日 03:00(台北)清除 `publish_at` 早於期限的公告與其回條、圖片。
 | `gw.webhook_endpoint` | `endpoint_id`、`source_code` UQ(目前沒有來源;BPM 不送 Webhook)、`verify_method`(`hmac_sha256`/`none`)、`secret_ref`(密鑰檔名,實值存 `WEBHOOK_SECRETS_DIR/<secret_ref>`)、`signature_header`(預設 `X-Gw-Signature`)、`allowed_ips`(僅供參考,實際由 Nginx 白名單檢查)、`dispatch_type`(`route`/`queue`/`handler`;實作 `queue` 與 `route`(2026-10-02:worker 轉送到 `dispatch_target` 路由的上游,PRD §8.6),`handler` 未實作)、`dispatch_target`、`is_enabled`、★共通 |
 | `gw.webhook_log` | `log_id` BIGINT PK、`endpoint_id`、`request_id`、`idempotency_key`、`remote_ip`、`verified`(簽章與時間戳皆通過)、`status_code`(回給來源的狀態)、`payload`(目前全部保存)、`received_at`、`processed_at`(worker 處理完成)、`error_message`(拒絕原因、`DUPLICATE_REQUEST`、處理失敗訊息) |
 
@@ -334,6 +341,10 @@ erDiagram
 | `gw:idem:webhook:{source}:{key}` / `gw:idem:notify:{key}` | String | 24h | Webhook / 通知去重(值為第一次請求的 requestId) |
 | `bull:webhook:*` | BullMQ | — | Webhook 事件佇列(worker 處理,完成的工作保留 24 小時,失敗的保留供查) |
 | `bull:notify:*` | BullMQ | — | 通知佇列 |
+| `bull:notify-fanout:*` | BullMQ | — | 公告分送:`publish`(jobId `ann-pub-{id}`;排程發布為延遲工作,撤回 / 改期時移除)、`revoke`、`remind`、`retention`(每日 03:00 台北,可重複工作) |
+| `gw:notify:broadcast` | Pub/Sub 頻道 | — | 公告廣播(worker → 各 BFF 實例,訊息含對象與管道,BFF 比對連線使用者後才轉給 `/ws/notify`) |
+| `gw:idem:announce:{工號}:{key}` | String | 24h | 公告發布去重 |
+| `gw:announce:remind:{id}` | String | 10 分 | 同一公告提醒未讀的頻率限制 |
 | `bull:employee-sync:*` | BullMQ(可重複工作) | — | 人事同步排程:部門樹(`departments`)與人員(`employees`,W3-4.6b),各每小時;管理 API 手動觸發時入列 `employees`(帶 runId)。worker concurrency 1,同一時間只執行一個 |
 | `gw:lock:sync` | String(`SET NX PX`) | 30 秒 | 補償同步時的分散式鎖,避免多個 BFF 實例同時重推快照 |
 | `gw:pwchg:{tokenHash}` | String | 10 分 | 限定變更密碼憑證(舊入口遷移或 IT 重設後首次登入;只能呼叫變更密碼) |
