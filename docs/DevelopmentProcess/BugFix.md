@@ -2,6 +2,16 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-08 轉給上游的 X-Forwarded-For 順序相反(上游記到 Nginx 容器 IP)
+- 內容:`router/plugin.ts` 以 `req.ips.join(', ')` 組 `X-Forwarded-For`,但 Fastify `req.ips` 由近到遠(Nginx 容器 IP 在前),上游依標準取第一個時拿到 `172.19.0.6`;giga-file-service 的 `file_access_log` 經 BFF 的操作(下載、刪除、綁定、BPM 下載)ip 全是 Nginx 容器。改為 `forwardedFor()` 反轉成「用戶端在前」(client, proxy)。直送上游的路徑(上傳 Nginx 直送、Agent :9443)不經 BFF,原本就正確
+- 檔案:`bff/src/modules/router/plugin.ts`、`bff/test/unit/config.test.ts`
+- 驗證:單元(真實 Fastify trustProxy:`172.19.0.6` 帶 `10.10.112.13` → `10.10.112.13, 172.19.0.6`;直連偽造不採用);BFF 227 通過;測試區部署 eb03b79 後 file-api 紀錄 ip 為 `10.10.112.13`
+
+## 2026-10-08 附件直送上傳 > 10 MB 回 500、超過上限回 HTML
+- 內容:① `location = /_auth/verify` 子請求以本 location 的 `client_max_body_size`(全域 10m)檢查原請求 Content-Length,回 413 後被 `auth_request` 轉成 500 → 設 `client_max_body_size 0`(本體不轉送,上限由呼叫端 31m 把關)② `location = /api/file/files` 自訂 `error_page` 後不再繼承 server 層 `json-errors.conf`,31 MB 回 Nginx 預設 HTML → 重列 413 / 429 / 5xx
+- 檔案:`nginx/conf.d/portal.conf`
+- 驗證:CI `nginx -t`;測試區(c0b8fc3)以登入瀏覽器實測 25 MB 201、31 MB 413 JSON `PAYLOAD_TOO_LARGE`、缺 CSRF 403 `PERMISSION_DENIED`
+
 ## 2026-10-01 主機 1 SSH 金鑰登入被拒、遠端桌面連不進(只改文件)
 - 內容:① SSH:開發機 `~/.ssh/config` 的 `Host 10.10.130.123` 設 `Port 2222`(GitLab git 用),`ssh user@10.10.130.123` 因此連進 GitLab 容器的 sshd 而 `Permission denied (publickey)`;主機本身金鑰與權限皆正常。開發機新增別名 `host1`(`:22`)/ `host2`,寫入工作區 `AGENT.md` §5。② RDP:主機 1 的 ufw 已啟用(INPUT 預設 DROP)且未放行 3389,本人以 `ufw allow from 10.10.0.0/16 to any port 3389 proto tcp` 放行。`GITLAB-SETUP.md` §2.2 補防火牆現況(原記錄為「未確認」)
 - 檔案:`docs/GITLAB-SETUP.md`
