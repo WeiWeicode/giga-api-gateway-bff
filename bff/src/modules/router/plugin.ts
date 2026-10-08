@@ -67,6 +67,14 @@ const DROP_RESPONSE = new Set([
 ]);
 const DROP_RESPONSE_PREFIX = ['access-control-'];
 
+/**
+ * 轉給上游的 X-Forwarded-For:依標準由「最初的用戶端」排到「最近的代理」(client, proxy1, …)。
+ * Fastify 的 req.ips 是由近到遠(連線位址在前),直接 join 會讓上游取第一個時拿到 Nginx 容器 IP,所以反轉。
+ */
+export function forwardedFor(ips: string[] | undefined, ip: string): string {
+  return ips && ips.length ? [...ips].reverse().join(', ') : ip;
+}
+
 function upstreamRequestHeaders(req: FastifyRequest, route: SnapshotRoute, forwardCookies: boolean, internalToken: string | null): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(req.headers)) {
@@ -82,7 +90,7 @@ function upstreamRequestHeaders(req: FastifyRequest, route: SnapshotRoute, forwa
     if (kept.length) out.cookie = kept.join('; ');
   }
   out['x-request-id'] = req.id;
-  out['x-forwarded-for'] = req.ips?.join(', ') ?? req.ip;
+  out['x-forwarded-for'] = forwardedFor(req.ips, req.ip);
   out['x-forwarded-proto'] = 'https';
   if (internalToken) out['x-internal-token'] = internalToken;
   Object.assign(out, route.requestHeadersAdd ?? {});

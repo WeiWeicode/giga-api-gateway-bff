@@ -5,6 +5,7 @@ import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
 import { loadConfig, readSecret } from '../../src/config.js';
 import { companyOpen } from '../../src/modules/rbac/login-companies.js';
+import { forwardedFor } from '../../src/modules/router/plugin.js';
 
 const base = {
   GW_DB_HOST: 'sql2012',
@@ -57,6 +58,18 @@ describe('loadConfig', () => {
     expect(await ip('::ffff:172.30.0.5')).toBe('10.1.2.3');
     // 直連 BFF(不經 Nginx)偽造的 X-Forwarded-For 不採用
     expect(await ip('10.9.9.9')).toBe('10.9.9.9');
+  });
+
+  it('轉給上游的 X-Forwarded-For 以用戶端在前(上游取第一個即瀏覽器 IP,不是 Nginx 容器)', async () => {
+    const app = Fastify({ trustProxy: loadConfig(base).trustedProxies });
+    app.get('/xff', async (req) => forwardedFor(req.ips, req.ip));
+    const xff = (remoteAddress: string, header?: string) =>
+      app.inject({ url: '/xff', remoteAddress, headers: header ? { 'x-forwarded-for': header } : {} }).then((r) => r.body);
+    // Nginx(172.19.0.6)以 $remote_addr 帶入瀏覽器 IP
+    expect(await xff('172.19.0.6', '10.10.112.13')).toBe('10.10.112.13, 172.19.0.6');
+    expect(await xff('172.19.0.6')).toBe('172.19.0.6');
+    // 直連 BFF 偽造的不採用
+    expect(await xff('10.9.9.9', '1.2.3.4')).toBe('10.9.9.9');
   });
 
   it('LOGIN_COMPANIES:未設定不限公司;設定後只開放清單內的公司', () => {
