@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-08 登記附件服務 file-api port 51272(只改文件)
+- 內容:BACKEND-GUIDE §3.3 分配紀錄新增 51272 `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`,狀態開發中);AGENT §10.2 移除「port 尚未登記」註記。F1 file-api 已實作(另一個 repo),上傳 ≤ 10 MB 先經 BFF 路由,50 MB 直送待 Nginx 變更(另行同意)
+- 檔案:`docs/BACKEND-GUIDE.md`、`AGENT.md`
+- 驗證:文件審查;51272 未與既有分配重複
+
 ## 2026-10-08 附件服務資料表併入 giganexus_gw(schema file_svc,只改文件)
 - 內容:附件服務(giga-file-service)只有三張表,需求方決定不另建 `giganexus_file`,改放在 `giganexus_gw` 的獨立 schema `file_svc`(`file` 為 T-SQL 保留字)。該服務自有 app / migrate 帳號只授權 `file_svc`,migration 紀錄表放 `file_svc`,與 Gateway 的 `drizzle` schema 分開,`reset-test-db` 不受影響;BFF 不讀寫 `file_svc`。DATABASE.md 開頭加註。AGENT.md §10.2 / §10.3 已於同日登記該專案
 - 檔案:`docs/DATABASE.md`
