@@ -62,6 +62,7 @@ giga-api-gateway-bff/
 ├─ drizzle.config.ts          Drizzle Kit 設定(migration 產生)
 └─ docs/                      規格(PRD、ARCHITECTURE、DATABASE、各 GUIDE、IMPL-PLAN、Gherkin、修正紀錄);部署:DEPLOYMENT(CI/CD)、
                              COMPANY-ENV-PLAN(上公司調整清單)、TEST-DEPLOY-RUNBOOK(CI 未就緒時的測試區手動架設)、GITLAB-SETUP(GitLab 與 Runner 架設)
+   └─ claude-agents/          Claude 子代理範本(所有專案共用,複製到 ~/.claude/agents/;AGENT.md §10.9)
 ```
 
 ## 2. 分層(AGENT.md §10.7.2 TypeScript 列)

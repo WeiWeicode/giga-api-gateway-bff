@@ -4,6 +4,7 @@
 > 所有 AI 協作開發必須遵守以下規範。
 > 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
 > **AI 分工**:寫程式、寫測試、寫文件由 Claude 負責;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker — 見 **§10.8**。
+> **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 explore、code-reviewer、security-auditor、debugger、test-runner、refactor-assistant;缺少時先詢問使用者是否建立 — 見 **§10.9**。
 
 ---
 
@@ -151,6 +152,7 @@
 | 既有專案參考 | `docs/REFERENCES.md` | GeneralBackend、舊單一入口 |
 | 下游後端樣本 | `samples/node-backend/AGENT.md` | Node.js 後端樣本與 SDK(`sdk/node`)的 AI 協作準則:新增 API 前先查既有路由、GW_ENV、自動註冊 |
 | 驗收場景 | `docs/Gherkin/*.feature` | 各功能的驗收行為（標籤對應 IMPL-PLAN 工作項目） |
+| Claude 子代理範本 | `docs/claude-agents/*.md` | 複製到 `~/.claude/agents/` 使用(§10.9) |
 
 ---
 
@@ -350,3 +352,49 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
 
 **判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+
+### 10.9 Claude 子代理(Subagents)
+
+所有專案共用;各 repo 的 AGENT.md 收錄同一份內容,有出入時以本節為準。**只適用 Claude Code**,Gemini 等其他 AI 略過本節。
+
+Claude 把搜尋、審查、資安檢查、除錯、測試、重構交給子代理,主對話只收結論。子代理定義放在**使用者層級** `~/.claude/agents/`(Windows:`%USERPROFILE%\.claude\agents\`),所有專案共用;範本在本 repo 的 `docs/claude-agents/`(從其他專案:`../giga-api-gateway-bff/docs/claude-agents/`)。
+
+| 子代理 | 用途 | 模型 | 權限 |
+| --- | --- | --- | --- |
+| `explore` | 快速搜尋、分析大型程式碼庫結構 | `haiku`(Haiku 5.5) | 唯讀 |
+| `code-reviewer` | 檢查程式碼品質、命名與最佳實踐 | `sonnet`(Sonnet 5.5) | 唯讀 |
+| `security-auditor` | 偵測安全漏洞(硬編碼密鑰、注入、權限缺漏、不安全的 API) | `opus`(Opus 5.5) | 唯讀 |
+| `debugger` | 追蹤錯誤日誌,做根本原因分析 | `sonnet`(Sonnet 5.5) | 唯讀 |
+| `test-runner` | 執行既有測試並分析覆蓋率 | `haiku`(Haiku 5.5) | 唯讀(只執行指令,不改檔) |
+| `refactor-assistant` | 安全地重構與拆分模組 | `sonnet`(Sonnet 5.5) | 可修改檔案 |
+
+檔名是「子代理名稱 + `.md`」。模型欄寫別名,自動對應該系列的最新版(括號內是 2026-10 的版本)。
+
+**開工前檢查**(每個工作階段一次):
+
+1. 確認 `~/.claude/agents/` 有上表 6 個檔案。
+2. 缺少任何一個時,**先列出缺少的子代理,詢問使用者是否建立**;未經同意不要建立。使用者不建立時照常工作,改由主對話自己做。
+3. 使用者同意後,從範本複製缺少的檔案;**已存在的同名檔不覆蓋**(內容與範本不同時列出差異,詢問是否更新):
+
+   ```bash
+   mkdir -p ~/.claude/agents && cp -n ../giga-api-gateway-bff/docs/claude-agents/*.md ~/.claude/agents/
+   ```
+
+   範本不在工作區(沒有 clone `giga-api-gateway-bff`)時,說明「範本未讀取」,詢問使用者要先 clone 該 repo,還是依上表欄位建立。
+4. 建立後告訴使用者:**重新開啟 Claude Code 工作階段**後子代理才會載入。
+
+**何時使用**:
+
+| 情境 | 子代理 |
+| --- | --- |
+| 不熟的模組、要跨多個目錄找東西、回答「X 在哪裡 / 怎麼串」 | `explore` |
+| 一批修改完成、commit 前 | `code-reviewer` |
+| 動到登入、權限(RBAC)、Token / API Key、機密與 `.env*`、檔案上傳下載、對外 API、Nginx / 部署設定 | `security-auditor`(可與 `code-reviewer` 同時進行) |
+| 錯誤 log、測試失敗或線上異常,原因不明 | `debugger` |
+| 修改後跑 lint / 型別檢查 / 測試、查覆蓋率 | `test-runner` |
+| 改名、搬檔、拆模組等不改變行為的重構 | `refactor-assistant` |
+
+- 單一檔案、位置已知的小任務不必開子代理。
+- 子代理看不到主對話的內容:委派時寫清楚任務範圍,以及本 AGENT.md 的相關規則(外科手術式修改、跨 repo 修改要先同意、測試失敗不得改測試、寫入測試區或共用資料庫前要先問)。
+- 子代理的結果由主對話**檢查後**才採用或回報;回報時說明哪些是子代理做的。子代理回報「通過」不等於已驗證。
+- 子代理不經手密碼與機密值;`security-auditor` 回報時遮蔽密鑰,只寫檔案與行號。
