@@ -7,6 +7,7 @@
 
 > 資料庫:公司現有 **Microsoft SQL Server 2012 Standard 版**(版本號 `11.00.2100` = 2012 RTM,未套用 Service Pack)。
 > 資料庫位置:**已決定**於同一台 SQL Server 上建立**獨立資料庫 `giganexus_gw`**,資料表置於 **schema `gw`**;備份、權限、生命週期與主庫 `heatco_db` 分開(見 [PRD.md](PRD.md) §14.2 Q2)。BFF 使用專屬登入帳號,僅能存取 `giganexus_gw`。
+> 共用:附件服務(`giga-file-service`)的少量資料表放在同一個資料庫的**獨立 schema `file_svc`**(2026-10-08 決定,不另建資料庫);該服務使用自有帳號、只授權 `file_svc`,migration 紀錄表也放在 `file_svc`,**不使用 `drizzle` schema**(`reset-test-db` 會清空 `gw` 與 `drizzle`)。規格見 `giga-file-service/docs/DATABASE.md` §0.2;BFF 不讀寫 `file_svc`。
 > 存取層:BFF 以 **Drizzle ORM** 存取 SQL Server,並負責把設定同步到 Redis(見 §7)。
 > 外部人員資料來源(唯讀):**BPM**(另一台 SQL Server 2019 Standard)與 **`[LOS].[dbo].[EmployeeInfo]`**(與 `giganexus_gw` 同一台 SQL Server 2012),同步進 `gw.user`(見 §8)。
 > 共通欄位(下表以「★共通」表示):`created_at DATETIME2(3)`、`created_by NVARCHAR(64)`、`updated_at DATETIME2(3)`、`updated_by NVARCHAR(64)`、`row_ver ROWVERSION`(樂觀鎖,管理介面同時編輯時防覆蓋)。

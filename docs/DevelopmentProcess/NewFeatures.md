@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-08 附件服務資料表併入 giganexus_gw(schema file_svc,只改文件)
+- 內容:附件服務(giga-file-service)只有三張表,需求方決定不另建 `giganexus_file`,改放在 `giganexus_gw` 的獨立 schema `file_svc`(`file` 為 T-SQL 保留字)。該服務自有 app / migrate 帳號只授權 `file_svc`,migration 紀錄表放 `file_svc`,與 Gateway 的 `drizzle` schema 分開,`reset-test-db` 不受影響;BFF 不讀寫 `file_svc`。DATABASE.md 開頭加註。AGENT.md §10.2 / §10.3 已於同日登記該專案
+- 檔案:`docs/DATABASE.md`
+- 驗證:文件審查;`reset-test-db.ts` 只清 `gw` 與 `drizzle` 兩個 schema(已確認)
+
 ## 2026-10-07 web-kit 0.3.0 通知與公告模組
 - 工作項目:W10-3(NOTIFY-PLAN N2)
 - 內容:`notifyApi`(發布端與收件端全部 API)、`createNotifyClient`(/ws/notify?app=,指數退避重連,4401 先換發 Token)、`useNotifyCenter(app)`(同一應用共用收件匣狀態、未讀數、onArrive / onRevoked、已讀 / 確認)、`useAnnouncementArchive`、桌面通知 L1(`enableDesktopNotify`,分頁在背景時跳 Windows 通知)、`sanitizeHtml`(DOMParser 白名單清洗,不引入第三方套件,避免入口網以原始碼引用 web-kit 時缺套件)、`notify-content.css`。純邏輯在 `notify-core.ts`。FRONTEND-GUIDE §7.6。
