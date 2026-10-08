@@ -230,7 +230,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | `giga-api-gateway-bff` | Gateway:Nginx、BFF、路由表、web-kit、Node SDK 與後端樣本 | `:443`、`:9443`;BFF `/api/*` | Gateway 負責人 | 本文件 |
 | `giga-Portal` | 員工入口網:單一入口登入頁、首頁、個人服務、簽核、公告;應用切換起點(M1:前端已建立並發佈本機 Nginx;portal-api 規劃中) | `/`(含 `/login`、`/register`、`/reset-password`)、`portal-api`(51271,`/api/portal/*` 經 BFF) | 入口網負責人 | `../giga-Portal/AGENT.md` |
 | `GigaItApp` | IT 管理系統:權限查詢(唯讀)、**選單管理**(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、**權限設定**(角色 / 部門 / 個人);端點管理經 BFF;單一入口(web-kit),也是畫面權限模型的範本 | `/it/`、`/api/it/*`(itapp-api 51291,經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
-| `giga-file-service` | 附件服務(規劃中,尚無程式碼):UUID 上傳 / 下載 / 綁定 / 軟刪除、WSL 存放 + NAS 備份、BPM 表單附件唯讀代理、舊系統(filebackend / SMBbackend / 166 PortalSolar)對照與舊格式相容層 `/api/file/compat/*`;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `file-api`(51272,`/api/file/*` 經 BFF;上傳規劃經 Nginx `auth_request` 直送,≤ 50 MB);BACKEND-GUIDE §3.3 已登記(2026-10-08) | 附件服務負責人 | `../giga-file-service/AGENT.md`、`../giga-file-service/docs/PRD.md` |
+| `giga-file-service` | 附件服務(規劃中,尚無程式碼):UUID 上傳 / 下載 / 綁定 / 軟刪除、WSL 存放 + NAS 備份、BPM 表單附件唯讀代理、舊系統(filebackend / SMBbackend / 166 PortalSolar)對照與舊格式相容層 `/api/file/compat/*`;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `file-api`(51272,`/api/file/*` 經 BFF;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB);BACKEND-GUIDE §3.3 已登記(2026-10-08) | 附件服務負責人 | `../giga-file-service/AGENT.md`、`../giga-file-service/docs/PRD.md` |
 | `RustIt` | 端點管理(2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server 於 2026-10-06 改為 Node.js〔`ItAgentBack/`,資料存 SQL Server `giganexus_It_Agent` + MongoDB + Redis〕,Rust 只做端點〔`RustAgent/`:Agent 與 Watchdog(Windows 服務)、托盤程式〕;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/AGENT.md`、`../RustIt/docs/PROJECT-MAP.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
@@ -242,7 +242,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | giga-Portal | Nginx `/`(SPA 發佈到 `gw_www/portal`);BFF `/api/auth/*`(登入、`me.apps`)、`/api/portal/*` → `portal-api`(內部 Token、自動註冊);各系統經 BFF 的 API(HRM、BPM…) | 應用切換連到 GigaItApp 等其他應用(整頁導向);權限由 GigaItApp 設定、存在 BFF(PRD §8.3.2) |
 | GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);測試區 compose 加入 Gateway 的 Docker 網路 | 不直接呼叫 Endpoint Server;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
 | RustIt(`ItAgentBack` Endpoint Server / `RustAgent` Agent、Watchdog) | `:9443` 通道(HTTPS / WebSocket)、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;Agent 與 Watchdog、托盤以本機具名管道溝通 |
-| giga-file-service(規劃中) | BFF 路由 `/api/file/*`、內部 Token、自動註冊;Nginx 上傳路由 `auth_request` 直送(50 MB,只放寬該 location)與相容路由 `/api/file/compat/*` 內網白名單、CORS(皆待實作時另行同意,`giga-file-service/docs/DEPLOYMENT.md` §4) | 畫面在 GigaItApp「Gateway 管理 › 檔案管理」(權限節點 F3 登記);唯讀讀取 BPM NaNa / 5144、166 PortalSolar |
+| giga-file-service(規劃中) | BFF 路由 `/api/file/*`、內部 Token、自動註冊;Nginx `location = /api/file/files` 上傳直送(2026-10-08 實作,31m 只套該 location;BFF `/_auth/verify` 補驗 CSRF)、相容路由 `/api/file/compat/*` 內網白名單、CORS(皆待實作時另行同意,`giga-file-service/docs/DEPLOYMENT.md` §4) | 畫面在 GigaItApp「Gateway 管理 › 檔案管理」(權限節點 F3 登記);唯讀讀取 BPM NaNa / 5144、166 PortalSolar |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
 - **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。

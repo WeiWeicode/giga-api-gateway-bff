@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-10-08 附件上傳直送 file-api(giga-file-service D3 / D4-B)
+- 內容:使用者測試後要求單檔 30 MB,超過 BFF 全域 10 MB。① Nginx `location = /api/file/files`:POST 以 `auth_request /_auth/verify` 取得內部 Token 後直送 `$file_api_upstream`(新環境變數 `FILE_API_UPSTREAM`,預設 `file-api:51272`;envsubst 篩選加 `FILE_`),`client_max_body_size 31m`(30 MB + multipart 表頭)、`proxy_request_buffering off`;非 POST 以 `error_page 418 = @api_via_bff` 照常轉 BFF。② BFF `/_auth/verify`:原請求方法不是 GET / HEAD / OPTIONS 時檢查 CSRF(`csrfValid`;auth_request 帶原請求標頭),因直送路徑不經 BFF 的 CSRF 檢查(Cookie 另有 SameSite=Strict)。直送的上傳不經 BFF 路由層限流與 Gateway 稽核,由 file-api `file_access_log` 記錄。`/ws/endpoint/*` 為 GET,不受影響
+- 檔案:`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/Dockerfile`、`deploy/docker-compose.yml`、`deploy/test.env.example`、`deploy/prod.env.example`、`bff/src/modules/auth/routes.ts`、`docs/BACKEND-GUIDE.md`、`AGENT.md`
+- 驗證:`npx tsc --noEmit`、`vitest run test/unit` 226 項通過;`nginx -t` 由 CI check:nginx 執行;測試區實測見下一筆或 giga-file-service HANDOFF
+
 ## 2026-10-01 暫停 Nginx 限流與登入失敗暫停(PRD v0.10)
 - 工作項目：W3-2.5、W3-4.3(暫停)
 - 內容：測試區登入頁頻繁出現 429「請求過於頻繁」(Nginx `gw_auth`,每 IP 5 r/m、burst 4),需求方決定先取消 Nginx 限流,連同輸錯密碼的暫停一起取消。① Nginx:移除全站 `gw_ip`(50 r/s,burst 100)與登入 / 註冊 / 密碼 `gw_auth` 的 `limit_req_zone` 與 `limit_req`;`/api/auth/(login|register|password/)`、`/it/api/auth/login` 兩個 location 只為掛限流而存在,一併移除,改由 `/api/`、`/it/api/` 轉送;`GW_AUTH_RATE` 從 Dockerfile、compose、範本移除(主機上 env 檔若仍有此值不影響)。Agent `:9443` 的 `limit_conn`(每張裝置憑證 10 條同時連線)不是請求限流,保留。② BFF:移除 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次)與 Redis `gw:login:fail:*` 計數,`LoginService` 不再需要 Redis;錯誤代碼 `LOGIN_THROTTLED` 保留在 `errors.ts`(前端仍可處理),目前不會回傳。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流(`gw:reg:*`)不變。③ E2E:移除 `clearFails()`;`Session.request` 不再對 Nginx 429 重試(`noRetry` 移除);`03-self-service` 註冊限流測試改為單次請求。④ **風險**:輸錯密碼每次都送 AD 驗證(只輸入工號時依序試各網域),連續輸錯可能觸發 AD 帳號鎖定原則;Nginx 層沒有任何請求限流。恢復時 revert 本次 commit 即可。GigaItApp(`/it/`)自有的登入失敗鎖定(5 次、15 分鐘,另一個 repo)未修改

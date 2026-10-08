@@ -8,6 +8,9 @@ map $host $endpoint_agent_upstream { default "${ENDPOINT_AGENT_UPSTREAM}"; }
 # IT 管理系統後端(GigaItApp itapp-api,/it/api/*);以變數指定,尚未部署時 Nginx 仍可啟動
 map $host $itapp_api_upstream { default "${ITAPP_API_UPSTREAM}"; }
 
+# 附件服務 file-api(giga-file-service;上傳直送 D4-B);以變數指定,尚未部署時 Nginx 仍可啟動
+map $host $file_api_upstream { default "${FILE_API_UPSTREAM}"; }
+
 # Webhook 來源 IP 白名單(PRD §7.5);清單依部署區放在 allowlists/<GW_ENV>/
 geo $webhook_allowed {
     default 0;

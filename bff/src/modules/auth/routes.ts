@@ -20,7 +20,7 @@ import { FORGOT_MESSAGE, LocalAccountService } from './local-account.js';
 import { writeAuthLog } from './login.js';
 import { checkPasswordPolicy, hashPassword, isReused, POLICY_MESSAGES, pushHistory, verifyPassword } from './password.js';
 import { identityOf } from './plugin.js';
-import { COOKIE_PWCHG, COOKIE_RT } from './session.js';
+import { COOKIE_PWCHG, COOKIE_RT, csrfValid } from './session.js';
 
 const loginBody = {
   type: 'object',
@@ -280,6 +280,8 @@ const authRoutes: FastifyPluginAsync<{ config: AppConfig; routes: RouteTable }> 
     if (!p) return reply.code(401).send();
     const uri = String(req.headers['x-original-uri'] ?? '').split('?')[0]!;
     const method = String(req.headers['x-original-method'] ?? 'GET');
+    // Nginx 直送上游的寫入請求(附件上傳,giga-file-service D4-B)不經 BFF 的 CSRF 檢查,在此補驗(auth_request 會帶原請求的標頭)
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase()) && !csrfValid(req)) return reply.code(403).send();
     let audience: string;
     let permission: string | null;
     if (uri.startsWith('/ws/endpoint/')) {
