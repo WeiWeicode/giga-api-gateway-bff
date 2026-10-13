@@ -9,7 +9,7 @@
 | 項目 | 內容 |
 | --- | --- |
 | 產品名稱 | GigaNexus Gateway(Nginx Gateway + Node.js BFF) |
-| 文件版本 | **v0.12**(2026-10-05) |
+| 文件版本 | **v0.13**(2026-10-13) |
 | 建立日期 | 2026-09-24 |
 | 技術棧 | Nginx(TLS / HTTP2 / WebSocket / mTLS)＋ Node.js 22 LTS + Fastify 5 + TypeScript ／ SQL Server 2012(Drizzle ORM)+ Redis 7(詳見 [TECH-STACK.md](TECH-STACK.md)) |
 | 相關文件 | [ARCHITECTURE.md](ARCHITECTURE.md)(整體架構)、[DATABASE.md](DATABASE.md)(資料庫設計)、[TECH-STACK.md](TECH-STACK.md)(技術棧與部署)、[IMPL-PLAN.md](IMPL-PLAN.md)(實作計畫)、[FRONTEND-GUIDE.md](FRONTEND-GUIDE.md)(前端接入規範)、[BACKEND-GUIDE.md](BACKEND-GUIDE.md)(下游後端接入規範)、[DEPLOYMENT.md](DEPLOYMENT.md)(部署與 CI/CD)、[Gherkin/](Gherkin/README.md)(驗收行為規格)、[REFERENCES.md](REFERENCES.md)(既有專案參考) |
@@ -32,6 +32,7 @@
 | v0.9 | 2026-10-01 | ① **端點 Agent 改為 Rust + WebSocket**(RustIt):`:9443` 由 mTLS + gRPC 改為 mTLS + HTTPS / WebSocket(HTTP/1.1),Agent 以 HTTPS 回報資料、以一條 WebSocket 接收指令;Endpoint Server 改為 RustIt 的 Rust(Axum)服務;Watchdog 改以 Rust 實作(§2、§3、§4、§5、§7.6、§15,[ENDPOINT-AGENT-GUIDE.md](ENDPOINT-AGENT-GUIDE.md) v0.3)。現行 `nginx/conf.d/agent.conf` 仍為 gRPC 版,待 W6-1 訊息協定定版後改寫;② §13 時程改以 NexusPlan 甘特圖為準,標示測試區已完成項目;③ Q25、Q26 依主機現況更新:主機 2(測試區)已改用 WSL2 內的 Docker Engine,主機 3(正式區)目前為 Docker Desktop,預計 2026-12 改為 Docker Engine;④ 整理版本號(檔頭、狀態、頁尾一致,修訂紀錄依版本排序) |
 | v0.11 | 2026-10-02 | 補齊未實作項目(2026-10-02 測試區完成,E2E 01–09 通過):① `/metrics`(prom-client)與 `/docs`(OpenAPI 3.1 + Swagger UI)— v0.10 前文件標為完成但程式未實作;② **人員排程同步**(BPM > LOS,每小時,`employee-sync` 佇列)與同步紀錄 / 手動觸發 API;③ **舊單一入口帳號遷移**(純 JS DES,預設關閉,待 P-15 驗證後開啟);④ 管理 API 第二階段:路由試打、角色 / 權限 CRUD、AD 群組對應、API Key 管理與路由 `api_key` 模式、OpenAPI / Excel / CSV 匯入預覽與提交、誰能存取 / 有效權限、通知範本與發送紀錄、稽核查詢(§8.7);⑤ 站內通知收件匣 API(§8.5)、死信 Email 告警(`ALERT_EMAIL_TO`)、Webhook `dispatch_type = route`(§8.6);⑥ 內部 Token 的系統身分 `amr = api_key / webhook`(§8.2.3);⑦ 文件與程式對齊的決定:斷路器維持各實例記憶體、`perm_version` 角色 / 規則變更仍遞增全體使用者、web-kit 維持 CI 複製到共用目錄(不發佈 Package Registry) |
 | v0.10 | 2026-10-01 | **暫停 Nginx 限流與登入失敗暫停**(需求方決定,測試區登入頻繁 429):Nginx 取消全站 `gw_ip` 與登入 / 註冊 / 密碼 `gw_auth` 限流(§7.3);BFF 取消 `LOGIN_THROTTLED`(同帳號 15 分鐘 5 次、同 IP 50 次),輸錯密碼不再暫停(§8.1.1、§8.2.1、§8.2.5)。本機帳號 10 次失敗鎖定、BFF 路由層限流、註冊與忘記密碼限流不變;Agent `:9443` 的 `limit_conn` 不變 |
+| v0.13 | 2026-10-13 | 附件服務舊格式相容層 `/api/file/compat/*`(giga-file-service API §4):Nginx 以來源 IP 白名單(`allowlists/<GW_ENV>/file-compat-clients.conf`)直接轉給 file-api,不經 BFF;**僅此 location 以 IP 限流 10 r/s、burst 20**(§7.3 的例外,使用者決定;其他路由維持 Nginx 不限流) |
 | v0.12 | 2026-10-05 | ① **部門權限與個人權限**(需求方決定):選單 / Tab / 按鈕權限可直接授予部門(含下層、依職級門檻)與個人(預設永久,可設到期日),不必建角色或規則;有效權限 = 角色權限 ∪ 部門權限 ∪ 個人權限(§8.3.4、§8.7,DATABASE `gw.dept_permission`、`gw.user_permission`);GigaItApp「權限設定」(原「角色與按鈕權限」,唯一的權限編輯入口)新增「部門權限」「個人權限」Tab,「權限查詢」(原「BFF 權限」)改為唯讀並列出部門 / 個人來源;② **職級門檻**:全員 / 課級以上(職級 ≤ 7)/ 理級以上(≤ 6)/ 處級以上(≤ 4),數字越小職位越高(Q29 決定);③ **分階段開放公司** `LOGIN_COMPANIES`(先開放碩禾、禾迅;新增錯誤代碼 `COMPANY_NOT_OPEN`);④ 選單層數不限(`parent_code` 串接),目錄層不設權限;⑤ 選單目錄 `kind = group`、圖示 `icon`、**畫面節點綁定 API**(`gw.permission_include`,按鈕綁寫入),§8.3.2 重寫為完整的畫面權限模型與設定流程(GigaItApp 為範本);`/api/auth/me` 的 `menus` 回傳畫面權限名稱;web-kit 多層選單;`LOGIN_COMPANIES` 分階段開放 |
 
 ---
@@ -180,7 +181,7 @@
 - 保留原始 `Host`、`X-Forwarded-For`、`X-Forwarded-Proto`、`X-Request-Id`;**清除用戶端送入的 `X-Internal-*`、`X-User-*` 標頭**,避免偽造。
 - 請求大小上限:預設 `client_max_body_size 10m`;檔案上傳路由(如 `/api/files/`)另設上限。
 - 逾時:`proxy_connect_timeout 3s`、`proxy_read_timeout 60s`(長報表路由可於 BFF 層細調)。
-- 限流:**v0.10 起 Nginx 不做請求限流**(2026-10-01 暫停,需求方決定)。原設計為全站 `limit_req_zone` 以 IP 為鍵(50 r/s,burst 100),`/api/auth/login`、`/api/auth/register*`、`/api/auth/password/*` 另設 5 r/min;恢復時 revert 該次變更(見 `docs/DevelopmentProcess/BackendCorrection.md` 2026-10-01)。細緻限流由 BFF 依路由表執行,註冊與忘記密碼仍有 BFF 限流(§8.2.5)。
+- 限流:**v0.10 起 Nginx 不做請求限流**(2026-10-01 暫停,需求方決定)。**例外(v0.13)**:附件服務舊格式相容層 `/api/file/compat/*` 免登入、只靠來源 IP 白名單,另以 IP 限流 10 r/s(burst 20,`limit_req_zone file_compat`)。原設計為全站 `limit_req_zone` 以 IP 為鍵(50 r/s,burst 100),`/api/auth/login`、`/api/auth/register*`、`/api/auth/password/*` 另設 5 r/min;恢復時 revert 該次變更(見 `docs/DevelopmentProcess/BackendCorrection.md` 2026-10-01)。細緻限流由 BFF 依路由表執行,註冊與忘記密碼仍有 BFF 限流(§8.2.5)。
 
 ### 7.4 WebSocket
 

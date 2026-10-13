@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-10-13 附件服務舊格式相容層直送 file-api(giga-file-service F7)
+- 內容:BPM 舊前端(bpmcomonent `FileUpload.vue` / `SPfileUpload.vue`)改走附件服務相容層。Nginx 新增 `location ^~ /api/file/compat/`:來源 IP 白名單 `geo $file_compat_client`(`allowlists/test/file-compat-clients.conf` = 122 + 開發機 10.10.112.13;`prod` = 122)、`limit_req zone=file_compat`(10 r/s、burst 20;PRD §7.3 例外,使用者決定)、`client_max_body_size 31m`、`proxy_request_buffering off`,`rewrite` 成 `/compat/*` 直接轉 `$file_api_upstream`(不經 BFF:BFF 對 public 路由不帶內部 Token、全域 10 MB);`X-Forwarded-For` 用 `$remote_addr`(proxy-bff.conf);被拒 / 過大 / 限流 / 上游失敗回相容層舊式 JSON `{ success:false, message, error }`
+- 檔案:`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/allowlists/{test,prod}/file-compat-clients.conf`、`docs/PRD.md`(v0.13)
+- 驗證:`nginx -t` 由 CI check:nginx 執行;測試區以開發機呼叫 `/api/file/compat/fb/sql-files`、非白名單來源 403(見 giga-file-service LEGACY-SWITCH-PLAN §3.1)。配合 giga-file-service a662f37
+
 ## 2026-10-08 附件上傳直送 file-api(giga-file-service D3 / D4-B)
 - 內容:使用者測試後要求單檔 30 MB,超過 BFF 全域 10 MB。① Nginx `location = /api/file/files`:POST 以 `auth_request /_auth/verify` 取得內部 Token 後直送 `$file_api_upstream`(新環境變數 `FILE_API_UPSTREAM`,預設 `file-api:51272`;envsubst 篩選加 `FILE_`),`client_max_body_size 31m`(30 MB + multipart 表頭)、`proxy_request_buffering off`;非 POST 以 `error_page 418 = @api_via_bff` 照常轉 BFF。② BFF `/_auth/verify`:原請求方法不是 GET / HEAD / OPTIONS 時檢查 CSRF(`csrfValid`;auth_request 帶原請求標頭),因直送路徑不經 BFF 的 CSRF 檢查(Cookie 另有 SameSite=Strict)。直送的上傳不經 BFF 路由層限流與 Gateway 稽核,由 file-api `file_access_log` 記錄。`/ws/endpoint/*` 為 GET,不受影響
 - 檔案:`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/Dockerfile`、`deploy/docker-compose.yml`、`deploy/test.env.example`、`deploy/prod.env.example`、`bff/src/modules/auth/routes.ts`、`docs/BACKEND-GUIDE.md`、`AGENT.md`
