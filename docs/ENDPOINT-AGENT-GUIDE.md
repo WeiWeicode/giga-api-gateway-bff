@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
+| 文件版本 | v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
@@ -25,7 +25,7 @@
 | --- | --- |
 | Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ✅ 2026-10-07 改為 HTTPS / WebSocket(`proxy_pass https://$endpoint_agent_upstream`,HTTP/1.1,§4);測試區只信任臨時 Agent 中繼 CA(`allowlists/test/agent-issuers.conf`) |
 | §3.4、§6–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
-| Endpoint Server(`RustIt/ItAgentBack`,§5) | 規劃中;整合計畫 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
+| Endpoint Server(`RustIt/ItAgentBack`,§5) | 測試區運作中(2026-10-07,回報、WebSocket 心跳、電腦清單);指令、事件、升級、派送依 `../../RustIt/docs/PLATFORM-PLAN.md`(P1–P8)。基本階段 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
 
 ---
 
@@ -122,6 +122,7 @@ flowchart LR
 - 以 **`x-client-cert-dn` 完整字串**作為裝置鍵,不要只取 CN(理由見 §3.2)。
 - `x-client-cert-fp` 在續約後會改變:同一 DN 出現新指紋時,更新登錄表並寫稽核紀錄;同一 DN 同時有兩個不同指紋在線上時告警(可能是憑證被複製或電腦被複製)。
 - 電腦改名等於新的 DN,視為新裝置,由 IT 在管理台合併。
+- 為協助合併,Agent 在 `hello` 帶硬體指紋(BIOS 序號 + 主機板 UUID);新登錄裝置的指紋與既有裝置相同時(重灌、改名、換憑證)標記「疑似同一台」,**由 IT 確認後合併**,不自動合併(虛擬機或序號空白會誤併)。裝置鍵仍是 DN。
 
 ### 3.4 程式如何取用電腦憑證
 
@@ -193,6 +194,7 @@ location / {
 | 沒有憑證、過期、已撤銷、非企業 CA 簽發、CRL 過期 | HTTP 400(TLS 握手成功後才回,見 §10 G2);WebSocket 升級失敗 | **憑證問題**:不要快速重試,退避到每 10 分鐘;寫 Windows 事件記錄(Subject、到期日、指紋) |
 | 簽發者不是 Agent 專用中繼 CA | HTTP 403 | 同上 |
 | 同一張憑證超過 10 條連線 | HTTP 429 | 退避重試 |
+| Endpoint Server 忙碌(大量補傳) | HTTP 429 + `Retry-After`(秒) | 依 `Retry-After` 等待並加隨機延遲,不計入一般錯誤退避 |
 | Endpoint Server 停止或無回應 | HTTP 502 / 504;已建立的 WebSocket 中斷 | 退避重試 |
 | Nginx reload / 重啟、連線閒置超過 1 小時 | WebSocket 關閉(close frame 或 TCP 中斷) | 重建連線(含隨機延遲) |
 
@@ -246,6 +248,7 @@ agentApp.addHook('onRequest', async (req, reply) => {
 - 路徑帶版本:`/agent/v1/...`。Agent 是分批升級的,**Endpoint Server 必須同時支援目前版本與前一版的 Agent**。
 - 只新增欄位、不改既有欄位的意義;收到不認得的欄位忽略、不認得的 `type` 回 `unsupported`。不相容的變更以新路徑(`/agent/v2/`)並存。
 - Agent 在 WebSocket 的第一則訊息 `hello` 回報自己的版本(並以 `user-agent: giganexus-agent/<版本>` 標示),Endpoint Server 依版本決定可用的功能。
+- Endpoint Server 在 `hello_ack` 宣告 `min_agent_version`;低於此版本的 Agent 只允許回報與升級,其他指令回 `AGENT_TOO_OLD`。
 
 ### 5.7 日誌
 
@@ -282,7 +285,8 @@ agentApp.addHook('onRequest', async (req, reply) => {
 1. 服務啟動時先隨機延遲 0–30 秒再連線,避免 Gateway 或 Endpoint Server 重啟後 200 台同時湧入。
 2. 開啟 WebSocket `wss://<gateway-ip>:9443/agent/v1/ws`,第一則送 `hello`(Agent 版本、作業系統、電腦名稱、IP、開機時間)。
 3. 之後每 30 秒送 `heartbeat`;同時持續接收 Endpoint Server 下達的 `command`,以 `command_update` 回報進度。
-4. 資產快照、事件、指令的大量結果以 HTTPS `POST /agent/v1/...` 回報(開機完整回報、每 24 小時完整掃描、變更時增量,依 RustIt PRD §2)。
+4. 資產快照、事件、指令的大量結果以 HTTPS `POST /agent/v1/...` 回報(開機完整回報、每 24 小時完整掃描;一律送**完整資產**,內容沒變只比對雜湊,軟硬體變更由 Endpoint Server 比對前後兩份產生事件)。
+4a. **先記本機,再送主機**:快照、事件、指令結果先寫本機加密持久化(SQLite + AES-256-GCM + DPAPI,`%ProgramData%\GigaNexus\Agent\state\`),主機確認後才刪除;連不上時記錄斷線時間與原因,重連後以 `POST /agent/v1/sync` 補傳並送 `offline_period` 事件(RustIt PLATFORM-PLAN §4.2)。
 5. WebSocket 結束或出錯時,依 §4.2 判斷原因,**等待後重建**:一般錯誤 1 秒起指數退避(上限 2 分鐘,加 ±20% 隨機);憑證錯誤每 10 分鐘。
 
 ### 6.4 本機狀態服務
@@ -313,7 +317,7 @@ Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟�
 
 **Watchdog 為什麼要自己上報**:Agent 當掉或卡住時,Endpoint Server 只知道「WebSocket 斷了」,不知道原因。Watchdog 能回報「Agent 服務一直重啟失敗」、「版本不符」、「憑證過期」,IT 不必到現場查看。
 
-使用者看得到的介面由 **RustIt 托盤程式**(一般使用者權限)負責;托盤只能讀取唯讀狀態與使用者功能(報修、公告),不可呼叫 Agent 的管理操作(§10 E3)。
+使用者看得到的介面由 **RustIt 使用者端程式**(托盤 + 視窗,`RustAgent/crates/desktop`,以登入者身分、一般權限執行)負責:我的電腦(電腦名稱、IP、登入人員,供報修與遠端協助回報)、公告通知、嵌入 Gateway 網頁應用(報修、入口網、BPM、信箱、AI 等)。它**與 Agent / Watchdog 分開發版**,以**使用者登入**經 `:443` 連 Gateway,不持有、不使用裝置憑證;使用者結束它不影響監控。與 Agent 只經唯讀管道 `\\.\pipe\giganexus-agent-user-v1`(讀 Agent 狀態、接收提示),不可呼叫 Agent 的管理操作(§10 E3)。
 
 ### 7.2 本機通道(C3):具名管道
 
@@ -412,6 +416,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `endpoint.device.read` | 端點查詢 | 電腦清單、資產、線上狀態、指令紀錄與結果 |
 | `endpoint.command.basic` | 端點一般指令 | 對電腦沒有破壞性的指令(收集資產、重啟 Agent);取消自己建立的指令 |
 | `endpoint.command.admin` | 端點管理指令 | 會影響使用者的指令(派送 / 移除軟體、重新開機、升級 Agent)、停用 / 啟用裝置 |
+| `endpoint.software.manage` | 端點軟體與版本管理 | 維護軟體目錄、Agent / Watchdog / 使用者端程式版本登錄、發佈環目標版本、覆核(RustIt PLATFORM-PLAN §5.3) |
 | `endpoint.remote.operate` | 端點遠端操作 | 遠端畫面(`/ws/endpoint/*`,已實作,E2E 已驗證) |
 
 - 角色與 AD 群組的對應由 IT 決定(PRD §8.3);建議查詢與一般指令給 IT 人員,管理指令與遠端操作只給 IT 管理員。
@@ -446,6 +451,10 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `agent.upgrade` | admin | 升級到指定版本(交給 Watchdog,§7.4) |
 | `software.install` / `software.uninstall` | admin | 派送 / 移除 IT 核可清單中的軟體 |
 | `system.reboot` | admin | 重新開機;先提示使用者,可延後 |
+| `message.show` | basic | 對使用者顯示訊息;使用者端程式在執行由它顯示,否則以 `WTSSendMessage` 跳系統訊息框 |
+| `agent.diagnose` | basic | 檢查連線、DNS、時間、憑證效期、磁碟、WMI 回應時間並回報 |
+| `logs.collect` | basic | 壓縮最近 N 天 Agent / Watchdog 日誌經 HTTPS 上傳 |
+| `agent.log_level` | basic | 暫時調高日誌等級,到期自動恢復 |
 
 ### 8.4 指令派送
 
@@ -530,11 +539,11 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | --- | --- | --- | --- |
 | E1 | 裝置憑證的 Subject 格式;三個網域與非網域電腦的電腦名稱可能重複 | 網域電腦用 FQDN;非網域電腦用 `CN=<公司代碼>-<電腦名稱>`;Endpoint Server 以完整 DN 為鍵 | IT(W2)+ W6 負責人 |
 | E2 | 三個 AD 網域是否都能從同一個企業 CA 自動註冊「GigaNexus Agent」範本(是否同一樹系) | 若不同樹系,各自的簽發 CA 都要列入 `agent-issuers.conf` 與 `agent-ca-chain.pem` | IT |
-| E3 | 托盤程式可讀取哪些 Agent 狀態、可做哪些使用者功能 | 另開唯讀管道,只提供狀態與報修 / 公告;不可呼叫管理操作 | 提案人 + W6 負責人 |
-| E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | 經 `:9443`(§7.4),與版本管理在同一處;首次安裝用 GPO MSI | W6 負責人 + IT |
+| E3 | 托盤程式可讀取哪些 Agent 狀態、可做哪些使用者功能 | ✅ 已決定(2026-10-13):使用者端程式經唯讀管道 `giganexus-agent-user-v1` 讀 Agent 狀態、接收提示;使用者功能以使用者登入經 `:443`;不可呼叫管理操作(§7.1) | 提案人 + W6 負責人 |
+| E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | ✅ 已決定(2026-10-13):經 `:9443` `GET /agent/v1/releases/{version}/{file}`,檔案在 NAS `RustIT\releases\`(Endpoint Server 唯讀掛載,Agent 不持有 NAS 帳密);首次安裝用 GPO MSI | W6 負責人 + IT |
 | E5 | 非網域電腦的憑證由誰申請、安裝、續約 | §3.1 的 `certreq` 流程,由 IT 執行;Watchdog 提前 30 天提醒 | IT |
 | E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | 預設依 `cos`;另設一個「全部公司」角色給 IT 主管 | 主管 + IT |
-| E7 | 指令類型清單與各類型的等級、有效期限(§8.3 初版) | 先上線 `inventory.collect`、`agent.restart`,其餘隨 W6 逐步開放 | W6 負責人 + IT |
+| E7 | 指令類型清單與各類型的等級、有效期限(§8.3 初版) | 第一批 `inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`,其餘依 RustIt PLATFORM-PLAN P6、P7 開放 | W6 負責人 + IT |
 | E8 | 裝置憑證取得方式:AD CS 自動註冊(本文 §3.1)或 RustIt PRD 的 enrollment token | 網域電腦用 AD CS;非網域電腦評估 enrollment token 以減少 IT 人工 | W6 負責人 + IT |
 
 ---
