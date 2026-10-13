@@ -4,6 +4,7 @@
 > 所有 AI 協作開發必須遵守以下規範。
 > 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
 > **AI 分工**:寫程式、寫測試、寫文件由 Claude 負責;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker — 見 **§10.8**。
+> **Git 分支與推送**:開發一律在 `feature/*` 等工作分支,`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併;AI 不得推送 `develop` / `main`、不得 force push — 見 **§10.10**。
 > **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 explore、code-reviewer、security-auditor、debugger、test-runner、refactor-assistant;缺少時先詢問使用者是否建立 — 見 **§10.9**。
 
 ---
@@ -398,3 +399,25 @@ Claude 把搜尋、審查、資安檢查、除錯、測試、重構交給子代�
 - 子代理看不到主對話的內容:委派時寫清楚任務範圍,以及本 AGENT.md 的相關規則(外科手術式修改、跨 repo 修改要先同意、測試失敗不得改測試、寫入測試區或共用資料庫前要先問)。
 - 子代理的結果由主對話**檢查後**才採用或回報;回報時說明哪些是子代理做的。子代理回報「通過」不等於已驗證。
 - 子代理不經手密碼與機密值;`security-auditor` 回報時遮蔽密鑰,只寫檔案與行號。
+
+### 10.10 Git 分支與推送(團隊協作)
+
+所有 repo 共用本節;其他 repo 的 AGENT.md 只寫摘要與該 repo 的部署對應,有出入時以本節為準。同仁的操作步驟(Git 身分、SSH 金鑰、開 MR)見工作區 `../BackToNas/同仁開發指南.md`。
+
+| 分支 | 用途 | 推送 / 合併 |
+| --- | --- | --- |
+| `feature/*`、`fix/*`、`docs/*`、`refactor/*` | 個人開發 | 任何人可推送;**不觸發部署** |
+| `develop` | 測試區;CI 自動部署到主機 2 | **只透過 GitLab Merge Request 合併**,由 Maintainer(專案負責人)合併 |
+| `main` | 正式區 | 只由 Maintainer 合併;Gateway 的 `deploy-prod` 另需在 Pipeline 手動觸發 |
+
+**AI 規則**:
+
+1. **開工前確認分支**:執行 `git status`、`git branch --show-current`。目前在 `develop` / `main` 而任務要改檔時,先詢問使用者要開哪個工作分支(建議從最新的 `origin/develop` 開 `feature/<簡短英文描述>`);**不要在 `develop` / `main` 上直接提交**。
+2. **只推送目前的工作分支**。**不得推送 `develop` / `main`**(包含 `main:develop` 這類 refspec),除非使用者在**本次對話**明確指示,且使用者是該 repo 的 Maintainer;前一次對話的指示不延續。
+3. **禁止** force push(`--force`、`--force-with-lease`)、刪除遠端分支、改寫已推送的提交(對已推送的提交做 rebase / amend)。
+4. **合併 `develop` 等於部署共用的測試區**:AI 不代替使用者合併 MR;提醒使用者合併前在群組告知,避免蓋掉別人正在測試的版本。
+5. 工作分支落後 `develop` 時,用 `git fetch origin` + `git merge origin/develop` 更新。衝突涉及別人的修改時,列出衝突檔案與雙方差異後詢問使用者,**不要整份採用其中一方**。
+6. 提交前檢查 `git diff --staged` 只含本次任務的檔案;**不提交 `.env*`、金鑰、Token、密碼**。
+7. 提交訊息沿用 `<type>(<scope>): <中文說明>`,type 用 `feat`、`fix`、`docs`、`refactor`、`chore`、`test`;配合其他 repo 的提交依 §10.5 註明。
+8. 推送被拒(例:`You are not allowed to push code to protected branches`)時,**不要找繞過方式**(改 remote、改用別的帳號或金鑰、要求調整保護設定);改推工作分支,並告訴使用者到 GitLab 開 Merge Request。
+9. 完成後告訴使用者:推送了哪個分支、MR 的目標分支(一般是 `develop`),以及合併後會部署到哪個環境。
