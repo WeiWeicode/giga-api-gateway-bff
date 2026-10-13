@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-13 ENDPOINT-AGENT-GUIDE v0.5:配合 RustIt 第二階段計畫(只改文件)
+- 內容:依 RustIt `docs/PLATFORM-PLAN.md` §10 修訂端點指南:§8.2 新增權限 `endpoint.software.manage`(軟體目錄、版本登錄、發佈環);§8.3 新增指令類型 `message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`(basic),E7 更新第一批;§7.1 托盤改為「使用者端程式」(登入者身分經 `:443`、與監控服務分開發版、唯讀管道 `giganexus-agent-user-v1`),E3 決定;§6.3 資產一律完整回報、變更由 Server 比對,新增 4a 本機持久化與離線紀錄(`/sync`、`offline_period`);§4.2 新增 Endpoint Server 忙碌 `429` + `Retry-After`;§5.6 新增 `min_agent_version` / `AGENT_TOO_OLD`;§3.3 新增硬體指紋協助合併(IT 確認,不自動合併);E4 決定升級套件經 `:9443` 自 NAS `RustIT\releases\` 提供;實作狀態更新(Endpoint Server 測試區運作中)。通道、port、既有權限與 API 不變。配合 RustIt f886a19、根目錄 cbf6db9。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件審查;與 RustIt PLATFORM-PLAN §4–§6、§10 對照一致
+
 ## 2026-10-08 登記附件服務 file-api port 51272(只改文件)
 - 內容:BACKEND-GUIDE §3.3 分配紀錄新增 51272 `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`,狀態開發中);AGENT §10.2 移除「port 尚未登記」註記。F1 file-api 已實作(另一個 repo),上傳 ≤ 10 MB 先經 BFF 路由,50 MB 直送待 Nginx 變更(另行同意)
 - 檔案:`docs/BACKEND-GUIDE.md`、`AGENT.md`
