@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
+| 文件版本 | v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
@@ -436,6 +436,9 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `POST` | `/api/endpoint/devices/{deviceId}/admin-commands` | `endpoint.command.admin` | 建立管理指令,回 `202` + `commandId` |
 | `POST` | `/api/endpoint/batches/basic-commands`、`/admin-commands` | 同上 | 多台電腦同一指令,回 `batchId` 與各台的 `commandId` |
 | `POST` | `/api/endpoint/commands/{commandId}/cancel` | `endpoint.command.basic` | 只能取消**自己建立**、尚未送出的指令 |
+| `GET` | `/api/endpoint/commands` | `endpoint.device.read` | 所有電腦的指令紀錄;依 `state`、`kind`、`batchId` 篩選,`nextCursor` 分頁 |
+| `GET` | `/api/endpoint/batches/{batchId}` | `endpoint.device.read` | 批次與各狀態台數 |
+| `GET` | `/api/endpoint/commands/{commandId}/files/{fileId}` | `endpoint.device.read` | 下載指令附檔(`logs.collect` 的日誌 zip,保存 14 天,過期 `410`);`x-audit-level: meta` |
 | `PUT` | `/api/endpoint/devices/{deviceId}/status` | `endpoint.command.admin` | 停用 / 啟用裝置;停用時立即關閉其 WebSocket(§5.4) |
 
 - Endpoint Server 必須檢查「指令類型」屬於該路徑的等級(例:`basic-commands` 送來 `system.reboot` → `400 ENDPOINT_COMMAND_LEVEL_MISMATCH`),否則等於繞過 BFF 的權限。
@@ -455,6 +458,8 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `agent.diagnose` | basic | 檢查連線、DNS、時間、憑證效期、磁碟、WMI 回應時間並回報 |
 | `logs.collect` | basic | 壓縮最近 N 天 Agent / Watchdog 日誌經 HTTPS 上傳 |
 | `agent.log_level` | basic | 暫時調高日誌等級,到期自動恢復 |
+
+已實作(RustIt P4,2026-10-15 測試區):`inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`;各類型的參數、結果、有效期限 / 執行逾時、每台上限與錯誤代碼以 `../../RustIt/docs/contracts/command-kinds.md` 為準。大量結果(日誌)由 Agent 以 `POST /agent/v1/commands/{commandId}/files`(`:9443`,zip 原始位元組 + `x-file-sha256`,上限 20 MB)上傳為指令附檔,`command_update.result` 只帶 `file_id`。
 
 ### 8.4 指令派送
 
@@ -488,7 +493,10 @@ WebSocket 上的訊息草案(信封見 §5.6;正式內容由 W6-1 定義):
 | Server → Agent | `heartbeat_ack` | `seq` |
 | Server → Agent | `command` | `command_id`(UUID,Agent 以此去重)、`kind`(例:`inventory.collect`)、`params`、`expires_at`(過期不執行,回 `failed` / `EXPIRED`)、`issued_by`(操作人工號,Agent 寫入本機日誌) |
 | Agent → Server | `command_update` | `command_id`、`state`(`acked` / `running` / `succeeded` / `failed`)、`progress`(0–100)、`result`(摘要;大量資料改走 HTTPS)、`error_code`(例:`UNSUPPORTED_COMMAND`、`EXPIRED`)、`error_message` |
-| Server → Agent | `prepare_shutdown` | `reason` |
+| Server → Agent | `command_update_ack` | `command_id`、`accepted`、`state`;Agent 的指令結果先寫本機,收到 ack 才標記已回報(未收到則重連後重送)|
+| Server → Agent | `prepare_shutdown` | `reason`、`reconnect_after_sec`(選填);Agent 送完待送的 `command_update`、以 1000 關閉後隨機延遲重連 |
+
+正式訊息格式以 `../../RustIt/docs/contracts/ws-envelope.schema.json` 為準(上表欄位名稱為草案,例如 `hello` 實際為 `agent_version`、`host_name`)。
 
 ### 8.5 稽核
 
