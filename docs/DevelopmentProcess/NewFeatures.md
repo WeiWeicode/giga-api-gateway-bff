@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-15 ENDPOINT-AGENT-GUIDE v0.6:配合 RustIt P4 指令通道實作(只改文件)
+- 內容:RustIt P4(指令通道)已在測試區完成(RustIt MR !14、!17、!19,GigaItApp MR !2),依 RustIt `docs/P4-COMMAND-DESIGN.md` §7 第 5 項回寫指南:§8.3 新增 `GET /api/endpoint/commands`、`/batches/{batchId}`、`/commands/{commandId}/files/{fileId}`(日誌下載,`endpoint.device.read`),註明六個 basic 類型已實作、詳細以 `RustIt/docs/contracts/command-kinds.md` 為準、Agent 以 `POST /agent/v1/commands/{commandId}/files` 上傳日誌附檔;§8.4 新增 `command_update_ack`(結果先寫本機,收到 ack 才標記已回報)、`prepare_shutdown` 的 `reconnect_after_sec`,訊息格式以 `RustIt/docs/contracts/ws-envelope.schema.json` 為準。權限、路由、Nginx 不變(`:9443` 的 `client_max_body_size 0`,上限由 Endpoint Server 決定)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件審閱;測試區 BFF 路由 v51 已發佈相同的 API
+
 ## 2026-10-13 ENDPOINT-AGENT-GUIDE v0.5:配合 RustIt 第二階段計畫(只改文件)
 - 內容:依 RustIt `docs/PLATFORM-PLAN.md` §10 修訂端點指南:§8.2 新增權限 `endpoint.software.manage`(軟體目錄、版本登錄、發佈環);§8.3 新增指令類型 `message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`(basic),E7 更新第一批;§7.1 托盤改為「使用者端程式」(登入者身分經 `:443`、與監控服務分開發版、唯讀管道 `giganexus-agent-user-v1`),E3 決定;§6.3 資產一律完整回報、變更由 Server 比對,新增 4a 本機持久化與離線紀錄(`/sync`、`offline_period`);§4.2 新增 Endpoint Server 忙碌 `429` + `Retry-After`;§5.6 新增 `min_agent_version` / `AGENT_TOO_OLD`;§3.3 新增硬體指紋協助合併(IT 確認,不自動合併);E4 決定升級套件經 `:9443` 自 NAS `RustIT\releases\` 提供;實作狀態更新(Endpoint Server 測試區運作中)。通道、port、既有權限與 API 不變。配合 RustIt f886a19、根目錄 cbf6db9。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
