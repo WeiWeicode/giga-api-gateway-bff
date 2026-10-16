@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.7:配合 RustIt P3 資料呈現實作(只改文件)
+- 內容:RustIt P3 已在測試區完成(RustIt MR !23,GigaItApp MR !4、!5;設計 `RustIt/docs/P3-DATA-DESIGN.md`),需求方同意回寫上位規範。§8.3:電腦清單改為分頁 + 篩選(關鍵字、軟體、作業系統、在線、狀態)、詳情加疑似同一台、新增 `GET /devices/{id}/events`、`GET /devices/{id}/inventory.json`、`POST /devices/{id}/merge`(`endpoint.command.admin`),`PUT /status` 加退役;稽核層級補下載與合併。§10 E6 註記為上線前必辦(資安稽核指出目前未依 `cos` 過濾)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI(測試區批次 110 已發佈)一致
+
 ## 2026-10-15 ENDPOINT-AGENT-GUIDE v0.6:配合 RustIt P4 指令通道實作(只改文件)
 - 內容:RustIt P4(指令通道)已在測試區完成(RustIt MR !14、!17、!19,GigaItApp MR !2),依 RustIt `docs/P4-COMMAND-DESIGN.md` §7 第 5 項回寫指南:§8.3 新增 `GET /api/endpoint/commands`、`/batches/{batchId}`、`/commands/{commandId}/files/{fileId}`(日誌下載,`endpoint.device.read`),註明六個 basic 類型已實作、詳細以 `RustIt/docs/contracts/command-kinds.md` 為準、Agent 以 `POST /agent/v1/commands/{commandId}/files` 上傳日誌附檔;§8.4 新增 `command_update_ack`(結果先寫本機,收到 ack 才標記已回報)、`prepare_shutdown` 的 `reconnect_after_sec`,訊息格式以 `RustIt/docs/contracts/ws-envelope.schema.json` 為準。權限、路由、Nginx 不變(`:9443` 的 `client_max_body_size 0`,上限由 Endpoint Server 決定)。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
