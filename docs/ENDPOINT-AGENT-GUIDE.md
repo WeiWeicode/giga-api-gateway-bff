@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.7(2026-10-16:配合 RustIt P3 資料呈現實作:§8.3 清單改為分頁 + 篩選、補事件 / 下載資產 JSON / 合併 API,`PUT /status` 加退役;§10 E6 註記已列為上線前必辦,設計見 `RustIt/docs/P3-DATA-DESIGN.md`)。v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
+| 文件版本 | v0.8(2026-10-16:配合 RustIt E6 資料範圍實作:§8.2 資料範圍定案〔依 `cos`;全部公司角色由 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 指定;電腦所屬公司由憑證 FQDN / 回報網域自動判定或 IT 指定;範圍外一律 404〕、§8.3 加 `PUT /devices/{deviceId}/company` 與清單 `company` 篩選、§10.2 E6 改已決定、§11 加憑證 CN 須為 FQDN;設計見 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`)。v0.7(2026-10-16:配合 RustIt P3 資料呈現實作:§8.3 清單改為分頁 + 篩選、補事件 / 下載資產 JSON / 合併 API,`PUT /status` 加退役;§10 E6 註記已列為上線前必辦,設計見 `RustIt/docs/P3-DATA-DESIGN.md`)。v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
@@ -420,7 +420,9 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `endpoint.remote.operate` | 端點遠端操作 | 遠端畫面(`/ws/endpoint/*`,已實作,E2E 已驗證) |
 
 - 角色與 AD 群組的對應由 IT 決定(PRD §8.3);建議查詢與一般指令給 IT 人員,管理指令與遠端操作只給 IT 管理員。
-- **資料範圍**:Endpoint Server 依內部 Token 的 `cos`(所屬公司)只回傳、只接受該公司的電腦;可管理所有公司的角色另行指定(待確認,§10 E6)。
+- **資料範圍**(§10.2 E6,2026-10-16 定案;RustIt `docs/E6-COMPANY-SCOPE-DESIGN.md`):Endpoint Server 依內部 Token 的 `cos`(所屬公司名稱)只回傳、只接受該公司的電腦,範圍外的電腦、指令、批次、附檔一律回與「不存在」相同的 `404`(不洩漏存在)。
+  - **全部公司**:Token 的 `roles` 含 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 任一個角色(測試區 `it-admin`);正式區若一般 IT 只管自己公司,改設專用標記角色。`cos` 為空(含 API Key 呼叫)看不到任何電腦。
+  - **電腦所屬公司**:憑證 CN 為 FQDN 時依網域尾碼 → 否則依 Agent 回報的網域(`part_of_domain`)→ 判不出為「未指定」(只有全部公司角色看得到);網域 → 公司對應為 Endpoint Server 設定 `ENDPOINT_COMPANY_DOMAINS`,公司名稱與 `gw.company.comp_name` 相同。IT 以 `PUT /devices/{deviceId}/company` 指定後不再自動變更。
 
 ### 8.3 API 草案
 
@@ -428,7 +430,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 
 | 方法 | 對外路徑 | `x-permission` | 說明 |
 | --- | --- | --- | --- |
-| `GET` | `/api/endpoint/devices` | `endpoint.device.read` | 電腦清單;分頁(`page`、`pageSize` ≤ 200,回 `total`),篩選關鍵字(名稱、使用者、IP、MAC、裝置代碼)、軟體名稱、作業系統、在線、狀態(預設不含退役與已合併);依公司篩選待 E6 |
+| `GET` | `/api/endpoint/devices` | `endpoint.device.read` | 電腦清單;分頁(`page`、`pageSize` ≤ 200,回 `total`),篩選關鍵字(名稱、使用者、IP、MAC、裝置代碼)、軟體名稱、作業系統、在線、狀態(預設不含退役與已合併)、公司(`company`;空字串 = 未指定);只列資料範圍內的電腦(§8.2) |
 | `GET` | `/api/endpoint/devices/{deviceId}` | `endpoint.device.read` | 電腦詳細、資產、硬體指紋相同的其他裝置(疑似同一台,§3.3)、Watchdog 最近回報 |
 | `GET` | `/api/endpoint/devices/{deviceId}/events` | `endpoint.device.read` | 該電腦的事件(主機稽核 + Agent 端點事件),新到舊,`nextCursor` 分頁 |
 | `GET` | `/api/endpoint/devices/{deviceId}/inventory.json` | `endpoint.device.read` | 下載最新一份資產原樣(資料契約 snake_case);`x-audit-level: meta` |
@@ -443,6 +445,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `GET` | `/api/endpoint/commands/{commandId}/files/{fileId}` | `endpoint.device.read` | 下載指令附檔(`logs.collect` 的日誌 zip,保存 14 天,過期 `410`);`x-audit-level: meta` |
 | `PUT` | `/api/endpoint/devices/{deviceId}/status` | `endpoint.command.admin` | 停用 / 啟用 / 退役裝置(`active` / `disabled` / `retired`);停用與退役時立即關閉其 WebSocket(§5.4) |
 | `POST` | `/api/endpoint/devices/{deviceId}/merge` | `endpoint.command.admin` | 合併疑似同一台(重灌、改名、換憑證,§3.3):`sourceDeviceId` 併入路徑上的舊裝置,舊裝置改用來源的憑證、`deviceId` 不變,兩台未完成的指令取消;硬體指紋由端點自行回報,只是提示,指紋不同或兩台曾同時使用時需 `force`;重送回 `alreadyMerged`。`x-audit-level: meta` |
+| `PUT` | `/api/endpoint/devices/{deviceId}/company` | `endpoint.command.admin` | 指定電腦所屬公司(§8.2 資料範圍);只有全部公司角色可用,其他回 `403 ITA_SCOPE_ALL_REQUIRED`;`company: null` 改回自動判定;寫稽核事件。`x-audit-level: meta` |
 
 - Endpoint Server 必須檢查「指令類型」屬於該路徑的等級(例:`basic-commands` 送來 `system.reboot` → `400 ENDPOINT_COMMAND_LEVEL_MISMATCH`),否則等於繞過 BFF 的權限。
 - `POST` 支援 `Idempotency-Key`(BFF 只對冪等方法自動重試,使用者重複按下時不會建立兩筆指令)。
@@ -553,7 +556,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | E3 | 托盤程式可讀取哪些 Agent 狀態、可做哪些使用者功能 | ✅ 已決定(2026-10-13):使用者端程式經唯讀管道 `giganexus-agent-user-v1` 讀 Agent 狀態、接收提示;使用者功能以使用者登入經 `:443`;不可呼叫管理操作(§7.1) | 提案人 + W6 負責人 |
 | E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | ✅ 已決定(2026-10-13):經 `:9443` `GET /agent/v1/releases/{version}/{file}`,檔案在 NAS `RustIT\releases\`(Endpoint Server 唯讀掛載,Agent 不持有 NAS 帳密);首次安裝用 GPO MSI | W6 負責人 + IT |
 | E5 | 非網域電腦的憑證由誰申請、安裝、續約 | §3.1 的 `certreq` 流程,由 IT 執行;Watchdog 提前 30 天提醒 | IT |
-| E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | 預設依 `cos`;另設一個「全部公司」角色給 IT 主管。**上線前必辦**:RustIt P3(2026-10-16)後清單、資產下載、停用 / 退役 / 合併都已開放,目前未依 `cos` 過濾(管理等級只授予 it-admin);設計進行中 | 主管 + IT |
+| E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | ✅ **已決定(2026-10-16,需求方)**:依 `cos`;全部公司角色以 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 指定(測試區 it-admin);電腦所屬公司混合判定(憑證 FQDN → 回報網域 → 未指定,IT 指定優先),見 §8.2。RustIt ItAgentBack 已上測試區(MR !25);GigaItApp 公司欄與指定按鈕待做 | 主管 + IT |
 | E7 | 指令類型清單與各類型的等級、有效期限(§8.3 初版) | 第一批 `inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`,其餘依 RustIt PLATFORM-PLAN P6、P7 開放 | W6 負責人 + IT |
 | E8 | 裝置憑證取得方式:AD CS 自動註冊(本文 §3.1)或 RustIt PRD 的 enrollment token | 網域電腦用 AD CS;非網域電腦評估 enrollment token 以減少 IT 人工 | W6 負責人 + IT |
 
@@ -575,7 +578,9 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 - [ ] 應用層心跳與離線判斷
 - [ ] 同時支援前一版 Agent
 - [ ] 日誌記錄 `x-request-id`、DN、指紋
-- [ ] 指令 API 依等級拆路徑(§8.3),並檢查指令類型與路徑等級相符;依 `cos` 過濾資料範圍
+- [ ] 指令 API 依等級拆路徑(§8.3),並檢查指令類型與路徑等級相符;依 `cos` 過濾資料範圍(測試區已完成,2026-10-16)
+- [ ] 正式區裝置憑證 CN 為電腦 FQDN(§3.2、E1):所屬公司才會依憑證判定;否則依端點回報的網域,端點可改回報讓自己脫離所屬公司 IT 的檢視
+- [ ] 正式區 `ENDPOINT_SCOPE_ALL_ROLES` 只指定 IT 主管等少數角色(§8.2)
 - [ ] 指令先寫入資料庫再推送;有效期限、重送、每筆指令的稽核欄位(§8.5)
 
 **Rust Agent / Rust Watchdog**

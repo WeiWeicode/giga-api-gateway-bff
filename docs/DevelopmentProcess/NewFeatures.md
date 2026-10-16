@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.8:配合 RustIt E6 資料範圍實作(只改文件)
+- 內容:RustIt E6 已在測試區完成(RustIt MR !25,endpoint-server `3081af75`;設計 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`),需求方要求回寫上位規範。§8.2 資料範圍定案(依 `cos`、全部公司角色 `ENDPOINT_SCOPE_ALL_ROLES`、電腦所屬公司判定、範圍外 404);§8.3 清單加 `company` 篩選、新增 `PUT /devices/{deviceId}/company`;§10.2 E6 改已決定;§11 加正式區憑證 CN 須為 FQDN、全部公司角色只給少數人。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI(測試區批次 112,待 IT 發佈)一致
+
 ## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.7:配合 RustIt P3 資料呈現實作(只改文件)
 - 內容:RustIt P3 已在測試區完成(RustIt MR !23,GigaItApp MR !4、!5;設計 `RustIt/docs/P3-DATA-DESIGN.md`),需求方同意回寫上位規範。§8.3:電腦清單改為分頁 + 篩選(關鍵字、軟體、作業系統、在線、狀態)、詳情加疑似同一台、新增 `GET /devices/{id}/events`、`GET /devices/{id}/inventory.json`、`POST /devices/{id}/merge`(`endpoint.command.admin`),`PUT /status` 加退役;稽核層級補下載與合併。§10 E6 註記為上線前必辦(資安稽核指出目前未依 `cos` 過濾)。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
