@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
+| 文件版本 | v0.7(2026-10-16:配合 RustIt P3 資料呈現實作:§8.3 清單改為分頁 + 篩選、補事件 / 下載資產 JSON / 合併 API,`PUT /status` 加退役;§10 E6 註記已列為上線前必辦,設計見 `RustIt/docs/P3-DATA-DESIGN.md`)。v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
@@ -428,8 +428,10 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 
 | 方法 | 對外路徑 | `x-permission` | 說明 |
 | --- | --- | --- | --- |
-| `GET` | `/api/endpoint/devices` | `endpoint.device.read` | 電腦清單;分頁,篩選線上狀態、公司、Agent 版本 |
-| `GET` | `/api/endpoint/devices/{deviceId}` | `endpoint.device.read` | 電腦詳細、資產、Watchdog 最近回報 |
+| `GET` | `/api/endpoint/devices` | `endpoint.device.read` | 電腦清單;分頁(`page`、`pageSize` ≤ 200,回 `total`),篩選關鍵字(名稱、使用者、IP、MAC、裝置代碼)、軟體名稱、作業系統、在線、狀態(預設不含退役與已合併);依公司篩選待 E6 |
+| `GET` | `/api/endpoint/devices/{deviceId}` | `endpoint.device.read` | 電腦詳細、資產、硬體指紋相同的其他裝置(疑似同一台,§3.3)、Watchdog 最近回報 |
+| `GET` | `/api/endpoint/devices/{deviceId}/events` | `endpoint.device.read` | 該電腦的事件(主機稽核 + Agent 端點事件),新到舊,`nextCursor` 分頁 |
+| `GET` | `/api/endpoint/devices/{deviceId}/inventory.json` | `endpoint.device.read` | 下載最新一份資產原樣(資料契約 snake_case);`x-audit-level: meta` |
 | `GET` | `/api/endpoint/devices/{deviceId}/commands` | `endpoint.device.read` | 該電腦的指令紀錄 |
 | `GET` | `/api/endpoint/commands/{commandId}` | `endpoint.device.read` | 指令狀態與結果 |
 | `POST` | `/api/endpoint/devices/{deviceId}/basic-commands` | `endpoint.command.basic` | 建立一般指令,回 `202` + `commandId` |
@@ -439,11 +441,12 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `GET` | `/api/endpoint/commands` | `endpoint.device.read` | 所有電腦的指令紀錄;依 `state`、`kind`、`batchId` 篩選,`nextCursor` 分頁 |
 | `GET` | `/api/endpoint/batches/{batchId}` | `endpoint.device.read` | 批次與各狀態台數 |
 | `GET` | `/api/endpoint/commands/{commandId}/files/{fileId}` | `endpoint.device.read` | 下載指令附檔(`logs.collect` 的日誌 zip,保存 14 天,過期 `410`);`x-audit-level: meta` |
-| `PUT` | `/api/endpoint/devices/{deviceId}/status` | `endpoint.command.admin` | 停用 / 啟用裝置;停用時立即關閉其 WebSocket(§5.4) |
+| `PUT` | `/api/endpoint/devices/{deviceId}/status` | `endpoint.command.admin` | 停用 / 啟用 / 退役裝置(`active` / `disabled` / `retired`);停用與退役時立即關閉其 WebSocket(§5.4) |
+| `POST` | `/api/endpoint/devices/{deviceId}/merge` | `endpoint.command.admin` | 合併疑似同一台(重灌、改名、換憑證,§3.3):`sourceDeviceId` 併入路徑上的舊裝置,舊裝置改用來源的憑證、`deviceId` 不變,兩台未完成的指令取消;硬體指紋由端點自行回報,只是提示,指紋不同或兩台曾同時使用時需 `force`;重送回 `alreadyMerged`。`x-audit-level: meta` |
 
 - Endpoint Server 必須檢查「指令類型」屬於該路徑的等級(例:`basic-commands` 送來 `system.reboot` → `400 ENDPOINT_COMMAND_LEVEL_MISMATCH`),否則等於繞過 BFF 的權限。
 - `POST` 支援 `Idempotency-Key`(BFF 只對冪等方法自動重試,使用者重複按下時不會建立兩筆指令)。
-- 這些路由不設 `x-cache-ttl`;建立指令、停用裝置的路由設 `x-audit-level: meta`。
+- 這些路由不設 `x-cache-ttl`;建立指令、停用 / 退役 / 合併裝置、下載資產與日誌的路由設 `x-audit-level: meta`。
 
 **指令類型(初版建議)**:不提供任意 shell 指令,只開放固定類型;新增類型時 Agent 與 Endpoint Server 一起發版,舊版 Agent 收到不認得的類型回 `UNSUPPORTED_COMMAND`。
 
@@ -550,7 +553,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | E3 | 托盤程式可讀取哪些 Agent 狀態、可做哪些使用者功能 | ✅ 已決定(2026-10-13):使用者端程式經唯讀管道 `giganexus-agent-user-v1` 讀 Agent 狀態、接收提示;使用者功能以使用者登入經 `:443`;不可呼叫管理操作(§7.1) | 提案人 + W6 負責人 |
 | E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | ✅ 已決定(2026-10-13):經 `:9443` `GET /agent/v1/releases/{version}/{file}`,檔案在 NAS `RustIT\releases\`(Endpoint Server 唯讀掛載,Agent 不持有 NAS 帳密);首次安裝用 GPO MSI | W6 負責人 + IT |
 | E5 | 非網域電腦的憑證由誰申請、安裝、續約 | §3.1 的 `certreq` 流程,由 IT 執行;Watchdog 提前 30 天提醒 | IT |
-| E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | 預設依 `cos`;另設一個「全部公司」角色給 IT 主管 | 主管 + IT |
+| E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | 預設依 `cos`;另設一個「全部公司」角色給 IT 主管。**上線前必辦**:RustIt P3(2026-10-16)後清單、資產下載、停用 / 退役 / 合併都已開放,目前未依 `cos` 過濾(管理等級只授予 it-admin);設計進行中 | 主管 + IT |
 | E7 | 指令類型清單與各類型的等級、有效期限(§8.3 初版) | 第一批 `inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`,其餘依 RustIt PLATFORM-PLAN P6、P7 開放 | W6 負責人 + IT |
 | E8 | 裝置憑證取得方式:AD CS 自動註冊(本文 §3.1)或 RustIt PRD 的 enrollment token | 網域電腦用 AD CS;非網域電腦評估 enrollment token 以減少 IT 人工 | W6 負責人 + IT |
 
