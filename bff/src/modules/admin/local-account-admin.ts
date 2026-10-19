@@ -12,7 +12,8 @@ import { localAccountToken, localCredential, user } from '../../db/schema/index.
 import { GwError } from '../../errors.js';
 import type { ExternalDb } from '../../plugins/db.js';
 import type { AdDirectory } from '../auth/ldap.js';
-import { hashPassword, pushHistory } from '../auth/password.js';
+import { adDomainsForCompanies } from '../auth/login.js';
+import { checkPasswordPolicy, hashPassword, POLICY_MESSAGES, pushHistory } from '../auth/password.js';
 import { applyProfile, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo } from '../auth/profile.js';
 import { revokeUserSessions } from '../auth/session.js';
 import { pvKey } from '../rbac/permission.js';
@@ -60,15 +61,28 @@ async function findLocal(db: GwDatabase, emp: string) {
   return row;
 }
 
-/** IT 代建:LOS / BPM 須查得到、在職、非兼任,且所有 AD 網域都查無此帳號(一個工號只有一種驗證方式) */
-export async function createLocalAccount(
-  deps: LocalAdminDeps & { ad: AdDirectory; ext: { bpm?: ExternalDb; los?: ExternalDb } },
-  empArg: string,
-  actor: AuditActor,
-): Promise<{ employeeNo: string; userId: number; token: string }> {
+type CreateDeps = LocalAdminDeps & { ad: AdDirectory; ext: { bpm?: ExternalDb; los?: ExternalDb } };
+
+/**
+ * 可建立本機帳號的條件:LOS / BPM 須查得到、在職、非兼任,且所屬公司對應的 AD 網域都查無此帳號
+ * (一個工號只有一種驗證方式;網域判斷與登入相同,查無公司時檢查全部網域)
+ */
+async function eligibleProfile(deps: CreateDeps, empArg: string) {
   const emp = normalizeEmpNo(empArg);
   if (!isValidEmpNo(emp)) reject(`工號格式錯誤:${empArg}`);
-  for (const code of deps.ad.codes) {
+  const lookup = await lookupEmployee(deps.ext, emp);
+  if (!lookup.bpmOk && !lookup.losOk) throw new GwError('INTERNAL_ERROR', 'BPM 與 LOS 都無法查詢,請稍後再試');
+  if (lookup.selfVirtual) reject(`${emp} 為兼任帳號,不可單獨登入`);
+  const merged = mergeProfile(lookup);
+  if (merged.profileSource === 'ad_only') reject(`${emp} 在 LOS / BPM 查無資料`);
+  if (merged.employmentStatus === 'resigned') reject(`${emp} 已離職`);
+  const domains =
+    (await adDomainsForCompanies(
+      deps.db,
+      deps.ad,
+      merged.companies.map((c) => c.compName),
+    )) ?? deps.ad.codes;
+  for (const code of domains) {
     let exists: boolean;
     try {
       exists = await deps.ad.exists(code, emp);
@@ -76,14 +90,14 @@ export async function createLocalAccount(
       // AD 無法查詢時不可建立,避免同一工號同時有 AD 與本機帳號
       throw new GwError('INTERNAL_ERROR', `AD 網域 ${code} 查詢失敗,請稍後再試(${(err as Error).message})`);
     }
-    if (exists) reject(`${emp} 在 AD 網域 ${code} 已有帳號,不可建立本機帳號`);
+    if (exists) reject(`${emp} 所屬公司使用 AD 網域 ${code},請以 AD 帳號登入,不可建立本機帳號`);
   }
-  const lookup = await lookupEmployee(deps.ext, emp);
-  if (!lookup.bpmOk && !lookup.losOk) throw new GwError('INTERNAL_ERROR', 'BPM 與 LOS 都無法查詢,請稍後再試');
-  if (lookup.selfVirtual) reject(`${emp} 為兼任帳號,不可單獨登入`);
-  const merged = mergeProfile(lookup);
-  if (merged.profileSource === 'ad_only') reject(`${emp} 在 LOS / BPM 查無資料`);
-  if (merged.employmentStatus === 'resigned') reject(`${emp} 已離職`);
+  return { emp, merged };
+}
+
+/** IT 代建:條件見 eligibleProfile;回傳 72 小時啟用連結 */
+export async function createLocalAccount(deps: CreateDeps, empArg: string, actor: AuditActor): Promise<{ employeeNo: string; userId: number; token: string }> {
+  const { emp, merged } = await eligibleProfile(deps, empArg);
 
   return deps.db.transaction(async (tx) => {
     let [u] = await tx.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
@@ -133,17 +147,17 @@ export async function approveLocalAccount(
   });
 }
 
-/** IT 重設密碼(無 Email 者):臨時密碼只回傳一次,首次登入須更換;解除鎖定並撤銷所有登入 */
+/** IT 重設密碼(無 Email 者):臨時密碼只回傳一次,首次登入須更換;解除鎖定並撤銷所有登入。password 為 IT 指定的密碼(呼叫端已檢查原則) */
 export async function resetLocalPassword(
   deps: LocalAdminDeps,
   empArg: string,
   actor: AuditActor,
+  password?: string,
 ): Promise<{ employeeNo: string; userId: number; temporaryPassword: string; revokedSessions: number }> {
   const emp = normalizeEmpNo(empArg);
   const row = await findLocal(deps.db, emp);
   if (!row || !['active', 'locked'].includes(row.cred.status)) reject(`${emp} 沒有啟用中或鎖定的本機帳號`);
-  // 臨時密碼:12 碼英數,保證含英文與數字(符合 Q14)
-  const temp = `${randomBytes(9).toString('base64url').replace(/[-_]/g, 'x')}a1`;
+  const temp = password || temporaryPassword();
   const passwordHash = await hashPassword(temp);
   await deps.db.transaction(async (tx) => {
     await tx
@@ -164,6 +178,83 @@ export async function resetLocalPassword(
   const revoked = await revokeUserSessions(deps.redis, row!.userId).catch(() => -1);
   await deps.redis.del(`gw:login:fail:${emp}`).catch(() => undefined);
   return { employeeNo: emp, userId: row!.userId, temporaryPassword: temp, revokedSessions: revoked };
+}
+
+/** 臨時密碼:12 碼英數,保證含英文與數字(符合 Q14) */
+const temporaryPassword = () => `${randomBytes(9).toString('base64url').replace(/[-_]/g, 'x')}a1`;
+
+/**
+ * IT 建立帳號 / 重置密碼(GigaItApp 人員管理):
+ *   已有啟用中或鎖定的本機帳號 → 重設密碼(解除鎖定、撤銷所有登入)
+ *   沒有本機帳號(或待驗證、待審核、已停用)→ 依 eligibleProfile 檢查後直接建立為啟用,不經啟用連結
+ * 密碼可由 IT 指定(須符合密碼原則),未指定則產生臨時密碼;兩者首次登入都須變更密碼。
+ * 明文只回傳給呼叫端(由路由決定寄送或顯示),不寫入 log 與稽核。
+ */
+export async function setLocalPassword(
+  deps: CreateDeps,
+  empArg: string,
+  actor: AuditActor,
+  password?: string,
+): Promise<{ employeeNo: string; userId: number; created: boolean; password: string; generated: boolean; revokedSessions: number }> {
+  const emp = normalizeEmpNo(empArg);
+  if (password) {
+    const failed = checkPasswordPolicy(password, emp);
+    if (failed.length)
+      throw new GwError(
+        'PASSWORD_POLICY_VIOLATION',
+        undefined,
+        failed.map((rule) => ({ rule, message: POLICY_MESSAGES[rule] })),
+      );
+  }
+  const row = await findLocal(deps.db, emp);
+  if (row && ['active', 'locked'].includes(row.cred.status)) {
+    const r = await resetLocalPassword(deps, emp, actor, password);
+    return { employeeNo: emp, userId: r.userId, created: false, password: r.temporaryPassword, generated: !password, revokedSessions: r.revokedSessions };
+  }
+
+  const { merged } = await eligibleProfile(deps, emp);
+  const plain = password || temporaryPassword();
+  const passwordHash = await hashPassword(plain);
+  const userId = await deps.db.transaction(async (tx) => {
+    let [u] = await tx.select({ id: user.userId, isDisabled: user.isDisabled }).from(user).where(eq(user.employeeNo, emp));
+    if (u?.isDisabled) reject(`${emp} 的使用者已停用,請先啟用`);
+    if (!u)
+      [u] = await tx
+        .insert(user)
+        .output({ id: user.userId, isDisabled: user.isDisabled })
+        .values({ employeeNo: emp, displayName: merged.displayName ?? emp, profileSource: merged.profileSource, createdBy: actor.name, updatedBy: actor.name });
+    await applyProfile(tx, u!.id, merged, actor.name);
+    const [cred] = await tx.select().from(localCredential).where(eq(localCredential.userId, u!.id));
+    const values = {
+      passwordHash,
+      passwordChangedAt: new Date(),
+      status: 'active' as const,
+      registeredVia: 'admin' as const,
+      failedCount: 0,
+      lockedAt: null,
+      mustChangePassword: true,
+      updatedBy: actor.name,
+    };
+    if (cred)
+      await tx
+        .update(localCredential)
+        .set({ ...values, passwordHistory: pushHistory(cred.passwordHash, cred.passwordHistory) })
+        .where(eq(localCredential.userId, u!.id));
+    else await tx.insert(localCredential).values({ userId: u!.id, ...values, createdBy: actor.name });
+    // 尚未使用的啟用 / 驗證連結作廢,避免另一條路徑覆蓋 IT 設定的密碼
+    await tx
+      .update(localAccountToken)
+      .set({ usedAt: new Date() })
+      .where(and(eq(localAccountToken.userId, u!.id), isNull(localAccountToken.usedAt)));
+    await writeAudit(tx, actor, 'local.create', 'user', emp, cred ? { status: cred.status } : null, {
+      emp,
+      status: 'active',
+      mustChangePassword: true,
+      companies: merged.companies.map((c) => c.compName),
+    });
+    return u!.id;
+  });
+  return { employeeNo: emp, userId, created: true, password: plain, generated: !password, revokedSessions: 0 };
 }
 
 /** 解除鎖定(連續失敗 10 次)並清除登入失敗計數 */
