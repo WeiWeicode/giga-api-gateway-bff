@@ -62,6 +62,23 @@ export async function writeAuthLog(
   });
 }
 
+/**
+ * 由 LOS / BPM 的公司名稱取得網域(gw.company_ad_domain,PRD Q13);沒有公司資料或公司尚未建立(未知)時回 null(呼叫端試全部網域)。
+ * 登入、自行註冊、IT 代建共用,確保「一個工號只有一種驗證方式」的判斷一致。
+ */
+export async function adDomainsForCompanies(db: GwDatabase, ad: Pick<AdDirectory, 'has'>, names: string[]): Promise<string[] | null> {
+  if (!names.length) return null;
+  const known = await db.select({ id: company.companyId, name: company.compName }).from(company);
+  const ids = names.map((n) => known.find((k) => k.name === n)?.id);
+  if (ids.some((id) => id === undefined)) return null;
+  const rows = await db
+    .select({ companyId: companyAdDomain.companyId, domain: companyAdDomain.domainCode, order: companyAdDomain.tryOrder })
+    .from(companyAdDomain);
+  const out: string[] = [];
+  for (const id of ids) for (const r of rows.filter((x) => x.companyId === id).sort((a, b) => a.order - b.order)) out.push(r.domain);
+  return [...new Set(out)].filter((d) => ad.has(d));
+}
+
 export class LoginService {
   constructor(
     private readonly db: GwDatabase,
@@ -116,18 +133,8 @@ export class LoginService {
     return this.fail(input, userId, 'ACCOUNT_NOT_REGISTERED', reason);
   }
 
-  /** 由 LOS / BPM 的公司名稱取得網域;公司尚未建立(未知)時回 null(試全部網域) */
-  private async domainsForCompanies(names: string[]): Promise<string[] | null> {
-    if (!names.length) return null;
-    const known = await this.db.select({ id: company.companyId, name: company.compName }).from(company);
-    const ids = names.map((n) => known.find((k) => k.name === n)?.id);
-    if (ids.some((id) => id === undefined)) return null;
-    const rows = await this.db
-      .select({ companyId: companyAdDomain.companyId, domain: companyAdDomain.domainCode, order: companyAdDomain.tryOrder })
-      .from(companyAdDomain);
-    const out: string[] = [];
-    for (const id of ids) for (const r of rows.filter((x) => x.companyId === id).sort((a, b) => a.order - b.order)) out.push(r.domain);
-    return [...new Set(out)].filter((d) => this.ad.has(d));
+  private domainsForCompanies(names: string[]): Promise<string[] | null> {
+    return adDomainsForCompanies(this.db, this.ad, names);
   }
 
   /** 使用者所屬公司的網域(主要公司優先、依 try_order);沒有公司資料時回 null(試全部網域) */
