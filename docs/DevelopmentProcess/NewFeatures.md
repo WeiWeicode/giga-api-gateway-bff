@@ -2,6 +2,16 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-19 ENDPOINT-AGENT-GUIDE v0.9:配合 RustIt P5 監測實作(只改文件)
+- 內容:RustIt P5-1(健康摘要、資產變更事件、告警;RustIt MR !31,測試區)與 P5-2(Watchdog 0.1.0、Agent 0.6.0、本機管道與互相看守;RustIt MR !32,待真機驗收)已合併 develop(設計 `RustIt/docs/P5-MONITOR-DESIGN.md`),需求方同意回寫上位規範。§6.3 心跳 `health`、hello `cert_not_after`、資產變更事件類型;§6.4 上次結束原因 `previous_exit`;§7 Watchdog 已實作、§7.1 看守規則(被停止 / 改設定、Installer 判斷)、§7.2 管道訊息定案與伺服端限制、§7.3 上報契約與路徑白名單;§8.2 `endpoint.command.basic` 可關閉告警;§8.3 新增 `GET /alerts`、`POST /alerts/{alertId}/resolve`、`GET /devices/{deviceId}/health` 與告警規則摘要;§10.1 新增 G8(憑證到期日由 Nginx 轉送,未開始);§11 補兩項。Nginx、權限代碼不變。另含尚未合併的 v0.8(E6,2026-10-16)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI 一致(P5-1 草稿批次待 IT 發佈)
+
+## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.8:配合 RustIt E6 資料範圍實作(只改文件)
+- 內容:RustIt E6 已在測試區完成(RustIt MR !25,endpoint-server `3081af75`;設計 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`),需求方要求回寫上位規範。§8.2 資料範圍定案(依 `cos`、全部公司角色 `ENDPOINT_SCOPE_ALL_ROLES`、電腦所屬公司判定、範圍外 404);§8.3 清單加 `company` 篩選、新增 `PUT /devices/{deviceId}/company`;§10.2 E6 改已決定;§11 加正式區憑證 CN 須為 FQDN、全部公司角色只給少數人。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI(測試區批次 112,待 IT 發佈)一致
+
 ## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.7:配合 RustIt P3 資料呈現實作(只改文件)
 - 內容:RustIt P3 已在測試區完成(RustIt MR !23,GigaItApp MR !4、!5;設計 `RustIt/docs/P3-DATA-DESIGN.md`),需求方同意回寫上位規範。§8.3:電腦清單改為分頁 + 篩選(關鍵字、軟體、作業系統、在線、狀態)、詳情加疑似同一台、新增 `GET /devices/{id}/events`、`GET /devices/{id}/inventory.json`、`POST /devices/{id}/merge`(`endpoint.command.admin`),`PUT /status` 加退役;稽核層級補下載與合併。§10 E6 註記為上線前必辦(資安稽核指出目前未依 `cos` 過濾)。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
