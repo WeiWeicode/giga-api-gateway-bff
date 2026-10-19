@@ -12,7 +12,7 @@
  *   GET    /api/admin/local-accounts                     本機帳號(含待審核,新到舊)            gw.admin.local.read
  *   POST   /api/admin/local-accounts                     IT 代建(回傳 72 小時啟用連結)          gw.admin.local.write
  *   POST   /api/admin/local-accounts/:id/approve         核准待審核(回傳啟用連結)              gw.admin.local.write
- *   POST   /api/admin/local-accounts/:id/reset-password  IT 重設(回傳臨時密碼,只顯示一次)      gw.admin.local.write
+ *   POST   /api/admin/local-accounts/:id/reset-password  IT 建立帳號 / 重置密碼(寄本人或顯示一次) gw.admin.local.write
  *   POST   /api/admin/local-accounts/:id/unlock          解除鎖定                                 gw.admin.local.write
  *   POST   /api/admin/local-accounts/:id/disable         停用本機帳號                             gw.admin.local.write
  *
@@ -72,6 +72,9 @@ interface RoleAssign {
   validTo?: string | null;
   reason?: string | null;
 }
+
+/** 系統通知範本(db/seed/data.mts NOTIFY_TEMPLATES) */
+const TEMPLATE_LOCAL_PASSWORD_SET = 'AUTH_LOCAL_PASSWORD_SET';
 
 const users: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config }) => {
   const authorize = createAuthorizer(app);
@@ -621,11 +624,60 @@ const users: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config })
     return activation(await localAdmin.approveLocalAccount(localDeps, await empOf(req.params.id), actor));
   });
 
-  app.post<{ Params: { id: string } }>('/api/admin/local-accounts/:id/reset-password', { schema: { params: REF_PARAMS } }, async (req) => {
-    const actor = await authorize(req, LOCAL_WRITE);
-    const r = await localAdmin.resetLocalPassword(localDeps, await empOf(req.params.id), actor);
-    return { employeeNo: r.employeeNo, temporaryPassword: r.temporaryPassword, mustChangePassword: true, revokedSessions: r.revokedSessions };
-  });
+  /**
+   * IT 建立帳號 / 重置密碼:沒有本機帳號時直接建立(啟用、首次登入須變更密碼),有則重設;password 未填由系統產生。
+   * 寄送:有 Email 寄本人;非正式區沒有 Email 也寄 MAIL_REDIRECT_TO(測試信箱)。沒寄出時明文只在回應出現一次;
+   * 非正式區一律同時回傳明文(方便測試)。
+   */
+  app.post<{ Params: { id: string }; Body: { password?: string } | undefined }>(
+    '/api/admin/local-accounts/:id/reset-password',
+    {
+      schema: {
+        params: REF_PARAMS,
+        body: { type: ['object', 'null'], additionalProperties: false, properties: { password: { type: 'string', maxLength: 128 } } },
+      },
+    },
+    async (req) => {
+      const actor = await authorize(req, LOCAL_WRITE);
+      const u = await findUser(req.params.id);
+      const r = await localAdmin.setLocalPassword({ ...localDeps, ad: app.ad, ext: app.ext }, u.employeeNo, actor, req.body?.password || undefined);
+      const nonProd = config.gwEnv !== 'prod';
+      const address = u.email?.trim() || (nonProd ? config.mail.redirectTo : undefined);
+      let sentTo: string | null = null;
+      if (address) {
+        try {
+          await app.notifier.send({
+            templateCode: TEMPLATE_LOCAL_PASSWORD_SET,
+            channels: ['email'],
+            to: { emails: [address] },
+            data: {
+              name: u.displayName,
+              employeeNo: r.employeeNo,
+              password: r.password,
+              action: r.created ? '建立' : '重置',
+              link: `${config.publicBaseUrl.replace(/\/$/, '')}/login`,
+            },
+            priority: 'high',
+            requestedBy: actor.name,
+          });
+          sentTo = address;
+        } catch (err) {
+          // 密碼已設定,寄送失敗不回滾;改由畫面顯示交給 IT 轉交
+          req.log.error({ emp: r.employeeNo, err: (err as Error).message }, '本機帳號密碼通知入列失敗');
+        }
+      }
+      return {
+        employeeNo: r.employeeNo,
+        created: r.created,
+        generated: r.generated,
+        mustChangePassword: true,
+        revokedSessions: r.revokedSessions,
+        delivery: sentTo ? 'email' : 'screen',
+        sentTo,
+        ...(!sentTo || nonProd ? { temporaryPassword: r.password } : {}),
+      };
+    },
+  );
 
   app.post<{ Params: { id: string } }>('/api/admin/local-accounts/:id/unlock', { schema: { params: REF_PARAMS } }, async (req) => {
     const actor = await authorize(req, LOCAL_WRITE);

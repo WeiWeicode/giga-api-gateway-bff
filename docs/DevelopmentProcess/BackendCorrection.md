@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-10-19 本機帳號:AD 檢查依公司網域、IT 建立帳號 / 重置密碼
+- 內容:① 測試區禾迅員工 V114007 自行註冊回「無法註冊」(auth_log `register_rejected` / `ad_account:gsmc`):註冊與 IT 代建檢查「所有 AD 網域」,但登入只依所屬公司的網域(禾迅無網域),碩禾 AD 剛好有同名帳號就兩邊都走不通。需求方決定改成與登入相同:`adDomainsForCompanies`(由 `LoginService` 抽出,login.ts)供登入、註冊、代建共用;LOS / BPM 查無公司時仍檢查全部網域。註冊的 AD 檢查移到 LOS / BPM 查詢之後。② `POST /api/admin/local-accounts/:id/reset-password` 擴充為「建立帳號 / 重置密碼」(GigaItApp 人員管理用):沒有本機帳號(或待驗證 / 待審核 / 已停用)時依代建條件直接建立為 active(`registered_via = admin`,作廢未使用的啟用 / 驗證連結);body 可帶 `password`(須符合密碼原則),未帶則產生臨時密碼;首次登入一律須變更。寄送:有 `gw.user.email` 寄本人;非正式區沒有 Email 也寄 `MAIL_REDIRECT_TO`(worker 本來就改寄測試信箱);沒寄出時明文只在回應出現,非正式區一律同時回傳(E2E 需要)。新通知範本 `AUTH_LOCAL_PASSWORD_SET`(seed 只新增不覆寫,部署時 seed 自動補)。路由與權限 `gw.admin.local.write` 不變。**注意**:臨時密碼會出現在 BullMQ 工作資料(Redis,完成後保留 24 小時),與重設連結同等級
+- 檔案:`bff/src/modules/auth/login.ts`、`bff/src/modules/auth/local-account.ts`、`bff/src/modules/admin/local-account-admin.ts`、`bff/src/modules/admin/users.ts`、`db/seed/data.mts`、`bff/test/e2e/08-users-admin.test.ts`、`docs/PRD.md`、`docs/Gherkin/admin/user-admin.feature`、`docs/Gherkin/auth/self-registration.feature`
+- 驗證:`npm run typecheck`、`lint` 通過,`npm test` 227 項通過;E2E 與測試區實測待部署後執行
+
 ## 2026-10-13 附件服務舊格式相容層直送 file-api(giga-file-service F7)
 - 內容:BPM 舊前端(bpmcomonent `FileUpload.vue` / `SPfileUpload.vue`)改走附件服務相容層。Nginx 新增 `location ^~ /api/file/compat/`:來源 IP 白名單 `geo $file_compat_client`(`allowlists/test/file-compat-clients.conf` = 122 + 開發機 10.10.112.13;`prod` = 122)、`limit_req zone=file_compat`(10 r/s、burst 20;PRD §7.3 例外,使用者決定)、`client_max_body_size 31m`、`proxy_request_buffering off`,`rewrite` 成 `/compat/*` 直接轉 `$file_api_upstream`(不經 BFF:BFF 對 public 路由不帶內部 Token、全域 10 MB);`X-Forwarded-For` 用 `$remote_addr`(proxy-bff.conf);被拒 / 過大 / 限流 / 上游失敗回相容層舊式 JSON `{ success:false, message, error }`
 - 檔案:`nginx/conf.d/portal.conf`、`nginx/templates/00-env.conf.template`、`nginx/allowlists/{test,prod}/file-compat-clients.conf`、`docs/PRD.md`(v0.13)
