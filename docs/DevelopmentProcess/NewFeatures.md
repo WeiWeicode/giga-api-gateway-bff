@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-20 ENDPOINT-AGENT-GUIDE v0.10:RustIt P5 監測完成驗收(只改文件)
+- 內容:RustIt P5-2(Watchdog 0.1.0、Agent 0.6.0)2026-10-19 測試區 VM 驗收 7 項通過(RustIt MR !34);P5-3 GigaItApp 監測畫面上測試區並驗證告警 Tab 與關閉告警(GigaItApp MR !7)。需求方同意回寫(RustIt P5-4)。§7 改為已驗收並附測試報告;§8.3 註明事件類告警 `detail` 保留第一次觸發;§8.6 加監測畫面與 itapp 節點對應,註明關閉告警等同一般指令權限(資安審查建議);§11 註記測試區已驗證項目,IT 前端加「關閉告警只授予已有一般指令的角色」。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P5-MONITOR-DESIGN.md` §8、測試報告 `2026-10-19-p5-watchdog-0.6.0.md`、GigaItApp `deploy/gateway-rbac.yaml` 一致
+
 ## 2026-10-19 ENDPOINT-AGENT-GUIDE v0.9:配合 RustIt P5 監測實作(只改文件)
 - 內容:RustIt P5-1(健康摘要、資產變更事件、告警;RustIt MR !31,測試區)與 P5-2(Watchdog 0.1.0、Agent 0.6.0、本機管道與互相看守;RustIt MR !32,待真機驗收)已合併 develop(設計 `RustIt/docs/P5-MONITOR-DESIGN.md`),需求方同意回寫上位規範。§6.3 心跳 `health`、hello `cert_not_after`、資產變更事件類型;§6.4 上次結束原因 `previous_exit`;§7 Watchdog 已實作、§7.1 看守規則(被停止 / 改設定、Installer 判斷)、§7.2 管道訊息定案與伺服端限制、§7.3 上報契約與路徑白名單;§8.2 `endpoint.command.basic` 可關閉告警;§8.3 新增 `GET /alerts`、`POST /alerts/{alertId}/resolve`、`GET /devices/{deviceId}/health` 與告警規則摘要;§10.1 新增 G8(憑證到期日由 Nginx 轉送,未開始);§11 補兩項。Nginx、權限代碼不變。另含尚未合併的 v0.8(E6,2026-10-16)。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
