@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-21 ENDPOINT-AGENT-GUIDE v0.11:RustIt P6 升級測試區完成(只改文件)
+- 內容:RustIt P6(版本登錄、發佈環、Watchdog 升級 Agent、Agent 替換 Watchdog、Windows Runner + 人工簽章)測試區完成,Agent 0.8.2 / Watchdog 0.3.2 已發佈(RustIt MR !37 ~ !48、GigaItApp MR !9)。指南回寫:§6.5 / §7.4 升級流程由「建議」改為實作規則(目標來源、下載路徑、端點驗證、失敗處理與版本下限、互相升級、事件、發版);§7.1 / §7.2 版本看守與管道 `prepare_shutdown`、`replace_watchdog`;§7.3 `target` / `upgrade`;§8.2 `endpoint.software.manage` 需全部公司角色;§8.3 版本 / 發佈環 / 所屬環 / 升級狀態 API、`agent.upgrade` 已實作、告警 `upgrade_failed` / `version_mismatch`;§8.6 GigaItApp「Agent 版本」;§10.2 E4 測試區版本檔目錄;§11 補升級與正式簽章憑證項目。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P6-UPGRADE-DESIGN.md`、`RUNBOOK.md`、測試報告 `2026-10-21-p6-4-first-release.md`、GigaItApp `deploy/gateway-rbac.yaml`(`it.endpoint-release.*`)一致
+
 ## 2026-10-20 ENDPOINT-AGENT-GUIDE v0.10:RustIt P5 監測完成驗收(只改文件)
 - 內容:RustIt P5-2(Watchdog 0.1.0、Agent 0.6.0)2026-10-19 測試區 VM 驗收 7 項通過(RustIt MR !34);P5-3 GigaItApp 監測畫面上測試區並驗證告警 Tab 與關閉告警(GigaItApp MR !7)。需求方同意回寫(RustIt P5-4)。§7 改為已驗收並附測試報告;§8.3 註明事件類告警 `detail` 保留第一次觸發;§8.6 加監測畫面與 itapp 節點對應,註明關閉告警等同一般指令權限(資安審查建議);§11 註記測試區已驗證項目,IT 前端加「關閉告警只授予已有一般指令的角色」。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`

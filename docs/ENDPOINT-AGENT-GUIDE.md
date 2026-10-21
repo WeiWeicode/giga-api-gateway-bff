@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.10(2026-10-20:RustIt P5 完成驗收:§7 Watchdog 0.1.0 / Agent 0.6.0 測試區 VM 驗收通過;§8.3 事件類告警只保留第一次觸發的 `detail`;§8.6 GigaItApp 告警畫面與權限對應〔關閉告警等同一般指令權限〕;§11 註記測試區已驗證項目)。v0.9(2026-10-19:配合 RustIt P5 監測實作:§6.3 心跳 `health`、hello `cert_not_after`;§6.4 / §7.2 本機管道訊息定案〔`get_status` / `status`,加 `previous_exit` 等欄位;`prepare_shutdown` 只定義、P6 實作〕;§7.1 Watchdog 看守規則與 Installer 判斷;§7.3 `watchdog/report` 契約、路徑白名單與 Watchdog 事件類型;§8.2 / §8.3 告警與健康 API(關閉告警沿用 `endpoint.command.basic`);§10.1 G8 憑證到期日改由 Nginx 轉送;§11 補 Watchdog 項目;設計見 `RustIt/docs/P5-MONITOR-DESIGN.md`)。v0.8(2026-10-16:配合 RustIt E6 資料範圍實作:§8.2 資料範圍定案〔依 `cos`;全部公司角色由 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 指定;電腦所屬公司由憑證 FQDN / 回報網域自動判定或 IT 指定;範圍外一律 404〕、§8.3 加 `PUT /devices/{deviceId}/company` 與清單 `company` 篩選、§10.2 E6 改已決定、§11 加憑證 CN 須為 FQDN;設計見 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`)。v0.7(2026-10-16:配合 RustIt P3 資料呈現實作:§8.3 清單改為分頁 + 篩選、補事件 / 下載資產 JSON / 合併 API,`PUT /status` 加退役;§10 E6 註記已列為上線前必辦,設計見 `RustIt/docs/P3-DATA-DESIGN.md`)。v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
+| 文件版本 | v0.11(2026-10-21:RustIt P6 升級測試區完成:§6.5 / §7.4 升級流程定案〔目標版本由發佈環下發、`GET /agent/v1/releases/…` 下載、SHA-256 + Authenticode + 簽章者〔主機清單 ∩ 本機清單〕+ 版本資源驗證、2 分鐘健康檢查與自動還原、失敗 2 次停止與 30 分鐘冷卻;Watchdog 升級 Agent、Agent 替換 Watchdog〕;§7.1 / §7.2 版本看守與管道 `prepare_shutdown` 實作、新增 `replace_watchdog`;§7.3 回應 `target`、請求 `upgrade`;§8.2 `endpoint.software.manage` 用於版本與發佈環;§8.3 版本 / 發佈環 / 所屬環 / 升級狀態 API、`agent.upgrade` 已實作、告警 `upgrade_failed` / `version_mismatch`;§8.6 GigaItApp「Agent 版本」;§10.2 E4 測試區版本檔目錄;§11 補升級項目;設計見 `RustIt/docs/P6-UPGRADE-DESIGN.md`,發版流程見 `RustIt/docs/RUNBOOK.md`)。v0.10(2026-10-20:RustIt P5 完成驗收:§7 Watchdog 0.1.0 / Agent 0.6.0 測試區 VM 驗收通過;§8.3 事件類告警只保留第一次觸發的 `detail`;§8.6 GigaItApp 告警畫面與權限對應〔關閉告警等同一般指令權限〕;§11 註記測試區已驗證項目)。v0.9(2026-10-19:配合 RustIt P5 監測實作:§6.3 心跳 `health`、hello `cert_not_after`;§6.4 / §7.2 本機管道訊息定案〔`get_status` / `status`,加 `previous_exit` 等欄位;`prepare_shutdown` 只定義、P6 實作〕;§7.1 Watchdog 看守規則與 Installer 判斷;§7.3 `watchdog/report` 契約、路徑白名單與 Watchdog 事件類型;§8.2 / §8.3 告警與健康 API(關閉告警沿用 `endpoint.command.basic`);§10.1 G8 憑證到期日改由 Nginx 轉送;§11 補 Watchdog 項目;設計見 `RustIt/docs/P5-MONITOR-DESIGN.md`)。v0.8(2026-10-16:配合 RustIt E6 資料範圍實作:§8.2 資料範圍定案〔依 `cos`;全部公司角色由 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 指定;電腦所屬公司由憑證 FQDN / 回報網域自動判定或 IT 指定;範圍外一律 404〕、§8.3 加 `PUT /devices/{deviceId}/company` 與清單 `company` 篩選、§10.2 E6 改已決定、§11 加憑證 CN 須為 FQDN;設計見 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`)。v0.7(2026-10-16:配合 RustIt P3 資料呈現實作:§8.3 清單改為分頁 + 篩選、補事件 / 下載資產 JSON / 合併 API,`PUT /status` 加退役;§10 E6 註記已列為上線前必辦,設計見 `RustIt/docs/P3-DATA-DESIGN.md`)。v0.6(2026-10-15:配合 RustIt P4 指令通道實作:§8.3 補指令紀錄 / 批次 / 日誌下載 API 與 Agent 指令附檔上傳、§8.4 補 `command_update_ack`、`prepare_shutdown` 重連秒數,正式契約以 `RustIt/docs/contracts/` 為準)。v0.5(2026-10-13:配合 RustIt 第二階段計畫 `../../RustIt/docs/PLATFORM-PLAN.md` §10:權限 `endpoint.software.manage`、指令類型 `message.show` / `agent.diagnose` / `logs.collect` / `agent.log_level`、使用者端程式(托盤)與監控服務分開、資產完整回報由 Server 比對、Agent 本機持久化與離線紀錄、主機忙碌 `429` 與最低支援版本、硬體指紋協助合併、升級套件路徑 E4)。v0.4(2026-10-06:Endpoint Server 由 Rust Axum 改為 Node.js〔`RustIt/ItAgentBack`〕,Rust 只負責端點的 Agent、Watchdog、托盤;資料存 SQL Server + MongoDB + Redis;通道、port、權限、API 不變。v0.3〔2026-10-01〕:Agent 通道由 gRPC 改為 HTTPS / WebSocket) |
 | 建立日期 | 2026-09-25 |
 | 適用範圍 | 端點電腦上的程式(Rust Agent、Rust Watchdog)經 Gateway `:9443` 連到 Endpoint Server 的通道;同一台電腦上的本機通道;IT 管理頁面經 BFF 管理電腦與下指令(§8) |
 | 不在範圍 | Endpoint Server 的業務功能與正式訊息格式(由 W6-1 定義);端點電腦的軟體派送方式 |
@@ -25,7 +25,7 @@
 | --- | --- |
 | Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ✅ 2026-10-07 改為 HTTPS / WebSocket(`proxy_pass https://$endpoint_agent_upstream`,HTTP/1.1,§4);測試區只信任臨時 Agent 中繼 CA(`allowlists/test/agent-issuers.conf`) |
 | §3.4、§6–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
-| Endpoint Server(`RustIt/ItAgentBack`,§5) | 測試區運作中(2026-10-07,回報、WebSocket 心跳、電腦清單);指令、事件、升級、派送依 `../../RustIt/docs/PLATFORM-PLAN.md`(P1–P8)。基本階段 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
+| Endpoint Server(`RustIt/ItAgentBack`,§5) | 測試區運作中(2026-10-07,回報、WebSocket 心跳、電腦清單;指令 P4、監測 P5、升級 P6 已上測試區,2026-10-21 Agent 0.8.2 / Watchdog 0.3.2 經發佈環升級驗證);派送等後續階段依 `../../RustIt/docs/PLATFORM-PLAN.md`(P1–P8)。基本階段 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
 
 ---
 
@@ -297,13 +297,13 @@ Agent 正常收尾時在本機記下結束原因(`stop` / `shutdown` / `restart_
 
 ### 6.5 升級
 
-Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟動(§7.4)。Agent 收到 `prepare_shutdown` 時送出最後狀態、關閉 WebSocket 後回覆。
+Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟動(§7.4)。Agent 收到本機管道的 `prepare_shutdown` 時停止接新指令、送完待送的 `command_update` 與事件(上限 20 秒)、以 1000 關閉 WebSocket 後回覆;執行中的指令最多等 60 秒,逾時記 `failed` / `AGENT_UPGRADING`。反過來,Watchdog 的新版由 **Agent 替換**(管道 `replace_watchdog`,§7.4)。IT 對單台下 `agent.upgrade`(§8.3)時,Agent 只把要求交給 Watchdog(管道 `status.upgrade_requested`),指令 `succeeded` 只代表已交出,實際結果看升級狀態與事件(RustIt P6,Agent 0.7.0 起)。
 
 ---
 
 ## 7. Rust Watchdog 與本機通道
 
-> 原規劃為 C# Watchdog(2026-09-24),2026-10-01 改為 Rust,與 Agent 同在 RustIt 的 Cargo workspace(`RustAgent/crates/watchdog`,`rustit-watchdog` 0.1.0,RustIt P5-2 實作,2026-10-19 合併 develop 並於測試區 VM 驗收通過:結束行程、停止服務、改啟動類型、一般使用者停止被拒、MSI 解除安裝不互拉,見 `RustIt/docs/test-reports/2026-10-19-p5-watchdog-0.6.0.md`),共用憑證來源與訊息契約;與 Agent 由同一個監控 MSI 安裝。正式契約以 `RustIt/docs/contracts/`(`pipe.schema.json`、`watchdog.schema.json`、`event.schema.json`)為準。
+> 原規劃為 C# Watchdog(2026-09-24),2026-10-01 改為 Rust,與 Agent 同在 RustIt 的 Cargo workspace(`RustAgent/crates/watchdog`,`rustit-watchdog` 0.1.0,RustIt P5-2 實作,2026-10-19 合併 develop 並於測試區 VM 驗收通過:結束行程、停止服務、改啟動類型、一般使用者停止被拒、MSI 解除安裝不互拉,見 `RustIt/docs/test-reports/2026-10-19-p5-watchdog-0.6.0.md`),共用憑證來源與訊息契約;與 Agent 由同一個監控 MSI 安裝。P6(2026-10-21 測試區完成)起負責升級 Agent(Watchdog 0.2.0),自己的新版由 Agent 替換(Watchdog 0.3.0 / Agent 0.8.0);目前發佈版本 Agent 0.8.2 / Watchdog 0.3.2。正式契約以 `RustIt/docs/contracts/`(`pipe.schema.json`、`watchdog.schema.json`、`event.schema.json`)為準。
 
 ### 7.1 定位
 
@@ -314,7 +314,7 @@ Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟�
 | 健康 | 每 30 秒呼叫本機 `get_status`;連續 3 次失敗(行程在但無回應)→ 停止服務(逾時則結束行程)→ 重新啟動。管道從未成功過(沒有管道的舊版 Agent)不判定卡住;結束行程前先握住行程控制代碼並確認是服務設定的程式與 PID |
 | 被停止 / 改設定 | 服務被手動停止(結束代碼 0、不在關機中)立即啟動;啟動類型被改回自動;程式不見或不是同目錄的 `rustit-agent.exe` 只記錄。當掉(結束代碼非 0)先交給 SCM 失敗復原,90 秒寬限後仍停止才啟動 |
 | 安裝中 | Windows Installer 執行中(`Global\_MSIExecute` 擁有者為 SYSTEM 且 `msiserver` 執行中,最長 30 分鐘)兩邊都不看守,MSI 安裝 / 升級 / 解除安裝時不互相拉起 |
-| 版本 | 比對 Agent 版本與 Endpoint Server 下達的目標版本,需要時執行升級(§7.4);**P6 實作**,P5 回報只帶版本 |
+| 版本 | 依 `watchdog/report` 回應的 `target` 執行升級(§7.4,RustIt P6 已實作);升級期間進入「維護中」,看守暫停,不把升級造成的停止當成竄改 |
 | 上報 | **自己**經 `:9443` 回報(§7.3),不經過 Agent |
 | 憑證 | 回報電腦憑證剩餘天數(非網域電腦需人工續約) |
 | 互相看守 | Agent 也定期檢查 `GigaNexusWatchdog` 服務,停止時以 SCM 重新啟動;兩個服務都設定失敗復原選項 |
@@ -331,7 +331,7 @@ Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟�
 | 伺服端 | Rust Agent(`tokio::net::windows::named_pipe::ServerOptions`,以安全性描述元限制存取) |
 | ACL | `D:P(A;;GA;;;SY)(A;;GA;;;BA)`:只允許 SYSTEM 與 Administrators(托盤另開唯讀管道,權限另訂) |
 | 用戶端 | Rust Watchdog(`ClientOptions::open`) |
-| 訊息 | 每則一行 JSON(與 §5.6 相同的信封),請求 / 回應:`get_status` → `status`;`prepare_shutdown` / `prepare_shutdown_ack` 已定義、**P6 升級時實作**(P5 回 `unsupported`)。契約 `RustIt/docs/contracts/pipe.schema.json` |
+| 訊息 | 每則一行 JSON(與 §5.6 相同的信封),請求 / 回應:`get_status` → `status`(P6 加 `upgrade_requested`);`prepare_shutdown` / `prepare_shutdown_ack`(Agent 0.7.0 起實作);`replace_watchdog` / `replace_watchdog_ack`(Watchdog → Agent,Agent 0.8.0 起;只接受 `ProgramData\GigaNexus\Agent\cache\watchdog\` 底下的檔案,Agent 自己再驗一次雜湊與簽章)。`prepare_shutdown`、`replace_watchdog` 只接受 SCM 查到的 Watchdog PID。契約 `RustIt/docs/contracts/pipe.schema.json` |
 | 伺服端限制 | `first_pipe_instance`(不加入別人先建立的同名管道),隨時保留一個等待中的執行個體;每則請求 1 KB、5 秒逾時,同時最多 4 個連線 |
 | 防冒充 | Watchdog 連線後、送出請求前以 `GetNamedPipeServerProcessId` 取得管道伺服端的 PID,與 SCM 查到的 `GigaNexusAgent` 服務 PID 比對,不一致即中斷並記 `agent_pipe_impersonation` |
 
@@ -356,34 +356,44 @@ Agent **不覆寫自己**;由 Watchdog 停止服務、替換檔案、重新啟�
 - **Nginx 不需要調整**:`:9443` 轉送所有路徑。Endpoint Server 以路徑區分 Agent 與 Watchdog,以 DN 對應到同一台裝置。
 - 兩支程式持有同一把私鑰,Endpoint Server **無法以密碼學區分**是誰呼叫;兩者都以 SYSTEM 執行,能取得 SYSTEM 的人本來就控制了整台電腦,可以接受。Endpoint Server 仍應只讓 `watchdog/*` 路徑做 Watchdog 的事,不要因為 DN 相同就開放所有功能。
 - 以**單次 HTTPS 請求**為主:每 5 分鐘及狀態改變時上報,不佔用長連線。每台電腦同時的連線約為 Agent 1 條 WebSocket + 1–2 條 HTTPS,加 Watchdog 0–1 條,在每張憑證 `limit_conn` 10 條以內。
-- 上報內容(RustIt P5-2,契約 `RustIt/docs/contracts/watchdog.schema.json`):`watchdog_version`、`agent`(服務狀態、啟動類型、PID、程式是否存在、最後一次 `get_status` 結果)、`agent_restarts_24h`、`cert_not_after`、`events[]`(0–50 筆,先寫本機 `state\watchdog.db`,主機回 `accepted` 才刪)。回應:`accepted[]`、`report_interval_sec`(預設 300)、`target`(P5 一律 `null`;P6 放目標版本,§7.4)。停用 / 退役的裝置回 `403`。
+- 上報內容(RustIt P5-2,契約 `RustIt/docs/contracts/watchdog.schema.json`):`watchdog_version`、`agent`(服務狀態、啟動類型、PID、程式是否存在、最後一次 `get_status` 結果)、`agent_restarts_24h`、`cert_not_after`、`events[]`(0–50 筆,先寫本機 `state\watchdog.db`,主機回 `accepted` 才刪)。回應:`accepted[]`、`report_interval_sec`(預設 300)、`target`(P6:`{ agent, watchdog }` 各為 `null` 或 `{ version, url, sha256, size_bytes, signer_thumbprints }`,§7.4)。請求另帶 `upgrade`(進行中升級的元件、目標、狀態、失敗次數、錯誤代碼)。停用 / 退役的裝置回 `403`。
 - **路徑白名單**:Watchdog 事件(`agent_restarted`、`agent_service_stopped`、`agent_start_type_changed`、`agent_binary_missing`、`agent_binary_changed`、`agent_start_failed`、`agent_pipe_impersonation`)只收 `watchdog/report`,`/agent/v1/events` 不收;Agent 看守 Watchdog 的事件(`watchdog_stopped`、`watchdog_missing`、`watchdog_binary_changed`)反之。收到不屬於該路徑的類型回 accepted、不寫入、記 warn。服務被停止、改啟動類型、程式被換、Watchdog 被停或不存在時,Endpoint Server 開 `agent_tampered` 告警(§8.3)。
 
-### 7.4 升級流程(建議)
+### 7.4 升級流程(RustIt P6 實作,2026-10-21 測試區)
 
 ```mermaid
 sequenceDiagram
     participant EP as Endpoint Server
     participant WD as Rust Watchdog
     participant AG as Rust Agent
-    WD->>EP: POST watchdog/report(目前版本)
-    EP-->>WD: 目標版本 1.5.0、套件 SHA-256
-    WD->>EP: GET 套件(HTTPS,支援續傳)
-    WD->>WD: 驗證 SHA-256 與 Authenticode 簽章
-    WD->>AG: prepare_shutdown(本機管道)
-    AG-->>WD: 已關閉 WebSocket
-    WD->>WD: 停止服務、保留舊版、替換檔案、啟動服務
-    WD->>AG: get_status(2 分鐘內)
-    alt 版本正確且 WebSocket 已連線
-        WD->>EP: report(升級成功)
+    WD->>EP: POST watchdog/report(目前版本、upgrade 進度)
+    EP-->>WD: target.agent(版本、url、SHA-256、預期簽章者)
+    WD->>EP: GET /agent/v1/releases/agent/{版本}/{檔名}(Range 續傳)
+    WD->>WD: 驗證 SHA-256、Authenticode、簽章者、版本資源
+    WD->>AG: prepare_shutdown(本機管道,等 90 秒)
+    AG-->>WD: prepare_shutdown_ack(已關閉 WebSocket)
+    WD->>WD: 停止服務、舊版移到 previous\、目的地再驗雜湊後換上、啟動
+    WD->>AG: get_status(2 分鐘內每 10 秒)
+    alt 版本正確、WebSocket 已連線、PID 穩定
+        WD->>EP: report(succeeded)
     else 失敗
-        WD->>WD: 還原舊版並啟動
-        WD->>EP: report(升級失敗、原因)
+        WD->>WD: 換回 previous\ 並啟動(rolled_back;還原也失敗 → ROLLBACK_FAILED)
+        WD->>EP: report(failed、原因)
     end
 ```
 
-- Watchdog 自己的升級由 Agent 以相同流程執行(互相升級,不自我覆寫)。
-- 套件經 `:9443` 下載屬於**下行**方向,不受請求大小限制影響;也可改用既有軟體派送(GPO / MSI,待確認,§10 E4)。
+| 項目 | 規則 |
+| --- | --- |
+| 目標版本 | 由 IT 設定**發佈環**(`pilot` / `it` / `all`,裝置各屬一環)的目標版本,或對單台下 `agent.upgrade` 指定版本(§8.3);`it` / `all` 只能設已發佈的版本,`pilot` 未滿 24 小時就推進下一環回 `409`(可 `force`,寫稽核);同時升級台數有上限(預設 20),其餘下次上報再排 |
+| 下載 | `GET /agent/v1/releases/{component}/{version}/{file}`(`:9443`、同一張裝置憑證、不跟隨重新導向);只允許下載**這台目前被指派的目標**(否則 `404`),停用裝置 `403`;支援 `Range` / `206`;Endpoint Server 下載前再比對一次 SHA-256 |
+| 驗證(端點必須自己驗) | 整個檔案的 SHA-256 = `target.sha256`(不信任回應標頭);`WinVerifyTrust` 鏈到受信任的根;簽章者 SHA-1 指紋必須**同時**在主機下發的 `signer_thumbprints` 與本機信任清單(`agent.toml [upgrade] trusted_signers`,由 MSI 寫入,上線前改 GPO)內,主機被入侵也無法單獨放行;exe 的 ProductVersion = 目標版本 |
+| 失敗處理 | 錯誤代碼 `DOWNLOAD_FAILED`、`HASH_MISMATCH`、`SIGNATURE_INVALID`、`SIGNER_NOT_TRUSTED`、`PREPARE_TIMEOUT`、`STOP_TIMEOUT`、`REPLACE_FAILED`、`HEALTH_CHECK_FAILED`、`ROLLBACK_FAILED`、`DISK_FULL`;驗證失敗不停止服務;任何失敗後冷卻 30 分鐘,同一目標失敗 2 次不再自動嘗試(`agent.upgrade` 可重設);升級中途重開機,重啟後依本機紀錄收尾,不會停在半套 |
+| 互相升級 | Watchdog 升級 Agent;Watchdog 的新版由 Watchdog 下載驗證後經管道 `replace_watchdog` 交給 **Agent** 再驗一次、停止 / 替換 / 健康檢查 / 還原(兩者都不覆寫自己) |
+| 版本下限 | Agent 0.7.0、Watchdog 0.3.0(更舊的版本不認得升級設定;要回到更舊只能重派 MSI) |
+| 事件 | `upgrade_started`、`upgrade_succeeded`、`upgrade_failed`(`component`、`from`、`to`、耗時、錯誤代碼、`rolled_back`);升級 Agent 的事件只收 `watchdog/report`,替換 Watchdog 的事件只收 `/agent/v1/events`(§7.3 路徑白名單延伸) |
+| 發版 | 建置(GitLab Windows Runner,產出未簽章檔)→ 簽章人員在自己的電腦以程式碼簽章憑證簽章(CI 不持有私鑰,ADR 0003)→ 上架版本檔目錄 → IT 登錄、先給 `pilot` 驗證再發佈推進;回滾即把環目標設回舊版(`RustIt/docs/RUNBOOK.md`) |
+
+- 套件經 `:9443` 下載屬於**下行**方向,不受請求大小限制影響;首次安裝用 GPO / MSI(§10 E4)。MSI 本身不經這個通道升級(控制台顯示的版本停在首次安裝的版本,GigaItApp 以端點回報的 exe 版本為準)。
 
 ---
 
@@ -422,7 +432,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `endpoint.device.read` | 端點查詢 | 電腦清單、資產、線上狀態、指令紀錄與結果 |
 | `endpoint.command.basic` | 端點一般指令 | 對電腦沒有破壞性的指令(收集資產、重啟 Agent);取消自己建立的指令;關閉告警(RustIt P5) |
 | `endpoint.command.admin` | 端點管理指令 | 會影響使用者的指令(派送 / 移除軟體、重新開機、升級 Agent)、停用 / 啟用裝置 |
-| `endpoint.software.manage` | 端點軟體與版本管理 | 維護軟體目錄、Agent / Watchdog / 使用者端程式版本登錄、發佈環目標版本、覆核(RustIt PLATFORM-PLAN §5.3) |
+| `endpoint.software.manage` | 端點軟體與版本管理 | 維護軟體目錄、Agent / Watchdog / 使用者端程式版本登錄、發佈環目標版本、覆核(RustIt PLATFORM-PLAN §5.3);版本與發佈環是全公司共用設定,Endpoint Server 另要求全部公司角色(§8.2 資料範圍,RustIt P6) |
 | `endpoint.remote.operate` | 端點遠端操作 | 遠端畫面(`/ws/endpoint/*`,已實作,E2E 已驗證) |
 
 - 角色與 AD 群組的對應由 IT 決定(PRD §8.3);建議查詢與一般指令給 IT 人員,管理指令與遠端操作只給 IT 管理員。
@@ -455,11 +465,18 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `POST` | `/api/endpoint/alerts/{alertId}/resolve` | `endpoint.command.basic` | 關閉告警,`{ note }`(1–500 字);只能關未結束的(`409 ITA_ALERT_NOT_OPEN`);自動類規則條件仍成立時,下次評估(5 分鐘)會再開一筆。`x-audit-level: meta` |
 | `GET` | `/api/endpoint/devices/{deviceId}/health` | `endpoint.device.read` | 健康走勢:`hours` 1–24,5 分鐘分桶(CPU / 記憶體平均、磁碟取最小) |
 | `PUT` | `/api/endpoint/devices/{deviceId}/company` | `endpoint.command.admin` | 指定電腦所屬公司(§8.2 資料範圍);只有全部公司角色可用,其他回 `403 ITA_SCOPE_ALL_REQUIRED`;`company: null` 改回自動判定;寫稽核事件。`x-audit-level: meta` |
+| `GET` | `/api/endpoint/releases`、`/api/endpoint/releases/files` | `endpoint.device.read` | 版本清單(篩選 `component`、`status`);版本檔目錄內尚未登錄的檔案(RustIt P6) |
+| `POST` | `/api/endpoint/releases` | `endpoint.software.manage` | 登錄版本(`component`、`version`、`fileName`、`signerThumbprints`、`notes`);SHA-256 與大小由 Endpoint Server 讀檔計算;登錄後為 `draft`。`x-audit-level: meta` |
+| `POST` | `/api/endpoint/releases/{releaseId}/publish`、`/revoke` | `endpoint.software.manage` | 發佈 / 撤回;撤回時以它為目標的環改為不升級(回 `clearedRings`)。`x-audit-level: meta` |
+| `GET` | `/api/endpoint/release-rings` | `endpoint.device.read` | 各環 × 元件的目標版本與進度(到目標 / 進行中 / 失敗 / 等待) |
+| `PUT` | `/api/endpoint/release-rings/{ring}/{component}` | `endpoint.software.manage` | `{ targetVersion: string \| null, force? }`;`it` / `all` 只能設已發佈版本,`pilot` 未滿 24 小時回 `409 ITA_RING_TOO_EARLY`。`x-audit-level: meta` |
+| `PUT` | `/api/endpoint/devices/{deviceId}/ring` | `endpoint.command.admin` | 調整裝置所屬環;放進或移出 `pilot` 需全部公司角色。`x-audit-level: meta` |
+| `GET` | `/api/endpoint/devices/{deviceId}/upgrade` | `endpoint.device.read` | 該電腦所屬環與各元件升級狀態(目標、狀態、失敗次數、最後錯誤) |
 
 - Endpoint Server 必須檢查「指令類型」屬於該路徑的等級(例:`basic-commands` 送來 `system.reboot` → `400 ENDPOINT_COMMAND_LEVEL_MISMATCH`),否則等於繞過 BFF 的權限。
 - `POST` 支援 `Idempotency-Key`(BFF 只對冪等方法自動重試,使用者重複按下時不會建立兩筆指令)。
 - 這些路由不設 `x-cache-ttl`;建立指令、停用 / 退役 / 合併裝置、下載資產與日誌、關閉告警的路由設 `x-audit-level: meta`。
-- **告警規則**(RustIt P5,固定規則、門檻以 Endpoint Server 環境變數設定;同一台同一規則只有一筆未結束):`offline_long`、`disk_low`、`hardware_changed`(IT 確認)、`agent_restarts`、`cert_expiring`、`clock_skew`、`agent_tampered`(IT 確認)、`agent_silent`(Watchdog 有回報但 Agent 沒心跳);版本不符 `version_mismatch` 在 P6。條件與預設門檻見 `RustIt/docs/P5-MONITOR-DESIGN.md` §4。事件類規則(`hardware_changed`、`agent_tampered`)已有未結束告警時,後續事件只更新 `lastSeenAt`,`detail` 保留**第一次觸發**的內容(完整歷程看裝置事件)。本階段只在 GigaItApp 顯示(「告警」Tab,2026-10-20 上測試區),不寄信。
+- **告警規則**(RustIt P5,固定規則、門檻以 Endpoint Server 環境變數設定;同一台同一規則只有一筆未結束):`offline_long`、`disk_low`、`hardware_changed`(IT 確認)、`agent_restarts`、`cert_expiring`、`clock_skew`、`agent_tampered`(IT 確認)、`agent_silent`(Watchdog 有回報但 Agent 沒心跳);P6 加 `upgrade_failed`(同一版本失敗 2 次或還原失敗,升級成功或目標改變時自動關)、`version_mismatch`(在線且 Watchdog 正常,但環目標設定超過 24 小時仍未到目標版本)。條件與預設門檻見 `RustIt/docs/P5-MONITOR-DESIGN.md` §4。事件類規則(`hardware_changed`、`agent_tampered`)已有未結束告警時,後續事件只更新 `lastSeenAt`,`detail` 保留**第一次觸發**的內容(完整歷程看裝置事件)。本階段只在 GigaItApp 顯示(「告警」Tab,2026-10-20 上測試區),不寄信。
 
 **指令類型(初版建議)**:不提供任意 shell 指令,只開放固定類型;新增類型時 Agent 與 Endpoint Server 一起發版,舊版 Agent 收到不認得的類型回 `UNSUPPORTED_COMMAND`。
 
@@ -475,7 +492,7 @@ BFF 一條路由只能檢查一個權限代碼,Endpoint Server 也看不到權�
 | `logs.collect` | basic | 壓縮最近 N 天 Agent / Watchdog 日誌經 HTTPS 上傳 |
 | `agent.log_level` | basic | 暫時調高日誌等級,到期自動恢復 |
 
-已實作(RustIt P4,2026-10-15 測試區):`inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`;各類型的參數、結果、有效期限 / 執行逾時、每台上限與錯誤代碼以 `../../RustIt/docs/contracts/command-kinds.md` 為準。大量結果(日誌)由 Agent 以 `POST /agent/v1/commands/{commandId}/files`(`:9443`,zip 原始位元組 + `x-file-sha256`,上限 20 MB)上傳為指令附檔,`command_update.result` 只帶 `file_id`。
+已實作(RustIt P4,2026-10-15 測試區):`inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`;`agent.upgrade`(RustIt P6,2026-10-21 測試區;`params: { component: "agent" | "watchdog", version? }`,省略版本 = 依所屬環目標立即檢查,指定版本必須已發佈,會重設失敗次數與冷卻;單台,經 `admin-commands`);各類型的參數、結果、有效期限 / 執行逾時、每台上限與錯誤代碼以 `../../RustIt/docs/contracts/command-kinds.md` 為準。大量結果(日誌)由 Agent 以 `POST /agent/v1/commands/{commandId}/files`(`:9443`,zip 原始位元組 + `x-file-sha256`,上限 20 MB)上傳為指令附檔,`command_update.result` 只帶 `file_id`。
 
 ### 8.4 指令派送
 
@@ -529,6 +546,7 @@ Endpoint Server 為每一筆指令保存:`commandId`、`batchId`、`X-Request-Id
 | 被拒絕 | BFF 回 `403 PERMISSION_DENIED` 時顯示「權限不足」,並以 BFF 的結果為準(itapp 權限只影響顯示) |
 | 身分顯示 | 端點管理頁顯示「以 `<工號> <姓名>` 身分操作」,與稽核紀錄一致 |
 | 監測畫面(RustIt P5-3) | 電腦清單健康欄與未結束告警數、詳情「健康與 Agent」Tab、「告警」Tab(節點 `it.endpoint-alert.list` → `endpoint.device.read`)、關閉告警按鈕(`it.endpoint-alert.resolve` → `endpoint.command.basic`)。告警 `detail`、事件 `data` 來自端點,一律以文字顯示 |
+| Agent 版本(RustIt P6-5) | 「Agent 版本」Tab(`it.endpoint-release.list` → `endpoint.device.read`):版本清單、發佈環目標與進度;登錄 / 發佈 / 撤回、設定環目標(`it.endpoint-release.manage` → `endpoint.software.manage`,只授予 IT 管理員);電腦詳情顯示所屬環與升級狀態 |
 
 itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 `endpoint.command.admin` 對應 BFF 同名權限),GigaItApp 的權限表由 GigaItApp 專案維護。
 
@@ -568,7 +586,7 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 | E1 | 裝置憑證的 Subject 格式;三個網域與非網域電腦的電腦名稱可能重複 | 網域電腦用 FQDN;非網域電腦用 `CN=<公司代碼>-<電腦名稱>`;Endpoint Server 以完整 DN 為鍵 | IT(W2)+ W6 負責人 |
 | E2 | 三個 AD 網域是否都能從同一個企業 CA 自動註冊「GigaNexus Agent」範本(是否同一樹系) | 若不同樹系,各自的簽發 CA 都要列入 `agent-issuers.conf` 與 `agent-ca-chain.pem` | IT |
 | E3 | 托盤程式可讀取哪些 Agent 狀態、可做哪些使用者功能 | ✅ 已決定(2026-10-13):使用者端程式經唯讀管道 `giganexus-agent-user-v1` 讀 Agent 狀態、接收提示;使用者功能以使用者登入經 `:443`;不可呼叫管理操作(§7.1) | 提案人 + W6 負責人 |
-| E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | ✅ 已決定(2026-10-13):經 `:9443` `GET /agent/v1/releases/{version}/{file}`,檔案在 NAS `RustIT\releases\`(Endpoint Server 唯讀掛載,Agent 不持有 NAS 帳密);首次安裝用 GPO MSI | W6 負責人 + IT |
+| E4 | Agent / Watchdog 的升級套件來源:經 `:9443` 下載,或用既有軟體派送(GPO / MSI) | ✅ 已決定(2026-10-13):經 `:9443` `GET /agent/v1/releases/{component}/{version}/{file}`(路徑 2026-10-20 加元件段,§7.4),檔案在 NAS `RustIT\releases\`(Endpoint Server 唯讀掛載,Agent 不持有 NAS 帳密);首次安裝用 GPO MSI。**實作(RustIt P6,2026-10-21)**:測試區在 NAS 帳密到位前用主機 2 本機目錄 `/srv/giganexus/ita-releases/`,NAS 掛載與 P7 軟體庫一起做 | W6 負責人 + IT |
 | E5 | 非網域電腦的憑證由誰申請、安裝、續約 | §3.1 的 `certreq` 流程,由 IT 執行;Watchdog 提前 30 天提醒 | IT |
 | E6 | 端點管理的資料範圍:IT 人員是否只能管理自己公司(`cos`)的電腦;哪些角色可管理全部 | ✅ **已決定(2026-10-16,需求方)**:依 `cos`;全部公司角色以 Endpoint Server 設定 `ENDPOINT_SCOPE_ALL_ROLES` 指定(測試區 it-admin);電腦所屬公司混合判定(憑證 FQDN → 回報網域 → 未指定,IT 指定優先),見 §8.2。RustIt ItAgentBack 已上測試區(MR !25);GigaItApp 公司欄與指定按鈕待做 | 主管 + IT |
 | E7 | 指令類型清單與各類型的等級、有效期限(§8.3 初版) | 第一批 `inventory.collect`、`agent.restart`、`message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`,其餘依 RustIt PLATFORM-PLAN P6、P7 開放 | W6 負責人 + IT |
@@ -606,7 +624,9 @@ itapp 的按鈕權限代碼建議與 BFF 權限一一對應(例如 itapp 按鈕 
 - [ ] 憑證錯誤(HTTP 400 / 403)降低重試頻率並寫事件記錄
 - [ ] 本機管道 ACL 只允許 SYSTEM 與 Administrators;Watchdog 比對管道伺服端 PID
 - [ ] Agent 與 Watchdog 互相看守;服務 ACL 一般使用者只能查詢;MSI 安裝 / 升級 / 解除安裝時不互相拉起(§7.1;測試區 VM 已驗證,2026-10-19,正式區上線前以正式 MSI 再驗一次)
-- [ ] 升級前驗證 SHA-256 與簽章,失敗自動還原
+- [ ] 升級前驗證 SHA-256 與簽章,失敗自動還原(測試區 VM 已驗證,2026-10-21:成功、壞版還原、未簽章 / 簽章者不符拒絕、降版、升級中重開機)
+- [ ] 正式程式碼簽章憑證(IT AD CS)取代測試憑證,簽章加時間戳記;端點移除測試根憑證,本機信任清單只列正式指紋(改由 GPO 寫入)
+- [ ] 版本檔目錄改為 NAS 唯讀掛載(§10 E4)
 - [ ] Agent 以 `command_id` 去重;過期或不認得的指令回 failed,不執行
 
 **IT 前端(GigaItApp)**
