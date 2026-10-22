@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-22 ENDPOINT-AGENT-GUIDE v0.12:RustIt P7 軟體派送測試區完成(只改文件)
+- 內容:RustIt P7-1 後端(軟體目錄、兩人覆核、批次第二人核可、套件下載 API;MR !50)與 P7-2 / P7-3 Agent 0.9.0(`software.install` / `software.uninstall`、A6 電池 / 計量網路延後、`system.reboot` 與 `system.reboot.cancel`、本機重開機上限、`REBOOT_PENDING`、`[software]` 信任清單;MR !51)已合併 develop 並部署測試區,Gateway OpenAPI v56 已發佈。需求方同意回寫上位規範。新增 §5.9 套件下載 `GET /agent/v1/packages/{id}`、§6.6 本機信任清單 `[software]`;§8.2 `endpoint.software.manage` 擴及軟體目錄;§8.3 軟體目錄 / 派送 / `approve`、`approve-command` API 與四個指令類型的等級、有效期、上限、參數快照、錯誤代碼、本機上限、告警;批次第二人核可;§11 補軟體派送項目。VM 驗收小節留 TODO,待報告完成補入。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P7-SOFTWARE-DESIGN.md` §8.1.1~§8.1.3、`contracts/command-kinds.md`、ItAgentBack `src/commands/kinds.ts`、Agent `reboot.rs` 數值逐項核對;配合 RustIt MR !50、!51 與 RustIt `docs/p7-6-wrapup`(RUNBOOK §3、§4)
+
 ## 2026-10-21 ENDPOINT-AGENT-GUIDE v0.11:RustIt P6 升級測試區完成(只改文件)
 - 內容:RustIt P6(版本登錄、發佈環、Watchdog 升級 Agent、Agent 替換 Watchdog、Windows Runner + 人工簽章)測試區完成,Agent 0.8.2 / Watchdog 0.3.2 已發佈(RustIt MR !37 ~ !48、GigaItApp MR !9)。指南回寫:§6.5 / §7.4 升級流程由「建議」改為實作規則(目標來源、下載路徑、端點驗證、失敗處理與版本下限、互相升級、事件、發版);§7.1 / §7.2 版本看守與管道 `prepare_shutdown`、`replace_watchdog`;§7.3 `target` / `upgrade`;§8.2 `endpoint.software.manage` 需全部公司角色;§8.3 版本 / 發佈環 / 所屬環 / 升級狀態 API、`agent.upgrade` 已實作、告警 `upgrade_failed` / `version_mismatch`;§8.6 GigaItApp「Agent 版本」;§10.2 E4 測試區版本檔目錄;§11 補升級與正式簽章憑證項目。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
