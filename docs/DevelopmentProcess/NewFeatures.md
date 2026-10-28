@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-28 OpenAPI `x-auth-mode: api_key`:系統對系統路由可由 OpenAPI 宣告
+- 內容:OpenAPI 轉路由(CLI 匯入、後端自動註冊共用)新增 operation 擴充 `x-auth-mode`,只接受 `api_key`;此時 `x-permission` 必須是權限代碼,路由 `auth_mode = api_key`、`permission_code` 為 API Key 須具備的權限。不可搭配 `public` / `authenticated`(不開放「任何有效的 API Key」)。過去 `api_key` 路由只能由 IT 手動修改,自動註冊重新產生草稿時會被蓋回 `permission`。起因:RustIt S1 簽章上架優化(RustIt `docs/S1-SIGNING-DESIGN.md` §2),上架腳本改以 API Key 查詢版本號,不再 ssh 以 root 進主機。
+- 檔案:`bff/src/cli/openapi.ts`、`bff/test/unit/openapi.test.ts`、`docs/BACKEND-GUIDE.md`(v0.8,§6 表格)、`docs/Gherkin/router/api-import.feature`、`docs/Gherkin/TEST-MAP.md`
+- 驗證:`tsc --noEmit`;`vitest run test/unit/openapi.test.ts test/unit/auth-router.test.ts` 57 項通過(新增 3 項)
+
 ## 2026-10-22 ENDPOINT-AGENT-GUIDE v0.12:RustIt P7 軟體派送測試區完成(只改文件)
 - 內容:RustIt P7-1 後端(軟體目錄、兩人覆核、批次第二人核可、套件下載 API;MR !50)與 P7-2 / P7-3 Agent 0.9.0(`software.install` / `software.uninstall`、A6 電池 / 計量網路延後、`system.reboot` 與 `system.reboot.cancel`、本機重開機上限、`REBOOT_PENDING`、`[software]` 信任清單;MR !51)已合併 develop 並部署測試區,Gateway OpenAPI v56 已發佈。需求方同意回寫上位規範。新增 §5.9 套件下載 `GET /agent/v1/packages/{id}`、§6.6 本機信任清單 `[software]`;§8.2 `endpoint.software.manage` 擴及軟體目錄;§8.3 軟體目錄 / 派送 / `approve`、`approve-command` API 與四個指令類型的等級、有效期、上限、參數快照、錯誤代碼、本機上限、告警;批次第二人核可;§11 補軟體派送項目。VM 驗收小節留 TODO,待報告完成補入。
 - 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
