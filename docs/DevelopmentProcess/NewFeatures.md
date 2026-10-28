@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-28 Nginx:端點軟體安裝檔上傳直送 Endpoint Server
+- 內容:`portal.conf` 新增 `location = /api/endpoint/software/uploads`:POST 以 `auth_request /_auth/verify` 驗證(登入、路由 `endpoint.software.upload.create` 的權限、CSRF)並取得內部 Token,本體串流到 `$endpoint_ws_upstream`(endpoint-server 管理 API `/v1/software/uploads`,查詢字串照轉),`client_max_body_size 4g`、`proxy_request_buffering off`;其他方法經 BFF。作法與附件上傳 `POST /api/file/files` 相同。起因:RustIt S1-3 套件上傳(RustIt `docs/S1-SIGNING-DESIGN.md` §4.5 A,需求方 2026-10-28 同意改 Gateway);安裝檔常超過 BFF 本體上限 10 MB。
+- 檔案:`nginx/conf.d/portal.conf`、`docs/BACKEND-GUIDE.md`(port 表)、`docs/ARCHITECTURE.md` D2
+- 驗證:依 CI `check:nginx` 步驟在本機以臨時憑證執行 `nginx -t` 通過。**未實測**:測試區上傳大檔(要等 RustIt S1-3 部署、路由發佈)
+
 ## 2026-10-28 OpenAPI `x-auth-mode: api_key`:系統對系統路由可由 OpenAPI 宣告
 - 內容:OpenAPI 轉路由(CLI 匯入、後端自動註冊共用)新增 operation 擴充 `x-auth-mode`,只接受 `api_key`;此時 `x-permission` 必須是權限代碼,路由 `auth_mode = api_key`、`permission_code` 為 API Key 須具備的權限。不可搭配 `public` / `authenticated`(不開放「任何有效的 API Key」)。過去 `api_key` 路由只能由 IT 手動修改,自動註冊重新產生草稿時會被蓋回 `permission`。起因:RustIt S1 簽章上架優化(RustIt `docs/S1-SIGNING-DESIGN.md` §2),上架腳本改以 API Key 查詢版本號,不再 ssh 以 root 進主機。
 - 檔案:`bff/src/cli/openapi.ts`、`bff/test/unit/openapi.test.ts`、`docs/BACKEND-GUIDE.md`(v0.8,§6 表格)、`docs/Gherkin/router/api-import.feature`、`docs/Gherkin/TEST-MAP.md`
