@@ -2,6 +2,7 @@
  * OpenAPI → 路由草稿(PRD §8.4.4、BACKEND-GUIDE.md §6):
  *   根:x-gateway.upstream / x-gateway.system、x-gateway.project(選用:開發專案 = repo 資料夾名稱)、x-permissions
  *   operation:operationId → route_code、summary → name、x-permission → auth_mode / permission_code、
+ *              x-auth-mode: api_key(系統對系統:X-Api-Key 驗證,x-permission 為 API Key 須具備的權限代碼)、
  *              x-gateway-path、x-timeout-ms、x-cache-ttl / x-cache-scope、x-audit-level、x-rate-limit、tags、
  *              description → description(API 用途說明)、x-gherkin → gherkin(行為規格,Gherkin 場景文字)
  *   沒有 x-permission 的 operation 列為錯誤,不會自動視為公開。
@@ -14,7 +15,7 @@ export interface ParsedRoute {
   method: string;
   publicPath: string;
   upstreamPath: string;
-  authMode: 'public' | 'authenticated' | 'permission';
+  authMode: 'public' | 'authenticated' | 'permission' | 'api_key';
   permissionCode: string | null;
   timeoutMs: number | null;
   cacheTtlSec: number | null;
@@ -116,6 +117,11 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
       if (!summary) fail('summary 必填');
       if (!perm) fail('x-permission 必填(權限代碼、authenticated 或 public)');
       else if (!['public', 'authenticated'].includes(perm) && !CODE.test(perm)) fail(`x-permission 格式錯誤:${perm}`);
+      const authModeX = op['x-auth-mode'] as unknown;
+      if (authModeX !== undefined && authModeX !== 'api_key') fail('x-auth-mode 只接受 api_key');
+      const apiKey = authModeX === 'api_key';
+      // api_key 路由一律指定權限代碼(API Key 只授予需要的權限,不開放「任何有效的 API Key」)
+      if (apiKey && perm && !CODE.test(perm)) fail('x-auth-mode: api_key 時 x-permission 需為權限代碼');
       const ttl = op['x-cache-ttl'] as number | undefined;
       const scope = op['x-cache-scope'] as 'user' | 'shared' | undefined;
       if (ttl !== undefined && (m !== 'get' || !scope || !['user', 'shared'].includes(scope)))
@@ -137,7 +143,7 @@ export function parseOpenApi(doc: Record<string, unknown>): ParsedSpec {
         method: m.toUpperCase(),
         publicPath: ((op['x-gateway-path'] as string | undefined) ?? toPublicPath(system, path)).replace(/\{(\w+)\}/g, ':$1'),
         upstreamPath: path.replace(/\{(\w+)\}/g, ':$1'),
-        authMode: perm === 'public' ? 'public' : perm === 'authenticated' ? 'authenticated' : 'permission',
+        authMode: apiKey ? 'api_key' : perm === 'public' ? 'public' : perm === 'authenticated' ? 'authenticated' : 'permission',
         permissionCode: perm === 'public' || perm === 'authenticated' ? null : perm,
         timeoutMs: timeout ?? null,
         cacheTtlSec: ttl ?? null,

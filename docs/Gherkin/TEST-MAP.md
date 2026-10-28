@@ -206,6 +206,8 @@
 | 以 x-gateway-path 指定對外路徑 | U:auth-router |
 | 缺少 x-permission 的 operation 列為錯誤 | U:auth-router |
 | x-permission 對應 auth_mode | U:auth-router |
+| x-auth-mode 宣告系統對系統路由 | U:openapi |
+| x-auth-mode 為 api_key 時 x-permission 必須是權限代碼 | U:openapi |
 | 權限代碼不存在時可一併建立 | E:09(表格 createPermissions);OpenAPI 由 x-permissions 建立:E:06 |
 | 重新匯入時標示修改與不變 | U:route-table(routeAction)、E:06 |
 | 路徑衝突時列為錯誤 | E:07(管理 API);匯入程式審查 `route-import.ts` |

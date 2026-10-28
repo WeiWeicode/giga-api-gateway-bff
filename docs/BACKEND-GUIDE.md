@@ -9,7 +9,7 @@
 
 | 項目 | 內容 |
 | --- | --- |
-| 文件版本 | v0.7(2026-10-06,新增 §11 API 監控:setupGateway 一鍵接入、req.monitor、排程回報、環境變數、套件安裝;§10 檢查清單加入監控);v0.6(2026-10-05,§6.1 `x-permissions` 只宣告 API 權限,畫面節點由前端應用登記並以 `includes` 綁定;API 權限要切得出讀 / 寫);v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
+| 文件版本 | v0.8(2026-10-28,§6 新增 operation `x-auth-mode: api_key`:系統對系統路由可由 OpenAPI 宣告);v0.7(2026-10-06,新增 §11 API 監控:setupGateway 一鍵接入、req.monitor、排程回報、環境變數、套件安裝;§10 檢查清單加入監控);v0.6(2026-10-05,§6.1 `x-permissions` 只宣告 API 權限,畫面節點由前端應用登記並以 `includes` 綁定;API 權限要切得出讀 / 寫);v0.5(2026-10-01,新增 §7.6 Webhook 呼叫:簽章標頭與回應、§7.7 發送通知);v0.4(`x-permissions` 新增 `kind` / `parent` / `sort`,畫面權限與 API 權限同一套;登記 `portal-api` 51271;`itapp-api` 規劃改經 BFF);v0.3 OpenAPI 根層新增選用的 `x-gateway.project` 開發專案;v0.2 新增 §7.5 自動註冊、路由查詢、Node.js SDK 與樣本,OpenAPI 新增 `description`、`x-gherkin` |
 | 建立日期 | 2026-09-24 |
 | 適用範圍 | 新開發的後端服務(必須遵守);既有系統遷移時比照(PRD §7.2.4) |
 | 維護者 | Gateway 負責人 |
@@ -230,6 +230,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | operation | `description` | 建議 | `description` | **API 用途說明**(1000 字內):做什麼、資料範圍、主要錯誤代碼;路由查詢(§7.5)以此比對關鍵字 |
 | operation | `x-gherkin` | 建議 | `gherkin` | **行為規格**:Gherkin 場景文字(zh-TW 關鍵字 `場景`、`假如`、`當`、`那麼`、`而且`),描述可觀察的行為(HTTP 狀態、`code`) |
 | operation | `x-permission` | ✅ | `auth_mode` / `permission_code` | 權限代碼(例 `mes.workorder.read`);或 `authenticated`(登入即可)、`public`(免登入,需 IT 核准) |
+| operation | `x-auth-mode` | 選用 | `auth_mode` | 只接受 `api_key`:**系統對系統**路由,呼叫端以 `X-Api-Key` 驗證(不接受使用者登入);此時 `x-permission` 必須是權限代碼,API Key 需具備該權限(IT 以 `client:create --perm` 授予)。用於腳本、排程等沒有使用者的呼叫端 |
 | operation | `tags` | 建議 | `tags` | 功能分類 |
 | operation | `x-gateway-path` | 選用 | `public_path` | 對外路徑與預設規則不同時指定 |
 | operation | `x-timeout-ms` | 選用 | `timeout_ms` | 覆寫預設逾時(最長 60000) |
