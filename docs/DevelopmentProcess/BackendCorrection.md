@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-10-29 正式區臨時 PKI 與測試區分開(deploy/host3-prod-temp-pki.sh)
+- 內容:主機 3 的 `pki/` 是從測試區複製來的,`ca.crt`、`agent-ca.crt` 與主機 2 SHA-256 指紋相同:正式區 :9443 會信任測試區 Agent 的裝置憑證,測試區主機也持有能簽正式區憑證的私鑰。新增 `deploy/host3-prod-temp-pki.sh`(使用者在主機 3 以 sudo 執行):以 `gen-temp-pki.sh`(`GW_ENV=prod`,直接用 WSL 的 openssl,主機 3 的 apk 連不到外網)另產根 CA、Agent 中繼 CA、CRL、:9443 伺服器憑證(SAN IP 10.10.130.122),並簽 RustIt `endpoint_server` 憑證(SAN DNS:endpoint-server);備份原 `pki/` 後只換這些檔案,**不動 :443 的公司憑證 `server.crt` / `server.key` 與 `jwt/`**;`nginx -t` 通過才 `nginx -s reload`(不重建容器),失敗自動還原。IT AD CS 正式憑證到位後以同名檔案取代
+- 檔案:`deploy/host3-prod-temp-pki.sh`、`docs/DEPLOYMENT.md`
+- 驗證:主機 3 `sh -n` 通過、主機 3 的 `gen-temp-pki.sh` 與 repo 相同(sha256)、OpenSSL 3.5.5;開發機以拋棄式目錄跑產生步驟:檔案齊全、`agent-server` / `endpoint_server` / `agent-ca` 皆驗證到新根 CA(prod)、:9443 SAN 含 IP 10.10.130.122(測試金鑰已刪除)。主機 3 尚未執行
+
 ## 2026-10-19 本機帳號:AD 檢查依公司網域、IT 建立帳號 / 重置密碼
 - 內容:① 測試區禾迅員工 V114007 自行註冊回「無法註冊」(auth_log `register_rejected` / `ad_account:gsmc`):註冊與 IT 代建檢查「所有 AD 網域」,但登入只依所屬公司的網域(禾迅無網域),碩禾 AD 剛好有同名帳號就兩邊都走不通。需求方決定改成與登入相同:`adDomainsForCompanies`(由 `LoginService` 抽出,login.ts)供登入、註冊、代建共用;LOS / BPM 查無公司時仍檢查全部網域。註冊的 AD 檢查移到 LOS / BPM 查詢之後。② `POST /api/admin/local-accounts/:id/reset-password` 擴充為「建立帳號 / 重置密碼」(GigaItApp 人員管理用):沒有本機帳號(或待驗證 / 待審核 / 已停用)時依代建條件直接建立為 active(`registered_via = admin`,作廢未使用的啟用 / 驗證連結);body 可帶 `password`(須符合密碼原則),未帶則產生臨時密碼;首次登入一律須變更。寄送:有 `gw.user.email` 寄本人;非正式區沒有 Email 也寄 `MAIL_REDIRECT_TO`(worker 本來就改寄測試信箱);沒寄出時明文只在回應出現,非正式區一律同時回傳(E2E 需要)。新通知範本 `AUTH_LOCAL_PASSWORD_SET`(seed 只新增不覆寫,部署時 seed 自動補)。路由與權限 `gw.admin.local.write` 不變。**注意**:臨時密碼會出現在 BullMQ 工作資料(Redis,完成後保留 24 小時),與重設連結同等級
 - 檔案:`bff/src/modules/auth/login.ts`、`bff/src/modules/auth/local-account.ts`、`bff/src/modules/admin/local-account-admin.ts`、`bff/src/modules/admin/users.ts`、`db/seed/data.mts`、`bff/test/e2e/08-users-admin.test.ts`、`docs/PRD.md`、`docs/Gherkin/admin/user-admin.feature`、`docs/Gherkin/auth/self-registration.feature`
