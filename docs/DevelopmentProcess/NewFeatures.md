@@ -2,6 +2,56 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-28 Nginx:端點軟體安裝檔上傳直送 Endpoint Server
+- 內容:`portal.conf` 新增 `location = /api/endpoint/software/uploads`:POST 以 `auth_request /_auth/verify` 驗證(登入、路由 `endpoint.software.upload.create` 的權限、CSRF)並取得內部 Token,本體串流到 `$endpoint_ws_upstream`(endpoint-server 管理 API `/v1/software/uploads`,查詢字串照轉),`client_max_body_size 4g`、`proxy_request_buffering off`;其他方法經 BFF。作法與附件上傳 `POST /api/file/files` 相同。起因:RustIt S1-3 套件上傳(RustIt `docs/S1-SIGNING-DESIGN.md` §4.5 A,需求方 2026-10-28 同意改 Gateway);安裝檔常超過 BFF 本體上限 10 MB。
+- 檔案:`nginx/conf.d/portal.conf`、`docs/BACKEND-GUIDE.md`(port 表)、`docs/ARCHITECTURE.md` D2
+- 驗證:依 CI `check:nginx` 步驟在本機以臨時憑證執行 `nginx -t` 通過。**未實測**:測試區上傳大檔(要等 RustIt S1-3 部署、路由發佈)
+
+## 2026-10-28 OpenAPI `x-auth-mode: api_key`:系統對系統路由可由 OpenAPI 宣告
+- 內容:OpenAPI 轉路由(CLI 匯入、後端自動註冊共用)新增 operation 擴充 `x-auth-mode`,只接受 `api_key`;此時 `x-permission` 必須是權限代碼,路由 `auth_mode = api_key`、`permission_code` 為 API Key 須具備的權限。不可搭配 `public` / `authenticated`(不開放「任何有效的 API Key」)。過去 `api_key` 路由只能由 IT 手動修改,自動註冊重新產生草稿時會被蓋回 `permission`。起因:RustIt S1 簽章上架優化(RustIt `docs/S1-SIGNING-DESIGN.md` §2),上架腳本改以 API Key 查詢版本號,不再 ssh 以 root 進主機。
+- 檔案:`bff/src/cli/openapi.ts`、`bff/test/unit/openapi.test.ts`、`docs/BACKEND-GUIDE.md`(v0.8,§6 表格)、`docs/Gherkin/router/api-import.feature`、`docs/Gherkin/TEST-MAP.md`
+- 驗證:`tsc --noEmit`;`vitest run test/unit/openapi.test.ts test/unit/auth-router.test.ts` 57 項通過(新增 3 項)
+
+## 2026-10-22 ENDPOINT-AGENT-GUIDE v0.12:RustIt P7 軟體派送測試區完成(只改文件)
+- 內容:RustIt P7-1 後端(軟體目錄、兩人覆核、批次第二人核可、套件下載 API;MR !50)與 P7-2 / P7-3 Agent 0.9.0(`software.install` / `software.uninstall`、A6 電池 / 計量網路延後、`system.reboot` 與 `system.reboot.cancel`、本機重開機上限、`REBOOT_PENDING`、`[software]` 信任清單;MR !51)已合併 develop 並部署測試區,Gateway OpenAPI v56 已發佈。需求方同意回寫上位規範。新增 §5.9 套件下載 `GET /agent/v1/packages/{id}`、§6.6 本機信任清單 `[software]`;§8.2 `endpoint.software.manage` 擴及軟體目錄;§8.3 軟體目錄 / 派送 / `approve`、`approve-command` API 與四個指令類型的等級、有效期、上限、參數快照、錯誤代碼、本機上限、告警;批次第二人核可;§11 補軟體派送項目。VM 驗收小節留 TODO,待報告完成補入。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P7-SOFTWARE-DESIGN.md` §8.1.1~§8.1.3、`contracts/command-kinds.md`、ItAgentBack `src/commands/kinds.ts`、Agent `reboot.rs` 數值逐項核對;配合 RustIt MR !50、!51 與 RustIt `docs/p7-6-wrapup`(RUNBOOK §3、§4)
+
+## 2026-10-21 ENDPOINT-AGENT-GUIDE v0.11:RustIt P6 升級測試區完成(只改文件)
+- 內容:RustIt P6(版本登錄、發佈環、Watchdog 升級 Agent、Agent 替換 Watchdog、Windows Runner + 人工簽章)測試區完成,Agent 0.8.2 / Watchdog 0.3.2 已發佈(RustIt MR !37 ~ !48、GigaItApp MR !9)。指南回寫:§6.5 / §7.4 升級流程由「建議」改為實作規則(目標來源、下載路徑、端點驗證、失敗處理與版本下限、互相升級、事件、發版);§7.1 / §7.2 版本看守與管道 `prepare_shutdown`、`replace_watchdog`;§7.3 `target` / `upgrade`;§8.2 `endpoint.software.manage` 需全部公司角色;§8.3 版本 / 發佈環 / 所屬環 / 升級狀態 API、`agent.upgrade` 已實作、告警 `upgrade_failed` / `version_mismatch`;§8.6 GigaItApp「Agent 版本」;§10.2 E4 測試區版本檔目錄;§11 補升級與正式簽章憑證項目。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P6-UPGRADE-DESIGN.md`、`RUNBOOK.md`、測試報告 `2026-10-21-p6-4-first-release.md`、GigaItApp `deploy/gateway-rbac.yaml`(`it.endpoint-release.*`)一致
+
+## 2026-10-20 ENDPOINT-AGENT-GUIDE v0.10:RustIt P5 監測完成驗收(只改文件)
+- 內容:RustIt P5-2(Watchdog 0.1.0、Agent 0.6.0)2026-10-19 測試區 VM 驗收 7 項通過(RustIt MR !34);P5-3 GigaItApp 監測畫面上測試區並驗證告警 Tab 與關閉告警(GigaItApp MR !7)。需求方同意回寫(RustIt P5-4)。§7 改為已驗收並附測試報告;§8.3 註明事件類告警 `detail` 保留第一次觸發;§8.6 加監測畫面與 itapp 節點對應,註明關閉告警等同一般指令權限(資安審查建議);§11 註記測試區已驗證項目,IT 前端加「關閉告警只授予已有一般指令的角色」。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;內容與 RustIt `P5-MONITOR-DESIGN.md` §8、測試報告 `2026-10-19-p5-watchdog-0.6.0.md`、GigaItApp `deploy/gateway-rbac.yaml` 一致
+
+## 2026-10-19 ENDPOINT-AGENT-GUIDE v0.9:配合 RustIt P5 監測實作(只改文件)
+- 內容:RustIt P5-1(健康摘要、資產變更事件、告警;RustIt MR !31,測試區)與 P5-2(Watchdog 0.1.0、Agent 0.6.0、本機管道與互相看守;RustIt MR !32,待真機驗收)已合併 develop(設計 `RustIt/docs/P5-MONITOR-DESIGN.md`),需求方同意回寫上位規範。§6.3 心跳 `health`、hello `cert_not_after`、資產變更事件類型;§6.4 上次結束原因 `previous_exit`;§7 Watchdog 已實作、§7.1 看守規則(被停止 / 改設定、Installer 判斷)、§7.2 管道訊息定案與伺服端限制、§7.3 上報契約與路徑白名單;§8.2 `endpoint.command.basic` 可關閉告警;§8.3 新增 `GET /alerts`、`POST /alerts/{alertId}/resolve`、`GET /devices/{deviceId}/health` 與告警規則摘要;§10.1 新增 G8(憑證到期日由 Nginx 轉送,未開始);§11 補兩項。Nginx、權限代碼不變。另含尚未合併的 v0.8(E6,2026-10-16)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI 一致(P5-1 草稿批次待 IT 發佈)
+
+## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.8:配合 RustIt E6 資料範圍實作(只改文件)
+- 內容:RustIt E6 已在測試區完成(RustIt MR !25,endpoint-server `3081af75`;設計 `RustIt/docs/E6-COMPANY-SCOPE-DESIGN.md`),需求方要求回寫上位規範。§8.2 資料範圍定案(依 `cos`、全部公司角色 `ENDPOINT_SCOPE_ALL_ROLES`、電腦所屬公司判定、範圍外 404);§8.3 清單加 `company` 篩選、新增 `PUT /devices/{deviceId}/company`;§10.2 E6 改已決定;§11 加正式區憑證 CN 須為 FQDN、全部公司角色只給少數人。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI(測試區批次 112,待 IT 發佈)一致
+
+## 2026-10-16 ENDPOINT-AGENT-GUIDE v0.7:配合 RustIt P3 資料呈現實作(只改文件)
+- 內容:RustIt P3 已在測試區完成(RustIt MR !23,GigaItApp MR !4、!5;設計 `RustIt/docs/P3-DATA-DESIGN.md`),需求方同意回寫上位規範。§8.3:電腦清單改為分頁 + 篩選(關鍵字、軟體、作業系統、在線、狀態)、詳情加疑似同一台、新增 `GET /devices/{id}/events`、`GET /devices/{id}/inventory.json`、`POST /devices/{id}/merge`(`endpoint.command.admin`),`PUT /status` 加退役;稽核層級補下載與合併。§10 E6 註記為上線前必辦(資安稽核指出目前未依 `cos` 過濾)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件;路由與 RustIt ItAgentBack OpenAPI(測試區批次 110 已發佈)一致
+
+## 2026-10-15 ENDPOINT-AGENT-GUIDE v0.6:配合 RustIt P4 指令通道實作(只改文件)
+- 內容:RustIt P4(指令通道)已在測試區完成(RustIt MR !14、!17、!19,GigaItApp MR !2),依 RustIt `docs/P4-COMMAND-DESIGN.md` §7 第 5 項回寫指南:§8.3 新增 `GET /api/endpoint/commands`、`/batches/{batchId}`、`/commands/{commandId}/files/{fileId}`(日誌下載,`endpoint.device.read`),註明六個 basic 類型已實作、詳細以 `RustIt/docs/contracts/command-kinds.md` 為準、Agent 以 `POST /agent/v1/commands/{commandId}/files` 上傳日誌附檔;§8.4 新增 `command_update_ack`(結果先寫本機,收到 ack 才標記已回報)、`prepare_shutdown` 的 `reconnect_after_sec`,訊息格式以 `RustIt/docs/contracts/ws-envelope.schema.json` 為準。權限、路由、Nginx 不變(`:9443` 的 `client_max_body_size 0`,上限由 Endpoint Server 決定)。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件審閱;測試區 BFF 路由 v51 已發佈相同的 API
+
+## 2026-10-13 ENDPOINT-AGENT-GUIDE v0.5:配合 RustIt 第二階段計畫(只改文件)
+- 內容:依 RustIt `docs/PLATFORM-PLAN.md` §10 修訂端點指南:§8.2 新增權限 `endpoint.software.manage`(軟體目錄、版本登錄、發佈環);§8.3 新增指令類型 `message.show`、`agent.diagnose`、`logs.collect`、`agent.log_level`(basic),E7 更新第一批;§7.1 托盤改為「使用者端程式」(登入者身分經 `:443`、與監控服務分開發版、唯讀管道 `giganexus-agent-user-v1`),E3 決定;§6.3 資產一律完整回報、變更由 Server 比對,新增 4a 本機持久化與離線紀錄(`/sync`、`offline_period`);§4.2 新增 Endpoint Server 忙碌 `429` + `Retry-After`;§5.6 新增 `min_agent_version` / `AGENT_TOO_OLD`;§3.3 新增硬體指紋協助合併(IT 確認,不自動合併);E4 決定升級套件經 `:9443` 自 NAS `RustIT\releases\` 提供;實作狀態更新(Endpoint Server 測試區運作中)。通道、port、既有權限與 API 不變。配合 RustIt f886a19、根目錄 cbf6db9。
+- 檔案:`docs/ENDPOINT-AGENT-GUIDE.md`
+- 驗證:文件審查;與 RustIt PLATFORM-PLAN §4–§6、§10 對照一致
+
 ## 2026-10-08 登記附件服務 file-api port 51272(只改文件)
 - 內容:BACKEND-GUIDE §3.3 分配紀錄新增 51272 `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`,狀態開發中);AGENT §10.2 移除「port 尚未登記」註記。F1 file-api 已實作(另一個 repo),上傳 ≤ 10 MB 先經 BFF 路由,50 MB 直送待 Nginx 變更(另行同意)
 - 檔案:`docs/BACKEND-GUIDE.md`、`AGENT.md`

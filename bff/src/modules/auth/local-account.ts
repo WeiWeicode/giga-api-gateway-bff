@@ -2,7 +2,8 @@
  * 本機帳號自行註冊與忘記密碼(PRD §8.2.5、W3-5.8a / W3-5.8b):
  *
  *   register  工號 + 姓名(無 Email 者另附到職日與密碼)
- *             AD 任一網域有帳號、已註冊、已離職、姓名或到職日不符 → REGISTRATION_NOT_ALLOWED(一律同一代碼)
+ *             所屬公司的 AD 網域有帳號(與登入相同,查無公司時檢查全部網域)、已註冊、已離職、姓名或到職日不符
+ *             → REGISTRATION_NOT_ALLOWED(一律同一代碼)
  *             LOS / BPM 有 Email → 寄驗證連結(30 分鐘)到登記的 Email(不接受自填)→ VERIFICATION_SENT
  *             LOS / BPM 無 Email → 比對 LOS 到職日 → 直接啟用並通知主管
  *             LOS / BPM 都查無 → pending_approval,由 IT 審核(CLI local:approve)→ REGISTRATION_PENDING_APPROVAL
@@ -23,7 +24,7 @@ import { GwError } from '../../errors.js';
 import type { ExternalDb } from '../../plugins/db.js';
 import type { NotifyService } from '../notify/send.js';
 import type { AdDirectory } from './ldap.js';
-import { writeAuthLog } from './login.js';
+import { adDomainsForCompanies, writeAuthLog } from './login.js';
 import { checkPasswordPolicy, hashPassword, isReused, POLICY_MESSAGES, pushHistory } from './password.js';
 import { applyProfile, findHrEmails, isValidEmpNo, lookupEmployee, mergeProfile, normalizeEmpNo, parseLosDate } from './profile.js';
 
@@ -125,18 +126,6 @@ export class LocalAccountService {
     await this.throttle(input.ip, emp);
     if (!isValidEmpNo(emp)) return this.notAllowed(emp, 'invalid_employee_no', ctx);
 
-    // 一個工號只有一種驗證方式:任一 AD 網域找得到者必須使用 AD;AD 無法查詢時不可放行
-    for (const code of ad.codes) {
-      let exists: boolean;
-      try {
-        exists = await ad.exists(code, emp);
-      } catch (err) {
-        log.error({ err: (err as Error).message, domain: code }, '註冊:AD 查詢失敗');
-        throw new GwError('INTERNAL_ERROR', '暫時無法受理註冊,請稍後再試');
-      }
-      if (exists) return this.notAllowed(emp, `ad_account:${code}`, ctx);
-    }
-
     const [existing] = await db
       .select({ userId: user.userId, status: localCredential.status, registeredVia: localCredential.registeredVia })
       .from(user)
@@ -153,6 +142,24 @@ export class LocalAccountService {
     }
     if (lookup.selfVirtual) return this.notAllowed(emp, 'virtual_account', ctx);
     const merged = mergeProfile(lookup);
+
+    // 一個工號只有一種驗證方式:所屬公司對應的 AD 網域(與登入相同;查無公司時為全部網域)找得到者必須使用 AD;AD 無法查詢時不可放行
+    const domains =
+      (await adDomainsForCompanies(
+        db,
+        ad,
+        merged.companies.map((c) => c.compName),
+      )) ?? ad.codes;
+    for (const code of domains) {
+      let exists: boolean;
+      try {
+        exists = await ad.exists(code, emp);
+      } catch (err) {
+        log.error({ err: (err as Error).message, domain: code }, '註冊:AD 查詢失敗');
+        throw new GwError('INTERNAL_ERROR', '暫時無法受理註冊,請稍後再試');
+      }
+      if (exists) return this.notAllowed(emp, `ad_account:${code}`, ctx);
+    }
 
     // LOS / BPM 都查無 → 轉管理員審核
     if (merged.profileSource === 'ad_only') {

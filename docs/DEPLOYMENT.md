@@ -87,11 +87,13 @@ flowchart TD
 | `redis:7` | 官方映像檔 | `redis`(資料存於 named volume) |
 | `nginx/nginx-prometheus-exporter` | 官方映像檔(版本鎖定於 compose) | `nginx-exporter`:讀取 `nginx:8081/stub_status`,`:9113` 預設只綁主機本機(`GW_EXPORTER_BIND`),Prometheus 建置後再開放(W3-2.8) |
 
+> **主機 3 連不到 Docker Hub**(WSL 查不到外部 DNS):部署以 `docker compose pull --policy missing` 只拉本機沒有的映像檔;官方映像檔(`redis:7-alpine`、`nginx/nginx-prometheus-exporter`、pki 步驟用的 `alpine:3.20`)改版本或第一次部署前,先在主機 2 `docker save` 再到主機 3 `docker load`(2026-10-29 已載入目前版本)。
+
 > Registry 位址為 `<gitlab-host>:5050`。Docker Desktop 預設只接受 HTTPS Registry;若 Registry 未設定 TLS,兩台 Windows 主機需在 Docker Desktop 設定 `insecure-registries`(建議改為企業 CA 簽發憑證的 HTTPS)。
 
 ### 3.2 部署順序(每次 `deploy-test` / `deploy-prod`)
 
-1. `docker compose pull`(拉取本次 commit SHA 的映像檔)。
+1. `docker compose pull --policy missing`(拉取本次 commit SHA 的映像檔;本機已有的不重拉,見 §3.1)。
 2. **資料庫 migration**:`docker compose run --rm migrate`(以 Drizzle migrator 套用 `db/migrations/`;失敗即中止部署)。
 3. **BFF 逐一更新**:`docker compose up -d --no-deps bff-1` → 等待 `/readyz` 通過 → `bff-2`。Nginx upstream 同時有兩個實例,更新期間不中斷服務。
 4. **worker**:`docker compose up -d --no-deps worker`(BullMQ 等待執行中的工作完成後才結束)。
@@ -264,6 +266,7 @@ flowchart LR
 - [ ] 主機使用 WSL2 Docker Engine(主機 3 於 2026-12 由 Docker Desktop 改用);主機重開後 Docker 與 Runner 能自動恢復
 - [ ] GitLab Runner 已註冊並設定 tag(主機 2 `windows-runner`、主機 3 `prod-deploy` Protected)
 - [ ] 兩台主機可登入 Registry `:5050`(HTTPS 憑證或 `insecure-registries`)
+- [ ] 連不到 Docker Hub 的主機(主機 3)已載入 compose 用到的官方映像檔(§3.1)
 - [ ] `80`、`443`、`9443` 未被其他容器佔用;Windows 防火牆規則已設定
 - [ ] 來源 IP 驗證(§6.1):從另一台電腦連入時,Nginx log 的 `remote_addr` 是那台電腦的 IP
 - [ ] 機密檔案已放入受保護目錄,權限只限 Docker 服務帳號

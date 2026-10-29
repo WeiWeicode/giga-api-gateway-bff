@@ -77,7 +77,7 @@ flowchart LR
 | # | 決策 | 理由 | 替代方案(未採用) |
 | --- | --- | --- | --- |
 | D1 | **所有 `/api/*` 由 Nginx 一律轉給 BFF**,由 BFF 依路由表轉上游;Nginx 只保留固定、少量的 location | API 要能由 IT 介面動態維護且即時生效;權限判斷需在同一處。改 Nginx 設定需 reload 且難以資料庫化 | Nginx 直接依 `/api/mes` 轉 Go MES + `auth_request`:少一跳,但路由無法動態管理 |
-| D2 | **大流量/長連線例外**:螢幕串流 WebSocket(T6)走 Nginx 直連 Endpoint Server,以 `auth_request` 向 BFF 驗證一次 | 避免影像串流多經一層 Node | 全部經 BFF:實作簡單但浪費頻寬與 CPU |
+| D2 | **大流量/長連線例外**:螢幕串流 WebSocket(T6)走 Nginx 直連 Endpoint Server,以 `auth_request` 向 BFF 驗證一次;大檔上傳(附件 `POST /api/file/files`、端點軟體安裝檔 `POST /api/endpoint/software/uploads`)同樣以 `auth_request` 驗證後串流直送上游 | 避免影像串流多經一層 Node | 全部經 BFF:實作簡單但浪費頻寬與 CPU |
 | D3 | **Agent 使用獨立 port `:9443`**,該 server block `ssl_verify_client on` | Agent 以 IP 存取(PRD Q1)時 TLS 無法用 SNI 區分主機名稱;獨立 port 讓瀏覽器完全不會被要求出示憑證,Agent 流量的設定、日誌、限流與防火牆規則皆分開 | 同一 port 設 `ssl_verify_client optional`:設定混雜、易誤放行;以主機名稱(SNI)區分:Agent 端需改用 DNS 名稱與另一張憑證 |
 | D4 | **Access / Refresh Token 皆放 httpOnly + Secure + SameSite=Strict Cookie**,搭配 CSRF 雙重提交 Token | 前端 JS 讀不到 Token,降低 XSS 竊取風險 | Token 放 LocalStorage:易被 XSS 竊取 |
 | D5 | **下游服務只信任 BFF 簽發的短效內部 Token**(`X-Internal-Token`,60 秒,`aud`=服務代碼) | 下游 Go / Node / Rust 服務以 JWKS 驗章即可取得身分,不必各自接 AD | 只傳 `X-User-Id` 明文標頭:若網段被繞過即可偽造 |

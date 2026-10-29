@@ -104,3 +104,23 @@ describe('includeAllowed:畫面節點綁定 API 權限的規則(PRD §8.3.4)', (
     expect(includeAllowed(kind, inc)).toBe(expected);
   });
 });
+
+describe('parseOpenApi:x-auth-mode: api_key(系統對系統)', () => {
+  it('auth_mode = api_key,x-permission 為 API Key 須具備的權限', () => {
+    const spec = parseOpenApi(doc({ 'x-auth-mode': 'api_key' }));
+    expect(spec.errors).toEqual([]);
+    expect(spec.routes[0]).toMatchObject({ authMode: 'api_key', permissionCode: 'smp.item.read' });
+  });
+
+  it('x-permission 為 public / authenticated 時列為錯誤', () => {
+    for (const perm of ['public', 'authenticated']) {
+      const spec = parseOpenApi(doc({ 'x-auth-mode': 'api_key', 'x-permission': perm }));
+      expect(spec.errors.map((e) => e.message)).toEqual(['x-auth-mode: api_key 時 x-permission 需為權限代碼']);
+    }
+  });
+
+  it('x-auth-mode 不是 api_key 時列為錯誤', () => {
+    const spec = parseOpenApi(doc({ 'x-auth-mode': 'permission' }));
+    expect(spec.errors.map((e) => e.message)).toEqual(['x-auth-mode 只接受 api_key']);
+  });
+});

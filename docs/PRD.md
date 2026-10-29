@@ -462,7 +462,7 @@ sequenceDiagram
     end
 ```
 
-- **找得到就通過**(沿用既有系統做法,Q15 已決定):工號存在於 LOS 或 BPM、在職、姓名相符、所有 AD 網域都查無此帳號、尚未註冊。入職時 LOS / BPM 就會建檔,但不一定有 Email。
+- **找得到就通過**(沿用既有系統做法,Q15 已決定):工號存在於 LOS 或 BPM、在職、姓名相符、所屬公司對應的 AD 網域都查無此帳號(與登入相同依 `gw.company_ad_domain`;查無公司資料時檢查全部網域;2026-10-19 起)、尚未註冊。入職時 LOS / BPM 就會建檔,但不一定有 Email。
 - 為避免冒用他人工號:**有 Email 者**須點擊寄到 LOS / BPM 登記 Email 的驗證連結(不接受使用者自填 Email);**沒有 Email 者**另比對**到職日**(LOS `JobDate`,只即時比對、不儲存),通過後直接啟用,並通知其主管。
 - **LOS / BPM 都找不到**者,轉**管理員審核**。
 - IT 也可在管理介面**代建帳號**,系統產生一次性啟用連結(72 小時有效),本人首次登入時設定密碼。
@@ -749,7 +749,7 @@ sequenceDiagram
 | 使用者 | `GET /api/admin/users`、`PATCH /api/admin/users/:id`(停用、個別角色)、`POST /api/admin/users/:id/revoke-sessions` | `gw.admin.user.*` |
 | 人員同步 | `GET /api/admin/employee-sync/runs`(同步紀錄)、`POST /api/admin/employee-sync/runs`(手動觸發) | `gw.admin.user.sync` |
 | 公司 | `/api/admin/companies`、`/api/admin/companies/:id/ad-domains`(網域與順序)、`/api/admin/companies/:id/roles`(公司預設角色) | `gw.admin.company.*` |
-| 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
+| 本機帳號 | `GET /api/admin/local-accounts`(含待審核)、`POST /api/admin/local-accounts`(代建)、`POST /:id/approve`、`POST /:id/reset-password`(IT 建立帳號 / 重置密碼:無本機帳號時直接建立為啟用;可指定密碼,未指定則產生;寄本人 Email,無則只回應一次,非正式區寄 `MAIL_REDIRECT_TO`)、`POST /:id/unlock`、`POST /:id/disable` | `gw.admin.local.*` |
 | API Key | `GET/POST /api/admin/api-clients`、`GET/PATCH /api/admin/api-clients/:id`、`POST /:id/rotate`(建立與換發時只顯示一次明文;權限範圍不可超過操作人;`rowVer` 為設定版本,不受金鑰使用時更新 `last_used_at` 影響) | `gw.admin.client.*` |
 | 後端自動註冊 | `POST /api/admin/registrations`(**僅接受 `X-Api-Key`**,只能註冊 API Key 代碼 = `x-gateway.upstream` 的服務,寫入草稿) | `gw.admin.route.register` |
 | 路由查詢 | `GET /api/admin/routes/catalog?q=&system=&status=`(含說明、Gherkin 與開發專案;API Key 或登入者皆可) | `gw.admin.route.read` |

@@ -162,8 +162,16 @@ describe('本機帳號', () => {
 
   it('IT 重設密碼:臨時密碼登入須先變更密碼', async () => {
     const res = await admin('POST', `/api/admin/local-accounts/${EMP}/reset-password`);
-    expect(res.json.mustChangePassword).toBe(true);
+    // 測試區(非正式區)一律回傳明文,另寄 MAIL_REDIRECT_TO
+    expect(res.json).toMatchObject({ mustChangePassword: true, created: false, generated: true });
     expect((await login(EMP, res.json.temporaryPassword)).res.json.code).toBe('PASSWORD_CHANGE_REQUIRED');
+  });
+
+  it('IT 重置密碼可指定密碼,不符密碼原則 400', async () => {
+    expect((await admin('POST', `/api/admin/local-accounts/${EMP}/reset-password`, { password: 'short' })).json.code).toBe('PASSWORD_POLICY_VIOLATION');
+    const res = await admin('POST', `/api/admin/local-accounts/${EMP}/reset-password`, { password: 'ItSet2026x' });
+    expect(res.json).toMatchObject({ created: false, generated: false });
+    expect((await login(EMP, 'ItSet2026x')).res.json.code).toBe('PASSWORD_CHANGE_REQUIRED');
   });
 
   it('解除鎖定', async () => {

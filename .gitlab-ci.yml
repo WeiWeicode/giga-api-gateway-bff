@@ -121,7 +121,9 @@ publish:packages:
     # shell 環境變數優先於 env 檔:Pipeline 以此覆寫 REGISTRY / IMAGE_TAG;COMPOSE_ENV_FILES 讓 wait-healthy.sh 的 compose 指令也讀到 env 檔
     - export IMAGE_TAG=$CI_COMMIT_SHA REGISTRY=$CI_REGISTRY_IMAGE COMPOSE_ENV_FILES="$GW_DEPLOY_DIR/$GW_ENV.env"
     - C="$COMPOSE -f deploy/docker-compose.$GW_ENV.yml"
-    - $C pull
+    # --policy missing:只拉本機沒有的映像檔(SHA tag 不會變);主機 3 WSL 查不到外部 DNS,連不到 Docker Hub,
+    #   redis、nginx-prometheus-exporter、alpine 需事先從主機 2 docker save / load(DEPLOYMENT.md §3.1;2026-10-21 job 796 因此失敗)
+    - $C pull --policy missing
     # 1. migration(失敗即中止)
     - $C run --rm migrate
     # 2. Redis(BFF 以 --no-deps 更新,不會帶起相依服務;第一次部署或 Redis 停止時由此啟動,已在執行則不變)

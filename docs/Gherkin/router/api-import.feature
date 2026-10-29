@@ -61,6 +61,19 @@
       | authenticated      | authenticated |
       | public             | public        |
 
+  場景: x-auth-mode 宣告系統對系統路由
+    假如 operation 的 "x-auth-mode" 為 "api_key"
+    而且 其 "x-permission" 為 "endpoint.release.registry"
+    當 IT 匯入此規格
+    那麼 路由的 auth_mode 為 "api_key"
+    而且 權限代碼為 "endpoint.release.registry"
+
+  場景: x-auth-mode 為 api_key 時 x-permission 必須是權限代碼
+    假如 operation 的 "x-auth-mode" 為 "api_key"
+    而且 其 "x-permission" 為 "authenticated"
+    當 IT 匯入此規格
+    那麼 預覽中該 operation 為錯誤
+
   場景: 權限代碼不存在時可一併建立
     假如 "x-permissions" 列出 "mes.workorder.report"(報工)
     而且 "gw.permission" 沒有 "mes.workorder.report"

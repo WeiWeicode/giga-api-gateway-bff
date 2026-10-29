@@ -188,4 +188,12 @@ export const NOTIFY_TEMPLATES = [
     emailBody:
       '<p>{{name}} 您好:</p><p>我們收到工號 {{employeeNo}} 的重設密碼申請。請於 {{expiresMinutes}} 分鐘內開啟下列連結設定新密碼(連結只能使用一次):</p><p><a href="{{link}}">{{link}}</a></p><p>若非本人申請,請忽略本信,您的密碼不會變更。</p>',
   },
+  {
+    code: "AUTH_LOCAL_PASSWORD_SET",
+    name: "IT 建立帳號 / 重置密碼",
+    channels: ["email"],
+    emailSubject: "GigaNexus 帳號{{action}}通知",
+    emailBody:
+      '<p>{{name}} 您好:</p><p>IT 已為您{{action}} GigaNexus 員工入口網本機帳號。</p><p>工號:{{employeeNo}}<br>臨時密碼:{{password}}</p><p>請至 <a href="{{link}}">{{link}}</a> 以工號登入,首次登入須變更密碼。</p><p>若非您本人或您未曾提出申請,請立即通知 IT。</p>',
+  },
 ] as const;
