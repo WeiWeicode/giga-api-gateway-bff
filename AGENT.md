@@ -410,14 +410,17 @@ Claude 把搜尋、審查、資安檢查、除錯、測試、重構交給子代�
 | `develop` | 測試區;CI 自動部署到主機 2 | **只透過 GitLab Merge Request 合併**,由 Maintainer(專案負責人)合併 |
 | `main` | 正式區 | 只由 Maintainer 合併;Gateway 的 `deploy-prod` 另需在 Pipeline 手動觸發 |
 
+**以 GitLab 為準**:GitHub 只是專案擁有者個人的備份。下文的 `origin` 指 GitLab 的 remote;專案擁有者電腦上 GitLab 叫 `gitlab`、`origin` 是 GitHub,AI 下指令前先用 `git remote -v` 確認(工作區 `../AGENT.md` §9.1)。多人協作的詳細步驟、特定檔案的衝突處理方式與 MR 範本見工作區 `../AGENT.md` §9。
+
 **AI 規則**:
 
-1. **開工前確認分支**:執行 `git status`、`git branch --show-current`。目前在 `develop` / `main` 而任務要改檔時,先詢問使用者要開哪個工作分支(建議從最新的 `origin/develop` 開 `feature/<簡短英文描述>`);**不要在 `develop` / `main` 上直接提交**。
+1. **開工前確認分支並同步**:執行 `git status`、`git branch --show-current`、`git fetch origin`,回報目前分支落後基準分支幾個 commit。開發新功能一律從**最新的** `origin/develop`(沒有 `develop` 的 repo 用 `origin/main`)開 `feature/<簡短英文描述>`;目前在 `develop` / `main` 而任務要改檔時,先詢問使用者要開哪個工作分支;**不要在 `develop` / `main` 上直接提交**。工作目錄有未提交的變更時先詢問,不自行 `stash` / `reset` 丟棄。
 2. **只推送目前的工作分支**。**不得推送 `develop` / `main`**(包含 `main:develop` 這類 refspec),除非使用者在**本次對話**明確指示,且使用者是該 repo 的 Maintainer;前一次對話的指示不延續。
 3. **禁止** force push(`--force`、`--force-with-lease`)、刪除遠端分支、改寫已推送的提交(對已推送的提交做 rebase / amend)。
 4. **合併 `develop` 等於部署共用的測試區**:AI 不代替使用者合併 MR;提醒使用者合併前在群組告知,避免蓋掉別人正在測試的版本。
-5. 工作分支落後 `develop` 時,用 `git fetch origin` + `git merge origin/develop` 更新。衝突涉及別人的修改時,列出衝突檔案與雙方差異後詢問使用者,**不要整份採用其中一方**。
+5. 工作分支落後 `develop` 時,用 `git fetch origin` + `git merge origin/develop` 更新。**合併遇到衝突時立即停下**:不自行解衝突、不整份採用其中一方(`-X ours` / `-X theirs`)、不 `--abort`;列出衝突檔案、雙方差異,以及**影響哪些功能或邏輯**(API、路由、權限代碼、錯誤代碼、資料庫 schema / migration、設定、CI/CD、其他 repo),請使用者先告知專案擁有者並討論,確認後才處理(工作區 `../AGENT.md` §9.3、§9.4)。
 6. 提交前檢查 `git diff --staged` 只含本次任務的檔案;**不提交 `.env*`、金鑰、Token、密碼**。
 7. 提交訊息沿用 `<type>(<scope>): <中文說明>`,type 用 `feat`、`fix`、`docs`、`refactor`、`chore`、`test`;配合其他 repo 的提交依 §10.5 註明。
 8. 推送被拒(例:`You are not allowed to push code to protected branches`)時,**不要找繞過方式**(改 remote、改用別的帳號或金鑰、要求調整保護設定);改推工作分支,並告訴使用者到 GitLab 開 Merge Request。
 9. 完成後告訴使用者:推送了哪個分支、MR 的目標分支(一般是 `develop`),以及合併後會部署到哪個環境。
+10. 開 MR 時使用 `.gitlab/merge_request_templates/Default.md` 範本;處理過衝突要填「衝突處理」欄(衝突檔案、決議內容、參與討論的人)。
