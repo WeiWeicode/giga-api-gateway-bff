@@ -82,6 +82,7 @@ flowchart LR
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api`(RustIt `ItAgentBack` 管理 API,系統代碼 `endpoint`,API `/api/endpoint/*`;軟體安裝檔上傳 `POST /api/endpoint/software/uploads` 經 Nginx `auth_request` 直送,單檔 4 GB) | HTTP | W6 負責人 | 測試區 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
+| 51292 | NetOps | `netops-api`(NetOps,系統代碼 `netops`,SPA `/netops/`,API `/api/netops/*`) | HTTP | 待確認 | 規劃中 |
 | 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名;RustIt `ItAgentBack`,容器 `endpoint-server`) | HTTPS / WebSocket(TLS) | W6 負責人 | 測試區 |
 | 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 | 51272 | 附件服務 | `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB;資料表在 `giganexus_gw` schema `file_svc`) | HTTP | 附件服務負責人 | 測試區 |
