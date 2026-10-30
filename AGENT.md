@@ -235,7 +235,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | `GigaItApp` | IT 管理系統:權限查詢(唯讀)、**選單管理**(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、**權限設定**(角色 / 部門 / 個人);端點管理經 BFF;單一入口(web-kit),也是畫面權限模型的範本 | `/it/`、`/api/it/*`(itapp-api 51291,經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
 | `giga-file-service` | 附件服務(規劃中,尚無程式碼):UUID 上傳 / 下載 / 綁定 / 軟刪除、WSL 存放 + NAS 備份、BPM 表單附件唯讀代理、舊系統(filebackend / SMBbackend / 166 PortalSolar)對照與舊格式相容層 `/api/file/compat/*`;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `file-api`(51272,`/api/file/*` 經 BFF;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB);BACKEND-GUIDE §3.3 已登記(2026-10-08) | 附件服務負責人 | `../giga-file-service/AGENT.md`、`../giga-file-service/docs/PRD.md` |
 | `RustIt` | 端點管理(2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server 於 2026-10-06 改為 Node.js〔`ItAgentBack/`,資料存 SQL Server `giganexus_It_Agent` + MongoDB + Redis〕,Rust 只做端點〔`RustAgent/`:Agent 與 Watchdog(Windows 服務)、托盤程式〕;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/AGENT.md`、`../RustIt/docs/PROJECT-MAP.md` |
-| `NetOps` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、AI 問答、網通知識庫;目前部署於 IIS,規劃接入 Gateway | SPA `/netops/`;`netops-api`(51292,`/api/netops/*` 經 BFF) | 待確認 | `../NetOps/AGENT.md`、`../NetOps/docs/ARCHITECTURE.md` |
+| `NetOps` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、AI 問答、網通知識庫;目前部署於 IIS,規劃接入 Gateway | SPA `/netops/`;`netops-api`(51292,`/api/netops/*` 經 BFF) | NetOps 負責人 | `../NetOps/AGENT.md`、`../NetOps/docs/ARCHITECTURE.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
 
