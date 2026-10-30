@@ -1,3 +1,8 @@
 # 一律以 LF 檢出(公司 Windows 電腦的 Git 預設 core.autocrlf=true 會轉成 CRLF):
 # shell 腳本掛進 Linux 容器執行(gen-temp-pki.sh、CI check:nginx),CRLF 會讓 sh 失敗;Prettier format:check 也以 LF 為準
 * text=auto eol=lf
+
+# Windows 腳本以 CRLF 檢出(cmd.exe 執行 LF 的 .bat / .cmd 可能解析錯誤)
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
