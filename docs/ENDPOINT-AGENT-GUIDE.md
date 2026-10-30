@@ -23,7 +23,7 @@
 
 | 項目 | 狀態 |
 | --- | --- |
-| Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ✅ 2026-10-07 改為 HTTPS / WebSocket(`proxy_pass https://$endpoint_agent_upstream`,HTTP/1.1,§4);測試區只信任臨時 Agent 中繼 CA(`allowlists/test/agent-issuers.conf`) |
+| Gateway `:9443` 設定(`nginx/conf.d/agent.conf`) | ✅ 2026-10-07 改為 HTTPS / WebSocket(`proxy_pass https://$endpoint_agent_upstream`,HTTP/1.1,§4);測試區只信任臨時 Agent 中繼 CA(`allowlists/test/agent-issuers.conf`);正式區 2026-10-30 起只信任正式區臨時 Agent 中繼 CA(`allowlists/prod/agent-issuers.conf`,`deploy/host3-prod-temp-pki.sh` 產生),AD CS 到位後替換 |
 | §3.4、§6–§7 的 Rust 寫法 | 建議做法,**尚未實測**,開發時先做 PoC(特別是 Windows 憑證存放區的不可匯出私鑰) |
 | Endpoint Server(`RustIt/ItAgentBack`,§5) | 測試區運作中(2026-10-07,回報、WebSocket 心跳、電腦清單;指令 P4、監測 P5、升級 P6、軟體派送 P7 已上測試區〔Agent 0.9.3 pilot〕,2026-10-21 Agent 0.8.2 / Watchdog 0.3.2 經發佈環升級驗證);後續階段依 `../../RustIt/docs/PLATFORM-PLAN.md`(P1–P8)。基本階段 `../../RustIt/docs/INTEGRATION-PLAN.md`、決策 `../../RustIt/docs/decisions/0004-node-endpoint-server.md` |
 

@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-30 正式區 :9443 簽發者白名單是空的(正式區 Agent 會被 403)
+- 內容:`nginx/allowlists/prod/agent-issuers.conf` 只有註解(等 AD CS 的 TODO),`$agent_issuer_ok` 永遠為 0,正式區任何裝置憑證通過 mTLS 後仍在 `agent.conf` 回 403。2026-10-29 已以 `deploy/host3-prod-temp-pki.sh` 換上正式區臨時 Agent CA,白名單漏加。補上 `"O=GigaNexus,CN=GigaNexus Temporary Agent CA (prod)" 1;`(主機 3 `openssl x509 -in pki/agent-ca.crt -noout -subject -nameopt RFC2253` 實際輸出);測試區不受影響。配合 RustIt `host3-issue-device-cert.sh`(RustIt !85)與第一台正式區 Agent
+- 檔案:`nginx/allowlists/prod/agent-issuers.conf`、`docs/ENDPOINT-AGENT-GUIDE.md`(實作狀態)
+- 驗證:主機 3 執行中 nginx 的白名單確認為空;格式與測試區相同(測試區 2026-10-07 起運作)。部署後以正式區裝置憑證連 :9443 驗證
+
 ## 2026-10-08 轉給上游的 X-Forwarded-For 順序相反(上游記到 Nginx 容器 IP)
 - 內容:`router/plugin.ts` 以 `req.ips.join(', ')` 組 `X-Forwarded-For`,但 Fastify `req.ips` 由近到遠(Nginx 容器 IP 在前),上游依標準取第一個時拿到 `172.19.0.6`;giga-file-service 的 `file_access_log` 經 BFF 的操作(下載、刪除、綁定、BPM 下載)ip 全是 Nginx 容器。改為 `forwardedFor()` 反轉成「用戶端在前」(client, proxy)。直送上游的路徑(上傳 Nginx 直送、Agent :9443)不經 BFF,原本就正確
 - 檔案:`bff/src/modules/router/plugin.ts`、`bff/test/unit/config.test.ts`

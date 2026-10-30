@@ -266,6 +266,7 @@ flowchart LR
 - [ ] 主機使用 WSL2 Docker Engine(主機 3 於 2026-12 由 Docker Desktop 改用);主機重開後 Docker 與 Runner 能自動恢復
 - [ ] GitLab Runner 已註冊並設定 tag(主機 2 `windows-runner`、主機 3 `prod-deploy` Protected)
 - [ ] 兩台主機可登入 Registry `:5050`(HTTPS 憑證或 `insecure-registries`)
+- [ ] 測試區與正式區的臨時 PKI 不共用(`pki/ca.crt`、`agent-ca.crt` 指紋不同;主機 3 以 `deploy/host3-prod-temp-pki.sh` 另產)
 - [ ] 連不到 Docker Hub 的主機(主機 3)已載入 compose 用到的官方映像檔(§3.1)
 - [ ] `80`、`443`、`9443` 未被其他容器佔用;Windows 防火牆規則已設定
 - [ ] 來源 IP 驗證(§6.1):從另一台電腦連入時,Nginx log 的 `remote_addr` 是那台電腦的 IP
