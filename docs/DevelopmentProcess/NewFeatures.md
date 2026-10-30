@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-10-30 登記 NetOps(規劃中)
+- 內容:配合 NetOps 接入規劃,登記專案、系統代碼 `netops`、SPA `/netops/`、`netops-api` port 51292。只改文件;Nginx location 與路由在 NetOps D1 另行修改。
+- 檔案:`AGENT.md` §10.2、§10.3,`docs/BACKEND-GUIDE.md` §3.3,`docs/PRD.md` SPA 路徑表
+- 驗證:文件異動,無程式變更
+
 ## 2026-10-28 Nginx:端點軟體安裝檔上傳直送 Endpoint Server
 - 內容:`portal.conf` 新增 `location = /api/endpoint/software/uploads`:POST 以 `auth_request /_auth/verify` 驗證(登入、路由 `endpoint.software.upload.create` 的權限、CSRF)並取得內部 Token,本體串流到 `$endpoint_ws_upstream`(endpoint-server 管理 API `/v1/software/uploads`,查詢字串照轉),`client_max_body_size 4g`、`proxy_request_buffering off`;其他方法經 BFF。作法與附件上傳 `POST /api/file/files` 相同。起因:RustIt S1-3 套件上傳(RustIt `docs/S1-SIGNING-DESIGN.md` §4.5 A,需求方 2026-10-28 同意改 Gateway);安裝檔常超過 BFF 本體上限 10 MB。
 - 檔案:`nginx/conf.d/portal.conf`、`docs/BACKEND-GUIDE.md`(port 表)、`docs/ARCHITECTURE.md` D2
