@@ -6,7 +6,7 @@
 - 內容:NetOps 上線後在 GigaItApp 指派 `netops-admin` / `netops-viewer` 回 403「不可指派或移除含有您沒有的權限的角色」:防提權檢查要求操作人擁有角色的全部權限,`gw-super-admin` 沒有 `netops.*`。需求方決定(2026-11-04)「超管補 netops.*」,不改檢查規則。CLI `apply` 的 `roles[].permissions` 是整組取代,直接套只含 `netops.*` 的檔會洗掉 `gw.admin.*`,所以新增:`deploy/super-admin-grants.yaml`(只列要新增的權限,目前為 NetOps 的 12 個選單 / 按鈕)、`deploy/super-admin-grants-plan.mjs`(以 migrate 映像唯讀查出目前權限,輸出「目前 ∪ 新增」的 apply 檔;目前 0 筆、角色不存在、權限未登記都中止)、`deploy/apply-super-admin-grants.sh`(計畫 → 確認 → 重新計畫比對一致才 apply → 再驗證)。DEPLOYMENT §3.5.1 寫明新應用上線都要照做;FRONTEND-GUIDE §7.4 應用登記一列補上。不隨 CI 套用。
 - 檔案:`deploy/super-admin-grants.yaml`、`deploy/super-admin-grants-plan.mjs`、`deploy/apply-super-admin-grants.sh`、`docs/DEPLOYMENT.md` §3.5.1、`docs/FRONTEND-GUIDE.md` §7.4
 - 審查後(`code-reviewer` 無 High / Medium;`security-auditor` 無 Critical / High):套用後驗證改為「套用的權限都還在」(少了就列出並失敗);`ACTOR` 必填工號;先印三個檔案的 sha256 供對照 MR;拒絕授予選單目錄(group);文件補正式區明確指定 `IMAGE_TAG`、不用 `YES=1`、套用會遞增全體權限版本
-- 驗證:`node --check`、`sh -n`;計畫腳本以假的設定與資料庫模組在本機實跑 7 種情況(新增 11 個、權限未登記、已全部具備、目前 0 筆、角色不存在)結果正確;實際資料庫由使用者在主機 2 執行
+- 驗證:`node --check`、`sh -n`;計畫腳本以假的設定與資料庫模組在本機實跑 7 種情況(新增 11 個、權限未登記、已全部具備、目前 0 筆、角色不存在、套用後驗證通過、套用後少了權限)結果正確;實際資料庫由使用者在主機 2 執行
 
 ## 2026-11-04 Nginx `/netops/` 與 NetOps 應用登記(配合 NetOps D1)
 - 內容:NetOps 前端在測試區上線(NetOps IMPL-PLAN D1)。① `nginx/conf.d/portal.conf` 加 `/netops/` 四個 location,寫法同 `/it/`、`/bi/`(`/srv/www/netops/current`,History 模式回退 `@netops_index`);API 照常走 `/api/` → BFF,不另設直通。SPA 由 NetOps CI 發佈到 `gw_www/netops`,發佈前 `/netops/` 回 404。② 新增 `deploy/gateway-apps.yaml`(CLI `apply` 的 `apps:`,`gw.app`):`netops` → `/netops/`、`netops.app.access`;由 Gateway 負責人在 NetOps 的 `gateway-rbac.yaml` 套用後手動執行(指令在檔頭)。portal、it 已於 P2-3a 登記,不收進本檔以免覆寫現有值。
