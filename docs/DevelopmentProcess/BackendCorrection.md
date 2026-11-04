@@ -2,6 +2,12 @@
 
 > 新紀錄加在最上方;範圍 `bff/`、`nginx/`、`db/`、`deploy/`;格式見 `AGENT.md` §9。
 
+## 2026-11-04 Nginx `/netops/` 與 NetOps 應用登記(配合 NetOps D1)
+- 內容:NetOps 前端在測試區上線(NetOps IMPL-PLAN D1)。① `nginx/conf.d/portal.conf` 加 `/netops/` 四個 location,寫法同 `/it/`、`/bi/`(`/srv/www/netops/current`,History 模式回退 `@netops_index`);API 照常走 `/api/` → BFF,不另設直通。SPA 由 NetOps CI 發佈到 `gw_www/netops`,發佈前 `/netops/` 回 404。② 新增 `deploy/gateway-apps.yaml`(CLI `apply` 的 `apps:`,`gw.app`):`netops` → `/netops/`、`netops.app.access`;由 Gateway 負責人在 NetOps 的 `gateway-rbac.yaml` 套用後手動執行(指令在檔頭)。portal、it 已於 P2-3a 登記,不收進本檔以免覆寫現有值。
+- 配合:NetOps `feature/netops-d1`(SPA 發佈 job、`gateway-rbac.yaml`)、giga-observe `feature/topology-netops`(拓樸)
+- 檔案:`nginx/conf.d/portal.conf`、`deploy/gateway-apps.yaml`
+- 驗證:見 MR 描述(CI `check:nginx` 的 `nginx -t`)
+
 ## 2026-10-29 正式區臨時 PKI 與測試區分開(deploy/host3-prod-temp-pki.sh)
 - 內容:主機 3 的 `pki/` 是從測試區複製來的,`ca.crt`、`agent-ca.crt` 與主機 2 SHA-256 指紋相同:正式區 :9443 會信任測試區 Agent 的裝置憑證,測試區主機也持有能簽正式區憑證的私鑰。新增 `deploy/host3-prod-temp-pki.sh`(使用者在主機 3 以 sudo 執行):以 `gen-temp-pki.sh`(`GW_ENV=prod`,直接用 WSL 的 openssl,主機 3 的 apk 連不到外網)另產根 CA、Agent 中繼 CA、CRL、:9443 伺服器憑證(SAN IP 10.10.130.122),並簽 RustIt `endpoint_server` 憑證(SAN DNS:endpoint-server);備份原 `pki/` 後只換這些檔案,**不動 :443 的公司憑證 `server.crt` / `server.key` 與 `jwt/`**;`nginx -t` 通過才 `nginx -s reload`(不重建容器),失敗自動還原。IT AD CS 正式憑證到位後以同名檔案取代
 - 檔案:`deploy/host3-prod-temp-pki.sh`、`docs/DEPLOYMENT.md`
