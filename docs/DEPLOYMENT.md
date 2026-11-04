@@ -126,6 +126,22 @@ flowchart LR
 
 路由、權限等設定存於資料庫,**不隨程式部署**;以 CLI / 管理介面發佈(BACKEND-GUIDE §7)。測試區與正式區設定不互通(PRD Q3):下游後端部署到各區後啟動即自動註冊為該區草稿(BACKEND-GUIDE §7.5),IT 在各區分別檢視差異後核可發佈。
 
+#### 3.5.1 新應用上線:gw-super-admin 補上該應用的權限
+
+GigaItApp 指派角色時有防提權檢查(`bff/src/modules/admin/users.ts`):**操作人自己必須擁有該角色的全部權限**(含隨附的 API 權限),超級管理員也一樣。新應用的角色(例如 `netops-admin`)套用後,`gw-super-admin` 沒有這些權限,指派時會回 403 `PERMISSION_DENIED`「不可指派或移除含有您沒有的權限的角色」。檢查規則不放寬,改為每次新應用上線都替 `gw-super-admin` 補權限:
+
+1. 該應用的 `deploy/gateway-rbac.yaml` 已套用(權限代碼已存在)。
+2. 在本 repo 的 `deploy/super-admin-grants.yaml` 加一段 `- app: <系統代碼>`,列出該應用管理員角色的全部權限(選單 / 按鈕即可,隨附的 API 權限自動取得),經 MR 合併到 `develop`(build job 會把 `deploy/` 複製到主機的 Gateway 共用目錄)。
+3. Gateway 負責人在該區主機以 root 執行(正式區改 `prod` 與 `prod.env`):
+   ```bash
+   cd /srv/giganexus/shared/giga-api-gateway-bff/deploy
+   ACTOR=cli:<工號> sh apply-super-admin-grants.sh test /srv/giganexus/deploy/test.env
+   ```
+   腳本先唯讀查出 `gw-super-admin` 目前的權限並合併(只新增),顯示新增清單、確認後才以 CLI `apply` 寫入,最後再驗證一次。
+4. 超級管理員在 GigaItApp 重新整理(或重新登入)後即可指派。
+
+**不可**把只含新權限的 `roles: - code: gw-super-admin` 直接 `apply`:CLI `apply` 的 `roles[].permissions` 會整組取代角色權限,會把 `gw.admin.*` 等既有權限洗掉。
+
 ---
 
 ## 4. 回滾

@@ -1,0 +1,27 @@
+# gw-super-admin 補上各應用的畫面權限(DEPLOYMENT.md §3.5.1):超級管理員本身也要擁有某角色的全部權限,才能在 GigaItApp 指派該角色
+# (防提權檢查 bff/src/modules/admin/users.ts,不放寬)。新應用上線、登記 gateway-rbac.yaml 後,在這裡加上該應用管理員角色的權限,再執行:
+#
+#   sh deploy/apply-super-admin-grants.sh test /srv/giganexus/deploy/test.env        # 主機 2,WSL root;正式區改 prod 與 prod.env
+#
+# 本檔只列「要新增」的權限:腳本先唯讀查出 gw-super-admin 目前的全部權限,合併後才以 CLI apply 寫入。
+# CLI apply 的 roles[].permissions 會整組取代角色權限,所以**不可**把本檔或只含新權限的角色直接 apply。
+# 只會新增,不會移除;權限代碼必須已存在(各應用的 gateway-rbac.yaml 先套用),否則整份不寫入。
+# 選單 / 按鈕即可:隨附(includes)的 API 權限在權限計算時一併取得。
+
+role: gw-super-admin
+grants:
+  # NetOps D1(2026-11-04,需求方決定「超管補 netops.*」):同 NetOps deploy/gateway-rbac.yaml 的 netops-admin
+  - app: netops
+    permissions:
+      - netops.app.access
+      - netops.pa-dashboard.read
+      - netops.pa-events.read
+      - netops.pa-search.read
+      - netops.pa-files.read
+      - netops.pa-files.manage
+      - netops.ad-events.read
+      - netops.ad-search.read
+      - netops.ad-files.read
+      - netops.ad-files.manage
+      - netops.kb-page.read
+      - netops.kb-page.write

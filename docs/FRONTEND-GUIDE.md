@@ -253,7 +253,7 @@ const { user, can } = useAuth()
 
 | 項目 | 規範 |
 | --- | --- |
-| 應用登記 | 上線前向 Gateway 負責人登記應用代碼、名稱、子路徑、圖示與 `app` 權限(`{system}.app.access`),寫入 `gw.app` |
+| 應用登記 | 上線前向 Gateway 負責人登記應用代碼、名稱、子路徑、圖示與 `app` 權限(`{system}.app.access`),寫入 `gw.app`;並請 Gateway 負責人替 `gw-super-admin` 補上該應用的權限,否則在 GigaItApp 指派不了該應用的角色(DEPLOYMENT.md §3.5.1) |
 | 應用切換 | 頂列帳號旁的圖示按鈕 + 下拉,列出 `me.apps`,標示目前所在應用;點選以**整頁導向**該應用 `basePath`;`apps` 只有一個以下時不顯示 |
 | 應用層守衛 | 啟動時取得 `me`:未登入 → `/login?redirect=`;`me.apps` 不含本應用 → 以 `location.replace('/')` 導回員工入口網並帶提示參數(員工入口網本身沒有權限時顯示無權限頁,不可導回自己) |
 | 權限變更 | 換頁或 5 分鐘內重新取得 `me`,應用、選單、按鈕隨之更新;API 權限由 BFF 以 `pv` 立即生效 |
