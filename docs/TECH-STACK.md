@@ -17,6 +17,7 @@
 | 外部人員資料(唯讀) | **BPM:SQL Server 2019 Standard**(另一台主機,加密連線);**LOS:`[LOS].[dbo].[EmployeeInfo]`**(SQL Server 2012 同主機) | 部門、職稱、主管等人事資料;BPM 為主、LOS 補充,見 [DATABASE.md](DATABASE.md) §8 |
 | ORM / Migration | **Drizzle ORM**(MSSQL dialect)+ **drizzle-kit** | 型別安全的查詢、schema 定義、migration 產生;與 Redis 的同步規則見 [DATABASE.md](DATABASE.md) §7 |
 | 快取 / 佇列 | **Redis 7** | 路由快照、Session、限流、佇列 |
+| 下游服務語言(例外) | **Python 3.12**:NetOps `netops-pa`(官方 SDK [pan-os-python](https://pan-os-python.readthedocs.io/en/latest/) 讀取 PA-560、接收 log 轉送;2026-11-04 使用者同意) | 下游後端預設 Node.js + Fastify(BACKEND-GUIDE);Python 服務**不註冊為 Gateway 上游**、不接 `setupGateway`,監控由同系統的 Node 服務代為呈現 |
 | 測試 | Vitest + Testcontainers(Redis)、k6(壓測);資料庫整合測試連**專用的 SQL Server 2012 測試庫**(官方容器映像最早只有 2017,無法代表 2012 的行為);人員同步以 BPM / LOS 唯讀 view 的測試資料驗證 | |
 | 部署 | Docker Compose(Linux 容器);Windows 主機用 **Docker Desktop**、GitLab 主機(Ubuntu)用 Docker Engine;GitLab CI/CD + Runner + Container Registry(`:5050`) | `develop` 自動部署測試區、`main` 手動部署正式區,見 [DEPLOYMENT.md](DEPLOYMENT.md) |
 

@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-11-04 登記 NetOps PA 即時監控的 port 與 Python
+- 內容:依使用者同意,BACKEND-GUIDE §3.3 登記 `netops-pa` 的 log 接收 port 51293(HTTP Log Forwarding)、51294(Syslog,TRAFFIC 量大改用),兩者都不是 Gateway 上游;`netops-api` 51292 狀態改為測試區。TECH-STACK 新增「下游服務語言(例外)」:Python 3.12(pan-os-python)。AGENT §10.2、§10.3 的 NetOps 列同步(AI 中控台已取消,AI 主機改 10.10.130.46)。僅文件。配合 NetOps `docs/netops-pa-live-plan` 分支。
+- 檔案:`docs/BACKEND-GUIDE.md`、`docs/TECH-STACK.md`、`AGENT.md`
+- 驗證:文件核對;port 51293、51294 在 §3.3 未被使用
+
 ## 2026-10-30 登記 NetOps(規劃中)
 - 內容:配合 NetOps 接入規劃,登記專案、系統代碼 `netops`、SPA `/netops/`、`netops-api` port 51292。只改文件;Nginx location 與路由在 NetOps D1 另行修改。
 - 檔案:`AGENT.md` §10.2、§10.3,`docs/BACKEND-GUIDE.md` §3.3,`docs/PRD.md` SPA 路徑表
