@@ -1,0 +1,15 @@
+# 應用登記 gw.app(PRD §8.3.3、FRONTEND-GUIDE §7.4;Gateway CLI `apply` 的 apps:):/api/auth/me 的 apps(應用切換)依此與使用者的 app 權限過濾。
+# 由 Gateway 負責人套用,不隨 CI 自動執行。先決條件:permissionCode 已存在(各系統的 deploy/gateway-rbac.yaml 先套用),否則 apply 失敗、整份不寫入。
+#
+# 主機 2(測試區;本檔由 Gateway build job 複製到共用目錄 /srv/giganexus/shared/giga-api-gateway-bff/deploy/),在 WSL 以 root 執行:
+#   cd /srv/giganexus/shared/giga-api-gateway-bff/deploy
+#   IMAGE_TAG="$(cat /srv/giganexus/shared/gateway-image-tag)" REGISTRY=10.10.130.123:5050/giganexus/giga-api-gateway-bff \
+#     docker compose --env-file /srv/giganexus/deploy/test.env -f docker-compose.yml -f docker-compose.test.yml --profile tools run --rm --no-deps -T \
+#     -v "$PWD/gateway-apps.yaml:/gw/gateway-apps.yaml:ro" migrate node dist/bff/src/cli/index.js apply --file /gw/gateway-apps.yaml --actor cli:<工號>
+# 正式區(主機 3)改用 prod.env 與 docker-compose.prod.yml。重複套用只會更新同一筆(依 code),並清除權限版本讓 me.apps 重新計算。
+#
+# 員工入口網 portal(/)與 IT 管理系統 it(/it/)已在 P2-3a 登記(未收錄在本檔);為免覆寫兩區現有的名稱 / 排序,本檔只列之後新增的應用。
+
+apps:
+  # NetOps(NetOps IMPL-PLAN D1;app 權限由 NetOps deploy/gateway-rbac.yaml 建立,CI rbac-test 於 develop 自動套用)
+  - { code: netops, name: 資訊網通管理系統, basePath: /netops/, icon: shield, sort: 30, permissionCode: netops.app.access }
