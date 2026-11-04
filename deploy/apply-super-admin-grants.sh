@@ -3,12 +3,13 @@
 #   cd /srv/giganexus/shared/giga-api-gateway-bff/deploy          # 主機 2;Gateway build job 會把 deploy/ 複製到這裡
 #   ACTOR=cli:<工號> sh apply-super-admin-grants.sh test /srv/giganexus/deploy/test.env
 # 步驟:
+#   0. 印出三個檔案的 sha256(與 MR 合併的 commit 對照;共用目錄由 CI 寫入,以 root 執行前先確認來源)
 #   1. 唯讀計畫:以 migrate 映像執行 super-admin-grants-plan.mjs,讀出 gw-super-admin 目前的權限,與本檔合併(只新增)
-#   2. 顯示新增清單,輸入 y 確認(YES=1 略過確認)
+#   2. 顯示新增清單,輸入 y 確認(YES=1 略過確認;正式區不要用)
 #   3. 重新計畫一次,與第 1 步相同才以 CLI apply 寫入(兩步之間有人改了角色就中止,避免蓋掉別人剛加的權限)
-#   4. 再計畫一次,應顯示「已全部具備」
+#   4. 再計畫一次:套用的權限都還在、且已全部具備(有權限被移除時列出並失敗)
 # 寫入後權限版本遞增,已登入的人下一次請求即取得新權限(GigaItApp 重新整理或重新登入)。
-# 映像:IMAGE_TAG 預設讀 Gateway 共用目錄的 gateway-image-tag(該區 Gateway 目前的版本),REGISTRY 預設 GitLab Registry。
+# 映像:IMAGE_TAG 預設讀 Gateway 共用目錄的 gateway-image-tag(測試區最後部署的版本);正式區請明確指定正式區目前的版本。REGISTRY 預設 GitLab Registry。
 set -eu
 ZONE="${1:?用法:ACTOR=cli:<工號> sh apply-super-admin-grants.sh <test|prod> <Gateway 區域 env 檔>}"
 ENV_FILE="${2:?用法:ACTOR=cli:<工號> sh apply-super-admin-grants.sh <test|prod> <Gateway 區域 env 檔>}"
@@ -20,7 +21,12 @@ TAG_FILE="$HERE/../../gateway-image-tag"
 export IMAGE_TAG="${IMAGE_TAG:-$(cat "$TAG_FILE" 2>/dev/null || true)}"
 [ -n "$IMAGE_TAG" ] || { echo "找不到 Gateway 映像版本:設定 IMAGE_TAG,或在 Gateway 共用目錄執行($TAG_FILE)" >&2; exit 1; }
 export REGISTRY="${REGISTRY:-10.10.130.123:5050/giganexus/giga-api-gateway-bff}"
-ACTOR="${ACTOR:-cli:${SUDO_USER:-$(id -un)}}"
+# 稽核紀錄的操作人:必填工號(不以 root 等 OS 帳號代替)
+ACTOR="${ACTOR:-}"
+printf '%s' "$ACTOR" | grep -Eq '^cli:[A-Za-z0-9]+$' || { echo "請設定 ACTOR=cli:<工號>(稽核紀錄的操作人)" >&2; exit 1; }
+# 檔案來源:印出雜湊,與 MR 合併的 commit 對照(git show <commit>:deploy/<檔名> | sha256sum)
+echo "== 0. 檔案"
+(cd "$HERE" && sha256sum super-admin-grants.yaml super-admin-grants-plan.mjs apply-super-admin-grants.sh)
 
 # 計畫檔與合併結果不含機密;容器以 uid 1000(node)執行,暫存目錄需可讀
 TMP="$(mktemp -d)"
@@ -29,6 +35,7 @@ chmod 755 "$TMP"
 cd "$HERE"
 run() {
   docker compose --env-file "$ENV_ABS" -f docker-compose.yml -f "docker-compose.$ZONE.yml" --profile tools run --rm --no-deps -T \
+    -e EXPECT="${EXPECT:-}" \
     -v "$HERE/super-admin-grants.yaml:/gw/super-admin-grants.yaml:ro" \
     -v "$HERE/super-admin-grants-plan.mjs:/gw/super-admin-grants-plan.mjs:ro" \
     -v "$TMP:/gw-plan:ro" \
@@ -64,7 +71,7 @@ rc=0; plan "$TMP/merged2.yaml" 2>/dev/null || rc=$?
 echo "== 3. 套用(CLI apply)"
 run node dist/bff/src/cli/index.js apply --file /gw-plan/merged.yaml --actor "$ACTOR"
 
-echo "== 4. 驗證"
-rc=0; plan "$TMP/after.yaml" || rc=$?
-[ "$rc" -eq 3 ] || { echo "套用後仍有未具備的權限(結束碼 $rc),請檢查上方輸出" >&2; exit 1; }
+echo "== 4. 驗證(套用的權限都在,且已全部具備)"
+rc=0; EXPECT=/gw-plan/merged.yaml plan "$TMP/after.yaml" || rc=$?
+[ "$rc" -eq 3 ] || { echo "套用後驗證失敗(結束碼 $rc;4 = 有權限被移除),請檢查上方輸出" >&2; exit 1; }
 echo "完成。GigaItApp 重新整理(或重新登入)後即可指派新角色。"

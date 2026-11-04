@@ -38,12 +38,25 @@ try {
 
   const req = pool.request();
   grants.forEach((c, i) => req.input(`p${i}`, c));
-  const ex = await req.query(`SELECT code FROM gw.permission WHERE code IN (${grants.map((_, i) => `@p${i}`).join(', ')})`);
+  const ex = await req.query(`SELECT code, kind FROM gw.permission WHERE code IN (${grants.map((_, i) => `@p${i}`).join(', ')})`);
   const exists = new Set(ex.recordset.map((x) => x.code));
   const missing = grants.filter((c) => !exists.has(c));
   if (missing.length) fail(`權限尚未登記(先套用該應用的 gateway-rbac.yaml):${missing.join(', ')}`);
+  // 選單目錄(group)只分組、不可授予(同管理 API 的 isGrantableKind)
+  const groups = ex.recordset.filter((x) => x.kind === 'group').map((x) => x.code);
+  if (groups.length) fail(`選單目錄不可授予:${groups.join(', ')}`);
 
   const have = new Set(current);
+  // 套用後驗證(EXPECT = 套用的檔):套用的每個權限都必須還在,少了就列出來(結束碼 4)
+  if (process.env.EXPECT) {
+    const want = parse(readFileSync(process.env.EXPECT, 'utf8')).roles[0].permissions;
+    const lost = want.filter((c) => !have.has(c));
+    if (lost.length) {
+      console.error(`錯誤:套用後少了 ${lost.length} 個權限:${lost.join(', ')}`);
+      process.exit(4);
+    }
+    console.error(`驗證:${cfg.role} 目前 ${current.length} 個權限,套用的 ${want.length} 個都在`);
+  }
   const added = grants.filter((c) => !have.has(c));
   const merged = [...new Set([...current, ...grants])].sort();
   // 保險:合併結果必須包含目前全部權限

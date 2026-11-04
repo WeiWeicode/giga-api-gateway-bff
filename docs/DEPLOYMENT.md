@@ -137,8 +137,8 @@ GigaItApp 指派角色時有防提權檢查(`bff/src/modules/admin/users.ts`):**
    cd /srv/giganexus/shared/giga-api-gateway-bff/deploy
    ACTOR=cli:<工號> sh apply-super-admin-grants.sh test /srv/giganexus/deploy/test.env
    ```
-   腳本先唯讀查出 `gw-super-admin` 目前的權限並合併(只新增),顯示新增清單、確認後才以 CLI `apply` 寫入,最後再驗證一次。
-4. 超級管理員在 GigaItApp 重新整理(或重新登入)後即可指派。
+   腳本先印出三個檔案的 sha256(以 root 執行前與 MR 合併的 commit 對照:`git show <commit>:deploy/<檔名> | sha256sum`;共用目錄是 CI 寫入的),再唯讀查出 `gw-super-admin` 目前的權限並合併(只新增),顯示新增清單、確認後重新計畫比對一致才以 CLI `apply` 寫入,最後驗證套用的權限都還在。`ACTOR` 必填工號(稽核紀錄的操作人)。正式區(主機 3)要以 `IMAGE_TAG=<正式區 Gateway 目前的版本>` 明確指定映像,不使用 `YES=1`。
+4. 套用會遞增全體使用者的權限版本(CLI `apply` 既有行為),超級管理員在 GigaItApp 重新整理(或重新登入)後即可指派。
 
 **不可**把只含新權限的 `roles: - code: gw-super-admin` 直接 `apply`:CLI `apply` 的 `roles[].permissions` 會整組取代角色權限,會把 `gw.admin.*` 等既有權限洗掉。
 
