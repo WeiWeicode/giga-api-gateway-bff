@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-11-05 文件:SSE 可經 BFF 長連線(配合 NetOps S0)
+- 內容:NetOps S0 在測試區驗證 SSE 經 Nginx 與 BFF 長連線通過(單一連線 375 秒不中斷、心跳 15 秒、斷線重連、BFF 沒有逾時或斷路器紀錄;NetOps !32)。程式不改:Nginx 依上游的 `X-Accel-Buffering: no` 關閉緩衝,BFF 串流轉送回應本體,undici `bodyTimeout` 是閒置時間。更正 MONITORING-PLAN D6「長連線會被切斷」的說法,BACKEND-GUIDE `x-timeout-ms` 一列補 SSE 的條件。
+- 檔案:`docs/MONITORING-PLAN.md`(D6)、`docs/BACKEND-GUIDE.md`(§6.1 表格)
+- 驗證:NetOps `docs/test-reports/2026-11-05-s0-sse.md` §3
+
 ## 2026-11-04 登記 NetOps PA 即時監控的 port 與 Python
 - 內容:依使用者同意,BACKEND-GUIDE §3.3 登記 `netops-pa` 的 log 接收 port 51293(HTTP Log Forwarding)、51294(Syslog,TRAFFIC 量大改用),兩者都不是 Gateway 上游;`netops-api` 51292 狀態改為測試區。TECH-STACK 新增「下游服務語言(例外)」:Python 3.12(pan-os-python)。AGENT §10.2、§10.3 的 NetOps 列同步(AI 中控台已取消,AI 主機改 10.10.130.46)。僅文件。配合 NetOps `docs/netops-pa-live-plan` 分支。
 - 檔案:`docs/BACKEND-GUIDE.md`、`docs/TECH-STACK.md`、`AGENT.md`

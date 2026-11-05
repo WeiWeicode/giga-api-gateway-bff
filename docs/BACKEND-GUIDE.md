@@ -236,7 +236,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | operation | `x-auth-mode` | 選用 | `auth_mode` | 只接受 `api_key`:**系統對系統**路由,呼叫端以 `X-Api-Key` 驗證(不接受使用者登入);此時 `x-permission` 必須是權限代碼,API Key 需具備該權限(IT 以 `client:create --perm` 授予)。用於腳本、排程等沒有使用者的呼叫端 |
 | operation | `tags` | 建議 | `tags` | 功能分類 |
 | operation | `x-gateway-path` | 選用 | `public_path` | 對外路徑與預設規則不同時指定 |
-| operation | `x-timeout-ms` | 選用 | `timeout_ms` | 覆寫預設逾時(最長 60000) |
+| operation | `x-timeout-ms` | 選用 | `timeout_ms` | 覆寫預設逾時(最長 60000)。逾時是「等回應標頭」與「兩個資料塊之間」的閒置時間,不是總時長;SSE 串流設 60000 並每 15 秒送心跳即可長連線(回 `X-Accel-Buffering: no`;忙碌時回 4xx,上游 5xx 會累積斷路器失敗。範例:NetOps `backend/src/modules/pa-live/routes.ts`) |
 | operation | `x-cache-ttl` | 選用 | `cache_ttl_sec` | GET 回應快取秒數(僅限不含個人資料的查詢,或搭配 `x-cache-scope: user`) |
 | operation | `x-cache-scope` | 選用 | `cache_scope` | `shared`(所有人共用)/ `user`(每位使用者各自快取);設定 `x-cache-ttl` 時必填 |
 | operation | `x-audit-level` | 選用 | `audit_level` | `none` / `meta` / `body`;敏感 API(薪資、個資)至少 `meta` |
