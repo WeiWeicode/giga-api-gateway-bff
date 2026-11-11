@@ -8,3 +8,6 @@ coverage/
 secrets/
 .DS_Store
 .ci-secrets/
+
+# CodeGraph 本機索引
+.codegraph/
