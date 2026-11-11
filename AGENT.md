@@ -3,7 +3,7 @@
 > 本文件是 AI 程式助手（如 Claude、Gemini）在本專案中的行為準則。
 > 所有 AI 協作開發必須遵守以下規範。
 > 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
-> **AI 分工**:寫程式、寫測試、寫文件由 Claude 負責;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker — 見 **§10.8**。
+> **AI 分工**:Claude 負責前後端,著重邏輯、框架、架構規劃與寫計畫;Gemini 負責前端頁面與元件、寫需求企劃、執行測試與寫報告,不能動前端邏輯層、後端、CI/CD、Docker — 見 **§10.8**。找程式碼先用 CodeGraph,找不到再看專案地圖 — 見 **§10.7.0**。
 > **Git 分支與推送**:開發一律在 `feature/*` 等工作分支,`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併;AI 不得推送 `develop` / `main`、不得 force push — 見 **§10.10**。
 > **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 explore、code-reviewer、security-auditor、debugger、test-runner、refactor-assistant;缺少時先詢問使用者是否建立 — 見 **§10.9**。
 
@@ -288,7 +288,13 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 
 範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md);**複製後 AI 必須先請工程師命名專案**(repo 資料夾名稱,寫入 `package.json` 的 `gateway.project`,SDK 自動註冊時帶入 `x-gateway.project`;樣本 AGENT.md §0),不可沿用樣本值或自行取名。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
 
-### 10.7 專案地圖與核心設計原則(所有專案共用)
+### 10.7 CodeGraph、專案地圖與核心設計原則(所有專案共用)
+
+#### 10.7.0 找程式碼的順序(CodeGraph 優先)
+
+- repo 根目錄有 `.codegraph/`(CodeGraph 索引)時,找檔案、符號、呼叫關係與修改的影響範圍**先用 CodeGraph**:Claude Code 用 MCP 工具 `codegraph_explore`;其他 AI 或人在 repo 根目錄執行 `codegraph explore "<符號名稱或問題>"`。
+- CodeGraph 找不到(剛新增尚未索引的檔案、設定檔與文件不在索引內),或要看目錄職責與「要改 X → 看哪裡」時,再看 `docs/PROJECT-MAP.md`。
+- 沒有 `.codegraph/` 時直接看專案地圖;是否建立索引由使用者決定。`.codegraph/` 是本機索引,不進版控(列在 `.gitignore`)。
 
 #### 10.7.1 專案地圖(`docs/PROJECT-MAP.md`)
 
@@ -329,16 +335,28 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 
 所有專案共用;各 repo 的 AGENT.md 收錄同一份內容,有出入時以本節為準。
 
-寫程式、寫測試、寫文件由 **Claude** 負責;**Gemini** 只負責執行測試、撰寫測試報告,以及非邏輯性的修改。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
+**Claude** 負責前後端,著重在邏輯、框架、架構規劃與寫計畫:後端全部、前端的邏輯層、測試、技術文件。**Gemini** 負責前端的頁面與元件、寫需求企劃,以及執行測試、撰寫測試報告。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
 
 | 工作 | Claude | Gemini |
 | --- | --- | --- |
-| 寫程式(新功能、業務邏輯、API、權限、資料存取、狀態管理、修 bug、重構) | ✅ | ❌ |
-| 寫測試(單元 / 整合 / E2E 測試碼、測試用 fixture 的邏輯) | ✅ | ❌ |
-| 寫文件(`AGENT.md`、`README.md`、`docs/`、`PROJECT-MAP.md`、架構 JSON、修正紀錄) | ✅ | ❌(測試報告除外) |
+| 後端程式(API、業務邏輯、權限、資料存取、排程、修 bug、重構) | ✅ | ❌ |
+| 前端邏輯層:`composables/`(狀態與邏輯)、`api/`(HTTP)、store、路由與路由守衛、權限判斷、`@giganexus/*` 共用套件 | ✅ | ❌ |
+| 前端頁面與元件:`pages/`、`components/` / `ui/` 的畫面組合、版面、樣式、互動、文案、mock / 假資料 | ✅ | ✅ |
+| 架構與框架:新模組、目錄慣例、選用套件、共用元件與 composable 的介面設計 | ✅ | ❌ |
+| 寫計畫與技術文件:`ARCHITECTURE.md`、`IMPL-PLAN.md`、`HANDOFF.md`、`PROJECT-MAP.md`、`AGENT.md`、`README.md`、架構 JSON、修正紀錄 | ✅ | ❌ |
+| 寫需求企劃:`docs/PRD.md`、功能企劃、`docs/Gherkin/*.feature` 驗收場景 | ✅ | ✅ |
+| 後端測試、前端邏輯層測試、整合 / E2E 測試、測試用 fixture 的邏輯 | ✅ | ❌ |
+| 前端元件測試(Gemini 負責的頁面 / 元件) | ✅ | ✅ |
 | 執行測試(既有的 `npm test`、`test:int`、E2E、`cargo test` 等)並撰寫測試報告 | ✅ | ✅ |
-| 非邏輯性修改:前端 mock / 假資料、版面與樣式(CSS、間距、顏色、排版)、畫面文案錯字 | ✅ | ✅ |
 | CI/CD 與容器、部署設定 | ✅ | ❌ **禁止** |
+
+**Gemini 寫前端頁面與元件**:
+
+- 資料與狀態一律用既有的 `composables/`、`api/`;頁面不直接 `fetch`、不自己寫權限判斷(§10.7.2)。需要新的 API 呼叫、狀態、權限代碼或路由時,寫在 MR 說明交給 Claude。
+- 權限代碼、路由、錯誤代碼以 Gateway `docs/` 為準,不自創。
+- 新增頁面或元件時,可在 `docs/PROJECT-MAP.md` 補上該頁面 / 元件那一行;其他段落由 Claude 維護。
+
+**Gemini 寫需求企劃**:只描述需求、畫面與驗收行為。API 介面、權限代碼、錯誤代碼、資料表屬技術設計,企劃中需要時列為「待決事項」交給 Claude,不直接定案。
 
 **Gemini 禁止修改**(即使只改一行):
 
@@ -346,7 +364,8 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 容器與部署:`Dockerfile*`、`docker-compose*`、`.dockerignore`、`deploy/`、`nginx/`、部署腳本、`.env*`、`Web.config` / 發佈設定。
 - 相依與建置設定:`package.json`(含 scripts)、lock 檔、`Cargo.toml`、`tsconfig*.json`、`vite.config.*`。
 - 資料庫:schema、migration、seed。
-- 測試程式碼:測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
+- 後端程式與前端邏輯層(見上表)。
+- 測試:只能新增 / 修改自己負責頁面的元件測試。測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
 
 **測試報告**(Gemini 執行測試後必寫):
 
@@ -354,7 +373,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議交給 Claude 處理的項目。
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
 
-**判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+**判斷不了屬於頁面 / 元件還是邏輯時,一律視為邏輯**:不動程式,寫進 MR 說明或報告交給 Claude。
 
 ### 10.9 Claude 子代理(Subagents)
 
