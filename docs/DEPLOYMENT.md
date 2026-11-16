@@ -140,6 +140,14 @@ GigaItApp 指派角色時有防提權檢查(`bff/src/modules/admin/users.ts`):**
    腳本先印出三個檔案的 sha256(以 root 執行前與 MR 合併的 commit 對照:`git show <commit>:deploy/<檔名> | sha256sum`;共用目錄是 CI 寫入的),再唯讀查出 `gw-super-admin` 目前的權限並合併(只新增),顯示新增清單、確認後重新計畫比對一致才以 CLI `apply` 寫入,最後驗證套用的權限都還在。`ACTOR` 必填工號(稽核紀錄的操作人)。正式區(主機 3)要以 `IMAGE_TAG=<正式區 Gateway 目前的版本>` 明確指定映像,不使用 `YES=1`。
 4. 套用會遞增全體使用者的權限版本(CLI `apply` 既有行為),超級管理員在 GigaItApp 重新整理(或重新登入)後即可指派。
 
+**正式區(主機 3)的共用目錄不會由 build job 更新 `deploy/`**:第 2 步「build job 會把 `deploy/` 複製到主機的 Gateway 共用目錄」只適用測試區;正式區 deploy 不複製 `deploy/`,`/srv/giganexus/shared/giga-api-gateway-bff/deploy/` 內沒有的檔案(`gateway-apps.yaml`、`super-admin-grants.yaml`、`super-admin-grants-plan.mjs`、`apply-super-admin-grants.sh`)要從 Gateway `main` 手動複製到該目錄,複製後以 `git show <commit>:deploy/<檔名> | sha256sum` 與腳本印出的 sha256 對照,再執行第 3 步。正式區也要先確認 Gateway `main` 已含該應用的 Nginx location(NetOps 為 `/netops/`)。
+
+**紀錄:2026-11-16 NetOps 正式區套用**:
+- 正式區 Gateway `main` 沒有 `/netops/` location → !26(`develop` → `main`,正式區 Nginx 加 `/netops/`)。
+- 主機 3 共用目錄沒有 `gateway-apps.yaml`、`super-admin-grants*` → 依上段手動複製。
+- `gw-super-admin` 缺 NetOps 權限,指派 `netops-admin` 被防提權檢查擋下 → !27(`super-admin-grants.yaml` 補齊 `netops-admin` 28 項)後以 `apply-super-admin-grants.sh prod` 套用(實際執行指令與輸出:未確認)。
+- 預設 `netops-admin`:S112009、S094009、S114010、S111003。NetOps 端的完整紀錄見 `NetOps/docs/HANDOFF.md`「2026-11-16 正式區第一段上架完成」。
+
 **不可**把只含新權限的 `roles: - code: gw-super-admin` 直接 `apply`:CLI `apply` 的 `roles[].permissions` 會整組取代角色權限,會把 `gw.admin.*` 等既有權限洗掉。
 
 ---
