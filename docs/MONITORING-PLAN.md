@@ -101,7 +101,7 @@ BFF 自己的 API 不經動態路由表轉送(PRD §14.1),若當成一般後端�
 
 - 選單掛在「API Gateway 管理」下(截圖箭頭位置),名稱「架構觀測」;子頁以 Tab 呈現:架構圖 / 紀錄 / 錯誤 / 總覽;點節點開服務詳情抽屜(概況、紀錄、錯誤、相依)。
 - 權限:API 權限由 giga-observe 的 OpenAPI 宣告(系統代碼 `observe`):`observe.data.read`(狀態、統計、紀錄摘要)、`observe.log.body`(含 body 的明細,可能含個資);畫面節點 `it.gw-observe.read`(選單)、`.map` / `.logs` / `.errors` / `.traffic`(Tab)、`.body`(按鈕)以 includes 綁定;依畫面權限模型登記在 `deploy/gateway-rbac.yaml`。
-- 即時更新:架構圖每 15 秒輪詢、流量頁每 60 秒(分頁在背景時暫停)。不經 BFF 轉送 SSE:動態路由有逾時(x-timeout-ms),長連線會被切斷。
+- 即時更新:架構圖每 15 秒輪詢、流量頁每 60 秒(分頁在背景時暫停)。(2026-11-05 更正)原寫「不經 BFF 轉送 SSE:動態路由有逾時,長連線會被切斷」不正確:BFF 對上游的 `x-timeout-ms` 是資料塊之間的閒置時間(undici `bodyTimeout`),不是總時長,只要上游立即送第一個事件、心跳間隔小於 `x-timeout-ms`、回 `X-Accel-Buffering: no`,SSE 經 Nginx 與 BFF 可以長時間連線(NetOps S0 測試區驗證通過,見 NetOps `docs/test-reports/2026-11-05-s0-sse.md`)。觀測頁目前仍用輪詢,不因此改動。
 - 架構圖節點與連線:以 `GigaNexusAIPlan/architecture/workspace.json` + BFF 上游清單產生 giga-observe 的拓樸,不再手寫第二份。
 
 ### D7 套件發佈 → **發佈到公司 GitLab npm Package Registry**

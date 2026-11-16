@@ -145,6 +145,7 @@
 | `/hrm/`、`/fms/` | `/srv/www/hrm/current`、`/srv/www/fms/current` | 人事、財務 |
 | `/it/` | `/srv/www/it-admin/current` | IT 管理介面(W4,含 API 管理);由 GigaItApp 發佈。目前自有登入,API `/it/api/*` 由 Nginx 直接轉 `itapp-api`(`ITAPP_API_UPSTREAM`);**v0.7 規劃改用單一入口**:API 改為 `/api/it/*` 經 BFF(`itapp-api` 登記為上游,系統代碼 `it`),Nginx `/it/api/` 直通於切換完成後移除 |
 | `/bi/` | `/srv/www/bi/current` | 報表 / BI |
+| `/netops/` | `/srv/www/netops/current` | 資訊網通管理系統(規劃中,由 NetOps 發佈;API `/api/netops/*` 經 BFF) |
 
 - **保留路徑**(不可作為 SPA 子路徑):`/api/`、`/ws/`、`/webhook/`、`/_auth/`、`/.well-known/`、`/docs`、`/healthz`、`/readyz`、`/metrics`、`/login`、`/register`、`/reset-password`。
 - **新系統上線前需登記子路徑**:由 Gateway 負責人在 `nginx/conf.d/portal.conf` 新增 location 並經 Pipeline 發佈;子路徑一律小寫英數與 `-`,前後帶 `/`。

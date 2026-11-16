@@ -3,7 +3,7 @@
 > 本文件是 AI 程式助手（如 Claude、Gemini）在本專案中的行為準則。
 > 所有 AI 協作開發必須遵守以下規範。
 > 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
-> **AI 分工**:寫程式、寫測試、寫文件由 Claude 負責;Gemini 只執行測試、寫報告與做非邏輯性修改,不能動 CI/CD、Docker — 見 **§10.8**。
+> **AI 分工**:Claude 負責前後端,著重邏輯、框架、架構規劃與寫計畫;Gemini 負責前端頁面與元件、寫需求企劃、執行測試與寫報告,不能動前端邏輯層、後端、CI/CD、Docker — 見 **§10.8**。找程式碼先用 CodeGraph,找不到再看專案地圖 — 見 **§10.7.0**。
 > **Git 分支與推送**:開發一律在 `feature/*` 等工作分支,`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併;AI 不得推送 `develop` / `main`、不得 force push — 見 **§10.10**。
 > **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 explore、code-reviewer、security-auditor、debugger、test-runner、refactor-assistant;缺少時先詢問使用者是否建立 — 見 **§10.9**。
 
@@ -235,6 +235,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | `GigaItApp` | IT 管理系統:權限查詢(唯讀)、**選單管理**(各應用目錄 / 選單 / Tab / 按鈕與綁定的 API)、**權限設定**(角色 / 部門 / 個人);端點管理經 BFF;單一入口(web-kit),也是畫面權限模型的範本 | `/it/`、`/api/it/*`(itapp-api 51291,經 BFF) | IT 管理系統負責人 | `../GigaItApp/AGENT.md` |
 | `giga-file-service` | 附件服務(規劃中,尚無程式碼):UUID 上傳 / 下載 / 綁定 / 軟刪除、WSL 存放 + NAS 備份、BPM 表單附件唯讀代理、舊系統(filebackend / SMBbackend / 166 PortalSolar)對照與舊格式相容層 `/api/file/compat/*`;畫面在 GigaItApp「Gateway 管理 › 檔案管理」 | `file-api`(51272,`/api/file/*` 經 BFF;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB);BACKEND-GUIDE §3.3 已登記(2026-10-08) | 附件服務負責人 | `../giga-file-service/AGENT.md`、`../giga-file-service/docs/PRD.md` |
 | `RustIt` | 端點管理(2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server 於 2026-10-06 改為 Node.js〔`ItAgentBack/`,資料存 SQL Server `giganexus_It_Agent` + MongoDB + Redis〕,Rust 只做端點〔`RustAgent/`:Agent 與 Watchdog(Windows 服務)、托盤程式〕;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/AGENT.md`、`../RustIt/docs/PROJECT-MAP.md` |
+| `NetOps` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、AI 問答、網通知識庫;已接入 Gateway 測試區(舊版仍在 IIS);規劃 PA 即時監控(Python `netops-pa` + Redis) | SPA `/netops/`;`netops-api`(51292,`/api/netops/*` 經 BFF);`netops-pa` log 接收 51293(HTTP)、51294(Syslog),不經 Gateway | NetOps 負責人 | `../NetOps/AGENT.md`、`../NetOps/docs/ARCHITECTURE.md` |
 
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
 
@@ -246,6 +247,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | GigaItApp | Nginx `/it/`、`/it/api/`;BFF 管理 API(目前服務帳號;改單一入口後以使用者身分呼叫,含 v0.7 權限寫入);端點 API `/api/endpoint/*`(使用者的 Gateway 登入);測試區 compose 加入 Gateway 的 Docker 網路 | 不直接呼叫 Endpoint Server;端點功能經 BFF(PRD Q27);提供員工入口網等應用的權限設定畫面;沒有 IT 應用權限時導回員工入口網 |
 | RustIt(`ItAgentBack` Endpoint Server / `RustAgent` Agent、Watchdog) | `:9443` 通道(HTTPS / WebSocket)、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;Agent 與 Watchdog、托盤以本機具名管道溝通 |
 | giga-file-service(規劃中) | BFF 路由 `/api/file/*`、內部 Token、自動註冊;Nginx `location = /api/file/files` 上傳直送(2026-10-08 實作,31m 只套該 location;BFF `/_auth/verify` 補驗 CSRF)、相容路由 `/api/file/compat/*` 內網白名單、CORS(皆待實作時另行同意,`giga-file-service/docs/DEPLOYMENT.md` §4) | 畫面在 GigaItApp「Gateway 管理 › 檔案管理」(權限節點 F3 登記);唯讀讀取 BPM NaNa / 5144、166 PortalSolar |
+| NetOps(規劃中) | Nginx `/netops/`(SPA 發佈到 `gw_www/netops`);BFF `/api/auth/*`、`/api/netops/*` → `netops-api`(內部 Token、自動註冊);AI 問答與即時監控的 SSE 需經 BFF 與 Nginx 實測(`NetOps/docs/IMPL-PLAN.md` S0) | 權限在 GigaItApp 設定;監控送 giga-observe;資料來源 FTP、AI 主機(10.10.130.46)、Qdrant 由 `netops-api` 直連,PA-560 由 `netops-pa` 直連(非平台系統) |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
 - **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。
@@ -286,7 +288,13 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 
 範本:Node.js 後端複製 `samples/node-backend/`(含 AGENT.md);**複製後 AI 必須先請工程師命名專案**(repo 資料夾名稱,寫入 `package.json` 的 `gateway.project`,SDK 自動註冊時帶入 `x-gateway.project`;樣本 AGENT.md §0),不可沿用樣本值或自行取名。SDK 以 `npm pack` 產生 tgz 放進自己 repo 的 `vendor/`,相依寫成 `file:vendor/giganexus-backend-sdk-<版本>.tgz`(Docker 建置不需要兄弟專案;公司 Package Registry 上線後改為一般套件);Go Endpoint Server / Agent 依 `docs/ENDPOINT-AGENT-GUIDE.md` 與 BACKEND-GUIDE 撰寫;前端依 FRONTEND-GUIDE。
 
-### 10.7 專案地圖與核心設計原則(所有專案共用)
+### 10.7 CodeGraph、專案地圖與核心設計原則(所有專案共用)
+
+#### 10.7.0 找程式碼的順序(CodeGraph 優先)
+
+- repo 根目錄有 `.codegraph/`(CodeGraph 索引)時,找檔案、符號、呼叫關係與修改的影響範圍**先用 CodeGraph**:Claude Code 用 MCP 工具 `codegraph_explore`;其他 AI 或人在 repo 根目錄執行 `codegraph explore "<符號名稱或問題>"`。
+- CodeGraph 找不到(剛新增尚未索引的檔案、設定檔與文件不在索引內),或要看目錄職責與「要改 X → 看哪裡」時,再看 `docs/PROJECT-MAP.md`。
+- 沒有 `.codegraph/` 時直接看專案地圖;是否建立索引由使用者決定。`.codegraph/` 是本機索引,不進版控(列在 `.gitignore`)。
 
 #### 10.7.1 專案地圖(`docs/PROJECT-MAP.md`)
 
@@ -327,16 +335,28 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 
 所有專案共用;各 repo 的 AGENT.md 收錄同一份內容,有出入時以本節為準。
 
-寫程式、寫測試、寫文件由 **Claude** 負責;**Gemini** 只負責執行測試、撰寫測試報告,以及非邏輯性的修改。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
+**Claude** 負責前後端,著重在邏輯、框架、架構規劃與寫計畫:後端全部、前端的邏輯層、測試、技術文件。**Gemini** 負責前端的頁面與元件、寫需求企劃,以及執行測試、撰寫測試報告。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
 
 | 工作 | Claude | Gemini |
 | --- | --- | --- |
-| 寫程式(新功能、業務邏輯、API、權限、資料存取、狀態管理、修 bug、重構) | ✅ | ❌ |
-| 寫測試(單元 / 整合 / E2E 測試碼、測試用 fixture 的邏輯) | ✅ | ❌ |
-| 寫文件(`AGENT.md`、`README.md`、`docs/`、`PROJECT-MAP.md`、架構 JSON、修正紀錄) | ✅ | ❌(測試報告除外) |
+| 後端程式(API、業務邏輯、權限、資料存取、排程、修 bug、重構) | ✅ | ❌ |
+| 前端邏輯層:`composables/`(狀態與邏輯)、`api/`(HTTP)、store、路由與路由守衛、權限判斷、`@giganexus/*` 共用套件 | ✅ | ❌ |
+| 前端頁面與元件:`pages/`、`components/` / `ui/` 的畫面組合、版面、樣式、互動、文案、mock / 假資料 | ✅ | ✅ |
+| 架構與框架:新模組、目錄慣例、選用套件、共用元件與 composable 的介面設計 | ✅ | ❌ |
+| 寫計畫與技術文件:`ARCHITECTURE.md`、`IMPL-PLAN.md`、`HANDOFF.md`、`PROJECT-MAP.md`、`AGENT.md`、`README.md`、架構 JSON、修正紀錄 | ✅ | ❌ |
+| 寫需求企劃:`docs/PRD.md`、功能企劃、`docs/Gherkin/*.feature` 驗收場景 | ✅ | ✅ |
+| 後端測試、前端邏輯層測試、整合 / E2E 測試、測試用 fixture 的邏輯 | ✅ | ❌ |
+| 前端元件測試(Gemini 負責的頁面 / 元件) | ✅ | ✅ |
 | 執行測試(既有的 `npm test`、`test:int`、E2E、`cargo test` 等)並撰寫測試報告 | ✅ | ✅ |
-| 非邏輯性修改:前端 mock / 假資料、版面與樣式(CSS、間距、顏色、排版)、畫面文案錯字 | ✅ | ✅ |
 | CI/CD 與容器、部署設定 | ✅ | ❌ **禁止** |
+
+**Gemini 寫前端頁面與元件**:
+
+- 資料與狀態一律用既有的 `composables/`、`api/`;頁面不直接 `fetch`、不自己寫權限判斷(§10.7.2)。需要新的 API 呼叫、狀態、權限代碼或路由時,寫在 MR 說明交給 Claude。
+- 權限代碼、路由、錯誤代碼以 Gateway `docs/` 為準,不自創。
+- 新增頁面或元件時,可在 `docs/PROJECT-MAP.md` 補上該頁面 / 元件那一行;其他段落由 Claude 維護。
+
+**Gemini 寫需求企劃**:只描述需求、畫面與驗收行為。API 介面、權限代碼、錯誤代碼、資料表屬技術設計,企劃中需要時列為「待決事項」交給 Claude,不直接定案。
 
 **Gemini 禁止修改**(即使只改一行):
 
@@ -344,7 +364,8 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 容器與部署:`Dockerfile*`、`docker-compose*`、`.dockerignore`、`deploy/`、`nginx/`、部署腳本、`.env*`、`Web.config` / 發佈設定。
 - 相依與建置設定:`package.json`(含 scripts)、lock 檔、`Cargo.toml`、`tsconfig*.json`、`vite.config.*`。
 - 資料庫:schema、migration、seed。
-- 測試程式碼:測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
+- 後端程式與前端邏輯層(見上表)。
+- 測試:只能新增 / 修改自己負責頁面的元件測試。測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
 
 **測試報告**(Gemini 執行測試後必寫):
 
@@ -352,7 +373,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 - 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議交給 Claude 處理的項目。
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
 
-**判斷不了是否屬於「非邏輯性」時,一律視為邏輯修改**:不動程式,寫進報告交給 Claude。
+**判斷不了屬於頁面 / 元件還是邏輯時,一律視為邏輯**:不動程式,寫進 MR 說明或報告交給 Claude。
 
 ### 10.9 Claude 子代理(Subagents)
 
@@ -410,14 +431,17 @@ Claude 把搜尋、審查、資安檢查、除錯、測試、重構交給子代�
 | `develop` | 測試區;CI 自動部署到主機 2 | **只透過 GitLab Merge Request 合併**,由 Maintainer(專案負責人)合併 |
 | `main` | 正式區 | 只由 Maintainer 合併;Gateway 的 `deploy-prod` 另需在 Pipeline 手動觸發 |
 
+**以 GitLab 為準**:GitHub 只是專案擁有者個人的備份。下文的 `origin` 指 GitLab 的 remote;專案擁有者電腦上 GitLab 叫 `gitlab`、`origin` 是 GitHub,AI 下指令前先用 `git remote -v` 確認(工作區 `../AGENT.md` §9.1)。多人協作的詳細步驟、特定檔案的衝突處理方式與 MR 範本見工作區 `../AGENT.md` §9。
+
 **AI 規則**:
 
-1. **開工前確認分支**:執行 `git status`、`git branch --show-current`。目前在 `develop` / `main` 而任務要改檔時,先詢問使用者要開哪個工作分支(建議從最新的 `origin/develop` 開 `feature/<簡短英文描述>`);**不要在 `develop` / `main` 上直接提交**。
+1. **開工前確認分支並同步**:執行 `git status`、`git branch --show-current`、`git fetch origin`,回報目前分支落後基準分支幾個 commit。開發新功能一律從**最新的** `origin/develop`(沒有 `develop` 的 repo 用 `origin/main`)開 `feature/<簡短英文描述>`;目前在 `develop` / `main` 而任務要改檔時,先詢問使用者要開哪個工作分支;**不要在 `develop` / `main` 上直接提交**。工作目錄有未提交的變更時先詢問,不自行 `stash` / `reset` 丟棄。
 2. **只推送目前的工作分支**。**不得推送 `develop` / `main`**(包含 `main:develop` 這類 refspec),除非使用者在**本次對話**明確指示,且使用者是該 repo 的 Maintainer;前一次對話的指示不延續。
 3. **禁止** force push(`--force`、`--force-with-lease`)、刪除遠端分支、改寫已推送的提交(對已推送的提交做 rebase / amend)。
 4. **合併 `develop` 等於部署共用的測試區**:AI 不代替使用者合併 MR;提醒使用者合併前在群組告知,避免蓋掉別人正在測試的版本。
-5. 工作分支落後 `develop` 時,用 `git fetch origin` + `git merge origin/develop` 更新。衝突涉及別人的修改時,列出衝突檔案與雙方差異後詢問使用者,**不要整份採用其中一方**。
+5. 工作分支落後 `develop` 時,用 `git fetch origin` + `git merge origin/develop` 更新。**合併遇到衝突時立即停下**:不自行解衝突、不整份採用其中一方(`-X ours` / `-X theirs`)、不 `--abort`;列出衝突檔案、雙方差異,以及**影響哪些功能或邏輯**(API、路由、權限代碼、錯誤代碼、資料庫 schema / migration、設定、CI/CD、其他 repo),請使用者先告知專案擁有者並討論,確認後才處理(工作區 `../AGENT.md` §9.3、§9.4)。
 6. 提交前檢查 `git diff --staged` 只含本次任務的檔案;**不提交 `.env*`、金鑰、Token、密碼**。
 7. 提交訊息沿用 `<type>(<scope>): <中文說明>`,type 用 `feat`、`fix`、`docs`、`refactor`、`chore`、`test`;配合其他 repo 的提交依 §10.5 註明。
 8. 推送被拒(例:`You are not allowed to push code to protected branches`)時,**不要找繞過方式**(改 remote、改用別的帳號或金鑰、要求調整保護設定);改推工作分支,並告訴使用者到 GitLab 開 Merge Request。
 9. 完成後告訴使用者:推送了哪個分支、MR 的目標分支(一般是 `develop`),以及合併後會部署到哪個環境。
+10. 開 MR 時使用 `.gitlab/merge_request_templates/Default.md` 範本;處理過衝突要填「衝突處理」欄(衝突檔案、決議內容、參與討論的人)。

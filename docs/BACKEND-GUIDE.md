@@ -82,6 +82,9 @@ flowchart LR
 | 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api`(RustIt `ItAgentBack` 管理 API,系統代碼 `endpoint`,API `/api/endpoint/*`;軟體安裝檔上傳 `POST /api/endpoint/software/uploads` 經 Nginx `auth_request` 直送,單檔 4 GB) | HTTP | W6 負責人 | 測試區 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
+| 51292 | NetOps | `netops-api`(NetOps,系統代碼 `netops`,SPA `/netops/`,API `/api/netops/*`) | HTTP | NetOps 負責人 | 測試區 |
+| 51293 | NetOps | `netops-pa` Log 接收(HTTP Log Forwarding,PA-560 威脅 / URL 等 log;**不是 Gateway 上游**,只供 PA-560 連入,`NetOps/docs/PA-LIVE-PLAN.md`) | HTTP(S) | NetOps 負責人 | 規劃中 |
+| 51294 | NetOps | `netops-pa` Log 接收(Syslog,PA-560 TRAFFIC log;**不是 Gateway 上游**,只供 PA-560 連入) | Syslog TCP / TLS | NetOps 負責人 | 規劃中 |
 | 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名;RustIt `ItAgentBack`,容器 `endpoint-server`) | HTTPS / WebSocket(TLS) | W6 負責人 | 測試區 |
 | 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 | 51272 | 附件服務 | `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB;資料表在 `giganexus_gw` schema `file_svc`) | HTTP | 附件服務負責人 | 測試區 |
@@ -233,7 +236,7 @@ token, err := jwt.Parse(raw, k.Keyfunc,
 | operation | `x-auth-mode` | 選用 | `auth_mode` | 只接受 `api_key`:**系統對系統**路由,呼叫端以 `X-Api-Key` 驗證(不接受使用者登入);此時 `x-permission` 必須是權限代碼,API Key 需具備該權限(IT 以 `client:create --perm` 授予)。用於腳本、排程等沒有使用者的呼叫端 |
 | operation | `tags` | 建議 | `tags` | 功能分類 |
 | operation | `x-gateway-path` | 選用 | `public_path` | 對外路徑與預設規則不同時指定 |
-| operation | `x-timeout-ms` | 選用 | `timeout_ms` | 覆寫預設逾時(最長 60000) |
+| operation | `x-timeout-ms` | 選用 | `timeout_ms` | 覆寫預設逾時(最長 60000)。逾時是「等回應標頭」與「兩個資料塊之間」的閒置時間,不是總時長;SSE 串流設 60000 並每 15 秒送心跳即可長連線(回 `X-Accel-Buffering: no`;忙碌時回 4xx,上游 5xx 會累積斷路器失敗。範例:NetOps `backend/src/modules/pa-live/routes.ts`) |
 | operation | `x-cache-ttl` | 選用 | `cache_ttl_sec` | GET 回應快取秒數(僅限不含個人資料的查詢,或搭配 `x-cache-scope: user`) |
 | operation | `x-cache-scope` | 選用 | `cache_scope` | `shared`(所有人共用)/ `user`(每位使用者各自快取);設定 `x-cache-ttl` 時必填 |
 | operation | `x-audit-level` | 選用 | `audit_level` | `none` / `meta` / `body`;敏感 API(薪資、個資)至少 `meta` |
