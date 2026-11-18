@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-11-18 註冊「已有帳號」提示、人員註冊 / 登入紀錄 API
+- 內容:正式區問題 #2(需求方決定方案 A + C)。① `register()` 已有本機帳號(active / locked / pending_verify(IT 代建)/ pending_approval / disabled)改回新錯誤代碼 `REGISTRATION_ACCOUNT_EXISTS`(409,「此工號可能已有帳號,請直接登入或使用忘記密碼」);其他原因維持 `REGISTRATION_NOT_ALLOWED`;節流仍在判斷之前;auth_log 照舊記 `already_{狀態}`。PRD §8.1.1 已登記。② 新增 `GET /api/admin/users/:id/auth-logs`(`gw.admin.user.read`,:id 為 user_id 或工號,工號查無使用者也可查):username = 工號或 user_id 相同者,回 logId / occurredAt / authMethod / event / reason / ip / userAgent,新到舊、分頁;未指定區間預設 30 天,區間最長 366 天
+- 檔案:`bff/src/errors.ts`、`bff/src/modules/auth/local-account.ts`、`bff/src/modules/admin/users.ts`、`builtin-routes.generated.json`、`docs/PRD.md`、`bff/test/integration/register-auth-log.test.ts`、`bff/test/e2e/03-self-service.test.ts`
+- 驗證:typecheck、lint、unit 230、build 通過;test:int 新檔 9 項通過(既有 `notify-announce-http`「發布畫面選項」1 項失敗,develop 上同樣失敗,與本次無關)
+
 ## 2026-11-05 文件:SSE 可經 BFF 長連線(配合 NetOps S0)
 - 內容:NetOps S0 在測試區驗證 SSE 經 Nginx 與 BFF 長連線通過(單一連線 375 秒不中斷、心跳 15 秒、斷線重連、BFF 沒有逾時或斷路器紀錄;NetOps !32)。程式不改:Nginx 依上游的 `X-Accel-Buffering: no` 關閉緩衝,BFF 串流轉送回應本體,undici `bodyTimeout` 是閒置時間。更正 MONITORING-PLAN D6「長連線會被切斷」的說法,BACKEND-GUIDE `x-timeout-ms` 一列補 SSE 的條件。
 - 檔案:`docs/MONITORING-PLAN.md`(D6)、`docs/BACKEND-GUIDE.md`(§6.1 表格)

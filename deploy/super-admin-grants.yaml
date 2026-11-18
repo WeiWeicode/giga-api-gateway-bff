@@ -25,3 +25,20 @@ grants:
       - netops.ad-files.manage
       - netops.kb-page.read
       - netops.kb-page.write
+      # NetOps R1、A1、V-a/V-b、AC1–AC7 新增(2026-11-16,補齊至 NetOps deploy/gateway-rbac.yaml 的 netops-admin 28 項;正式區指派 netops-admin 時防提權檢查擋下)
+      - netops.pa-live.read
+      - netops.pa-live.manage
+      - netops.pa-live.query
+      - netops.pa-heatmap.read
+      - netops.pa-insight.read
+      - netops.ip-name-page.read
+      - netops.ip-name-page.write
+      - netops.pa-ask.read
+      - netops.pa-ask.use
+      - netops.pa-dashboard.ai
+      - netops.ad-ask.read
+      - netops.ad-ask.use
+      - netops.pa-heatmap.ai
+      - netops.pa-insight.ai
+      - netops.pa-search.ai
+      - netops.pa-events.ai
