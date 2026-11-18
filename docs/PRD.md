@@ -291,7 +291,8 @@ sequenceDiagram
 | `REFRESH_TOKEN_INVALID` | 401 | Refresh Token 過期、已撤銷,或偵測到重複使用(整個家族已撤銷) | 導向 `/login` |
 | `PASSWORD_POLICY_VIOLATION` | 400 | 新密碼不符政策(少於 8 碼、未英數混合、包含工號);`details` 列出未符合的規則 | 顯示規則 |
 | `PASSWORD_REUSED` | 400 | 新密碼與前 3 次或舊單一入口密碼相同 | 提示換一組密碼 |
-| `REGISTRATION_NOT_ALLOWED` | 403 | 不符註冊資格(查無、已離職、姓名或到職日不符、AD 已有帳號、已註冊;一律同一代碼) | 顯示「無法註冊,請聯絡 IT」 |
+| `REGISTRATION_NOT_ALLOWED` | 403 | 不符註冊資格(查無、已離職、姓名或到職日不符、兼任帳號、AD 已有帳號;一律同一代碼) | 顯示「無法註冊,請聯絡 IT」 |
+| `REGISTRATION_ACCOUNT_EXISTS` | 409 | 此工號已有本機帳號(啟用、鎖定、待驗證、待審核、停用;2026-11-18 需求方決定只對這一種明確提示,其他原因仍回 `REGISTRATION_NOT_ALLOWED`) | 顯示「此工號可能已有帳號,請直接登入或使用忘記密碼」,附回到登入 / 忘記密碼連結 |
 | `TOKEN_INVALID` | 400 | 驗證 / 啟用 / 重設連結的 token 不存在或遭竄改 | 提示連結無效 |
 | `TOKEN_EXPIRED` | 400 | 連結已過期(驗證與重設 30 分鐘、IT 代建啟用 72 小時) | 提示重新申請 |
 | `TOKEN_USED` | 400 | 連結已使用過 | 提示重新申請 |

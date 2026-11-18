@@ -38,8 +38,8 @@ describe('自行註冊', () => {
     expect(u).toMatchObject({ email: null, status: 'pending_approval', registered_via: 'self_approved' });
   });
 
-  it('待審核者不可再申請、不可登入', async () => {
-    expect((await register({ employeeNo: EMP, name: 'E2E 註冊' })).json.code).toBe('REGISTRATION_NOT_ALLOWED');
+  it('待審核者不可再申請(提示可能已有帳號)、不可登入', async () => {
+    expect((await register({ employeeNo: EMP, name: 'E2E 註冊' })).json.code).toBe('REGISTRATION_ACCOUNT_EXISTS');
     expect((await login(EMP)).res.json.code).toBe('ACCOUNT_NOT_REGISTERED');
   });
 
