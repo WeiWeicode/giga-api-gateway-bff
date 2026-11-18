@@ -957,6 +957,16 @@
   },
   {
     "method": "GET",
+    "path": "/api/admin/users/:id/auth-logs",
+    "auth": "permission",
+    "permissions": [
+      "gw.admin.user.read"
+    ],
+    "summary": null,
+    "module": "modules/admin/users.ts"
+  },
+  {
+    "method": "GET",
     "path": "/api/admin/users/:id/effective-permissions",
     "auth": "permission",
     "permissions": [

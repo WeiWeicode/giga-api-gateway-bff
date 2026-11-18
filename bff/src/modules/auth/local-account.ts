@@ -2,8 +2,9 @@
  * 本機帳號自行註冊與忘記密碼(PRD §8.2.5、W3-5.8a / W3-5.8b):
  *
  *   register  工號 + 姓名(無 Email 者另附到職日與密碼)
- *             所屬公司的 AD 網域有帳號(與登入相同,查無公司時檢查全部網域)、已註冊、已離職、姓名或到職日不符
- *             → REGISTRATION_NOT_ALLOWED(一律同一代碼)
+ *             已有本機帳號(啟用、鎖定、待驗證、待審核、停用)→ REGISTRATION_ACCOUNT_EXISTS(提示「可能已有帳號」)
+ *             所屬公司的 AD 網域有帳號(與登入相同,查無公司時檢查全部網域)、兼任帳號、已離職、姓名或到職日不符
+ *             → REGISTRATION_NOT_ALLOWED(一律同一代碼);auth_log 都記實際原因
  *             LOS / BPM 有 Email → 寄驗證連結(30 分鐘)到登記的 Email(不接受自填)→ VERIFICATION_SENT
  *             LOS / BPM 無 Email → 比對 LOS 到職日 → 直接啟用並通知主管
  *             LOS / BPM 都查無 → pending_approval,由 IT 審核(CLI local:approve)→ REGISTRATION_PENDING_APPROVAL
@@ -119,6 +120,19 @@ export class LocalAccountService {
     throw new GwError('REGISTRATION_NOT_ALLOWED');
   }
 
+  /** 已有本機帳號:明確提示「可能已有帳號」(2026-11-18 需求方決定);auth_log 原因 already_{狀態} */
+  private async accountExists(emp: string, status: string, ctx: Ctx): Promise<never> {
+    await writeAuthLog(this.deps.db, {
+      username: emp,
+      authMethod: 'local',
+      event: 'register_rejected',
+      reason: `already_${status}`,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+    throw new GwError('REGISTRATION_ACCOUNT_EXISTS');
+  }
+
   async register(input: RegisterInput): Promise<RegisterResult> {
     const { db, ad, ext, notifier, log } = this.deps;
     const emp = normalizeEmpNo(input.employeeNo);
@@ -133,7 +147,7 @@ export class LocalAccountService {
       .where(eq(user.employeeNo, emp));
     // 待 Email 驗證者可重新申請(重寄連結);其他狀態視為已註冊
     if (existing?.status && !(existing.status === 'pending_verify' && existing.registeredVia === 'self_email'))
-      return this.notAllowed(emp, `already_${existing.status}`, ctx);
+      return this.accountExists(emp, existing.status, ctx);
 
     const lookup = await lookupEmployee(ext, emp);
     if (!lookup.bpmOk && !lookup.losOk) {
@@ -163,7 +177,7 @@ export class LocalAccountService {
 
     // LOS / BPM 都查無 → 轉管理員審核
     if (merged.profileSource === 'ad_only') {
-      if (existing?.status) return this.notAllowed(emp, `already_${existing.status}`, ctx);
+      if (existing?.status) return this.accountExists(emp, existing.status, ctx);
       await db.transaction(async (tx) => {
         let userId = existing?.userId;
         if (!userId)
@@ -205,7 +219,7 @@ export class LocalAccountService {
     }
 
     // 沒有 Email:比對 LOS 到職日(只即時比對、不儲存)後直接啟用
-    if (existing?.status) return this.notAllowed(emp, `already_${existing.status}`, ctx);
+    if (existing?.status) return this.accountExists(emp, existing.status, ctx);
     const jobDate = parseLosDate(lookup.los?.jobDate);
     if (!input.hireDate || !jobDate || jobDate.toISOString().slice(0, 10) !== input.hireDate) return this.notAllowed(emp, 'hire_date_mismatch', ctx);
     if (!input.password) throw new GwError('VALIDATION_FAILED', '請設定密碼', [{ field: 'password', message: '沒有公司 Email 的同仁需在申請時設定密碼' }]);

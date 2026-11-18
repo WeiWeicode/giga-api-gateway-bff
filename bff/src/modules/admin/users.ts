@@ -3,6 +3,7 @@
  *
  *   GET    /api/admin/users                              使用者清單(搜尋、篩選、分頁)           gw.admin.user.read
  *   GET    /api/admin/users/:id                          明細:所屬公司、個別指派角色、本機帳號、登入數  gw.admin.user.read
+ *   GET    /api/admin/users/:id/auth-logs                註冊 / 登入紀錄(gw.auth_log,依工號或使用者)  gw.admin.user.read
  *   PATCH  /api/admin/users/:id                          停用 / 啟用、取代個別指派角色             gw.admin.user.write
  *   POST   /api/admin/users/:id/revoke-sessions          強制登出                                 gw.admin.user.write
  *   GET    /api/admin/companies                          公司清單(網域、預設角色、人數)          gw.admin.company.read
@@ -20,10 +21,11 @@
  * - 影響權限的變更在同一交易內遞增受影響使用者的 perm_version,提交後清除其 pv 快取(DATABASE.md §7.2)。
  * - 個別指派:不可授予或移除自己沒有的權限(避免 gw-it-admin 自行取得 gw-super-admin 等提權)。
  */
-import { and, asc, count, desc, eq, inArray, like, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, like, lt, or, sql, type SQL } from 'drizzle-orm';
 import type { FastifyPluginAsync } from 'fastify';
 import type { AppConfig } from '../../config.js';
 import {
+  authLog,
   company,
   companyAdDomain,
   localCredential,
@@ -36,7 +38,7 @@ import {
   userRole,
 } from '../../db/schema/index.js';
 import { GwError } from '../../errors.js';
-import { normalizeEmpNo } from '../auth/profile.js';
+import { isValidEmpNo, normalizeEmpNo } from '../auth/profile.js';
 import { revokeUserSessions, userSessionCount } from '../auth/session.js';
 import { openCompanyIds } from '../rbac/login-companies.js';
 import { expandIncludes, parseGroups, permissionsOf } from '../rbac/permission.js';
@@ -56,6 +58,10 @@ const ROW_VER = { type: 'string', pattern: '^[0-9a-fA-F]{16}$' };
 const REF_PARAMS = { type: 'object', required: ['id'], properties: { id: { type: 'string', minLength: 1, maxLength: 20 } } };
 const ID_PARAMS = { type: 'object', required: ['id'], properties: { id: { type: 'integer', minimum: 1 } } };
 const PAGING = { page: { type: 'integer', minimum: 1, default: 1 }, pageSize: { type: 'integer', minimum: 1, maximum: 200, default: 50 } };
+/** 註冊 / 登入紀錄未指定區間時的天數(與稽核查詢相同;auth_log 依 occurred_at 索引,避免全表掃描) */
+const AUTH_LOG_DEFAULT_DAYS = 30;
+/** 單次查詢區間上限(username 沒有索引,只能靠 occurred_at 縮小範圍) */
+const AUTH_LOG_MAX_DAYS = 366;
 
 const likeOf = (q: string) => `%${q.replace(/[[%_]/g, (c) => `[${c}]`)}%`;
 
@@ -231,6 +237,66 @@ const users: FastifyPluginAsync<{ config: AppConfig }> = async (app, { config })
     await authorize(req, USER_READ);
     return userDetail((await findUser(req.params.id)).userId);
   });
+
+  /**
+   * 註冊 / 登入紀錄(2026-11-18 需求方決定:IT 不必下 SQL 查 auth_log)。
+   * :id 為 user_id 或工號(與其他 /users/:id 相同:全數字視為 user_id);工號查無使用者也可查(註冊被拒時尚未建立使用者),比對 username = 工號,有使用者時另含 user_id 相同者。
+   * 只回時間、方式、事件、原因、IP、User-Agent,新到舊、分頁;未指定區間時為最近 30 天。
+   */
+  app.get<{ Params: { id: string }; Querystring: { from?: string; to?: string; page?: number; pageSize?: number } }>(
+    '/api/admin/users/:id/auth-logs',
+    {
+      schema: {
+        params: REF_PARAMS,
+        querystring: {
+          type: 'object',
+          properties: { from: { type: 'string', format: 'date-time' }, to: { type: 'string', format: 'date-time' }, ...PAGING },
+        },
+      },
+    },
+    async (req) => {
+      await authorize(req, USER_READ);
+      const ref = req.params.id;
+      let emp: string;
+      let userId: number | null;
+      if (/^\d+$/.test(ref)) {
+        const u = await findUser(ref);
+        emp = u.employeeNo;
+        userId = u.userId;
+      } else {
+        emp = normalizeEmpNo(ref);
+        if (!isValidEmpNo(emp)) throw new GwError('VALIDATION_FAILED', undefined, [{ field: 'id', message: '工號格式錯誤' }]);
+        const [u] = await app.db.select({ id: user.userId }).from(user).where(eq(user.employeeNo, emp));
+        userId = u?.id ?? null;
+      }
+      const { page = 1, pageSize = 50 } = req.query;
+      const end = req.query.to ? new Date(req.query.to) : null;
+      const start = req.query.from ? new Date(req.query.from) : new Date(Date.now() - AUTH_LOG_DEFAULT_DAYS * 86_400_000);
+      if ((end ?? new Date()).getTime() - start.getTime() > AUTH_LOG_MAX_DAYS * 86_400_000)
+        throw new GwError('VALIDATION_FAILED', undefined, [{ field: 'from', message: `查詢區間最長 ${AUTH_LOG_MAX_DAYS} 天` }]);
+      const who = userId ? or(eq(authLog.username, emp), eq(authLog.userId, userId)) : eq(authLog.username, emp);
+      const where = and(gte(authLog.occurredAt, start), end ? lt(authLog.occurredAt, end) : undefined, who);
+      const [[total], items] = await Promise.all([
+        app.db.select({ n: count() }).from(authLog).where(where),
+        app.db
+          .select({
+            logId: authLog.logId,
+            occurredAt: authLog.occurredAt,
+            authMethod: authLog.authMethod,
+            event: authLog.event,
+            reason: authLog.reason,
+            ip: authLog.ip,
+            userAgent: authLog.userAgent,
+          })
+          .from(authLog)
+          .where(where)
+          .orderBy(desc(authLog.occurredAt), desc(authLog.logId))
+          .offset((page - 1) * pageSize)
+          .fetch(pageSize),
+      ]);
+      return { employeeNo: emp, userId, total: total?.n ?? 0, page, pageSize, from: start, to: end, items };
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: { rowVer: string; isDisabled?: boolean; roles?: RoleAssign[] } }>(
     '/api/admin/users/:id',
