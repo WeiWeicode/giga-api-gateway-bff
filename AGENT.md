@@ -3,7 +3,7 @@
 > 本文件是 AI 程式助手（如 Claude、Gemini）在本專案中的行為準則。
 > 所有 AI 協作開發必須遵守以下規範。
 > 本專案與 GigaItApp、giga-Portal、RustIt(Endpoint Server + Agent)等專案**放在同一層目錄、互相依賴**,跨專案的規則見 **§10 多專案工作區**;其他專案的 AGENT.md 也以 §10 為準。
-> **AI 分工**:Claude 負責前後端,著重邏輯、框架、架構規劃與寫計畫;Gemini 負責前端頁面與元件、寫需求企劃、執行測試與寫報告,不能動前端邏輯層、後端、CI/CD、Docker — 見 **§10.8**。找程式碼先用 CodeGraph,找不到再看專案地圖 — 見 **§10.7.0**。
+> **AI 分工**:Claude 與 Gemini 都可規劃與寫程式,由需求方指定互相審查,敏感變更合併前須有另一方審查紀錄 — 見 **§10.8**。找程式碼先用 CodeGraph,找不到再看專案地圖 — 見 **§10.7.0**。
 > **Git 分支與推送**:開發一律在 `feature/*` 等工作分支,`develop`(測試區)/ `main`(正式區)只透過 GitLab Merge Request 由 Maintainer 合併;AI 不得推送 `develop` / `main`、不得 force push — 見 **§10.10**。
 > **Claude 子代理**:Claude 開工前確認 `~/.claude/agents/` 有 explore、code-reviewer、security-auditor、debugger、test-runner、refactor-assistant;缺少時先詢問使用者是否建立 — 見 **§10.9**。
 
@@ -335,45 +335,33 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 
 所有專案共用;各 repo 的 AGENT.md 收錄同一份內容,有出入時以本節為準。
 
-**Claude** 負責前後端,著重在邏輯、框架、架構規劃與寫計畫:後端全部、前端的邏輯層、測試、技術文件。**Gemini** 負責前端的頁面與元件、寫需求企劃,以及執行測試、撰寫測試報告。Gemini 開始動手前,先確認工作在下表 Gemini 欄是 ✅。
+Claude 與 Gemini **都可以**做所有工作:規劃與技術文件、需求企劃、後端、前端(邏輯與畫面)、測試、CI/CD、容器與部署設定、資料庫 schema / migration。不以工作類型限制哪一方能做;需求方 2026-11-19 決定,改由互相審查達到監督。
 
-| 工作 | Claude | Gemini |
-| --- | --- | --- |
-| 後端程式(API、業務邏輯、權限、資料存取、排程、修 bug、重構) | ✅ | ❌ |
-| 前端邏輯層:`composables/`(狀態與邏輯)、`api/`(HTTP)、store、路由與路由守衛、權限判斷、`@giganexus/*` 共用套件 | ✅ | ❌ |
-| 前端頁面與元件:`pages/`、`components/` / `ui/` 的畫面組合、版面、樣式、互動、文案、mock / 假資料 | ✅ | ✅ |
-| 架構與框架:新模組、目錄慣例、選用套件、共用元件與 composable 的介面設計 | ✅ | ❌ |
-| 寫計畫與技術文件:`ARCHITECTURE.md`、`IMPL-PLAN.md`、`HANDOFF.md`、`PROJECT-MAP.md`、`AGENT.md`、`README.md`、架構 JSON、修正紀錄 | ✅ | ❌ |
-| 寫需求企劃:`docs/PRD.md`、功能企劃、`docs/Gherkin/*.feature` 驗收場景 | ✅ | ✅ |
-| 後端測試、前端邏輯層測試、整合 / E2E 測試、測試用 fixture 的邏輯 | ✅ | ❌ |
-| 前端元件測試(Gemini 負責的頁面 / 元件) | ✅ | ✅ |
-| 執行測試(既有的 `npm test`、`test:int`、E2E、`cargo test` 等)並撰寫測試報告 | ✅ | ✅ |
-| CI/CD 與容器、部署設定 | ✅ | ❌ **禁止** |
+**互相審查由需求方決定**:不是固定流程;需求方會指定由另一個 AI 審查(例如 Claude 寫完手冊,交給 Gemini 看有沒有要改進;Gemini 寫完程式,請 Claude 審查)。被指定審查時:
 
-**Gemini 寫前端頁面與元件**:
+- 意見寫在 MR 評論或 `docs/reviews/YYYY-MM-DD-<主題>.md`。
+- 只提出問題與建議,不直接改對方的分支(除非需求方指示)。
+- 雙方意見不同時,列出各自理由,交需求方決定。
 
-- 資料與狀態一律用既有的 `composables/`、`api/`;頁面不直接 `fetch`、不自己寫權限判斷(§10.7.2)。需要新的 API 呼叫、狀態、權限代碼或路由時,寫在 MR 說明交給 Claude。
-- 權限代碼、路由、錯誤代碼以 Gateway `docs/` 為準,不自創。
-- 新增頁面或元件時,可在 `docs/PROJECT-MAP.md` 補上該頁面 / 元件那一行;其他段落由 Claude 維護。
-
-**Gemini 寫需求企劃**:只描述需求、畫面與驗收行為。API 介面、權限代碼、錯誤代碼、資料表屬技術設計,企劃中需要時列為「待決事項」交給 Claude,不直接定案。
-
-**Gemini 禁止修改**(即使只改一行):
+**敏感變更:合併前必須有另一個 AI 的審查紀錄**,MR 描述寫明審查者與紀錄位置:
 
 - CI/CD:`.gitlab-ci.yml`、`ci-templates/`、Runner 設定。
-- 容器與部署:`Dockerfile*`、`docker-compose*`、`.dockerignore`、`deploy/`、`nginx/`、部署腳本、`.env*`、`Web.config` / 發佈設定。
-- 相依與建置設定:`package.json`(含 scripts)、lock 檔、`Cargo.toml`、`tsconfig*.json`、`vite.config.*`。
+- 容器與部署:`Dockerfile*`、`docker-compose*`、`deploy/`、`nginx/`、部署腳本、`.env*` 範本。
 - 資料庫:schema、migration、seed。
-- 後端程式與前端邏輯層(見上表)。
-- 測試:只能新增 / 修改自己負責頁面的元件測試。測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,交給 Claude 處理。
+- 權限設定:`gateway-rbac.yaml` 等。
 
-**測試報告**(Gemini 執行測試後必寫):
+**兩個 AI 都適用**:
 
-- 位置:該 repo 的 `docs/test-reports/YYYY-MM-DD-<主題>.md`。
-- 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議交給 Claude 處理的項目。
+- 權限代碼、路由、錯誤代碼以 Gateway `docs/` 為準,不自創。
+- 機密(密碼、金鑰、Token)不寫進程式碼、文件、MR 或對話,依本檔既有機密規則處理。
+- 不推 `develop` / `main`、不 force push,只推工作分支,由 Maintainer 經 MR 合併。
+- 測試失敗時**不得**為了讓測試通過而修改測試或程式、跳過測試、調整門檻;把失敗寫進報告,說明原因與建議。
+
+**測試報告**(執行測試的一方都要寫):
+
+- 位置:`docs/test-reports/YYYY-MM-DD-<主題>.md`。
+- 內容:1. 環境(分支 / commit、部署區、執行的指令)2. 結果(通過 / 失敗 / 略過數量)3. 失敗項目(測試名稱、錯誤訊息摘錄)4. **可能問題**:推測原因、相關檔案與行號、重現步驟、影響範圍 5. 建議的處理項目。
 - 測試全部通過也要寫,並列出觀察到的潛在風險(警告訊息、偶發失敗、執行過慢等)。
-
-**判斷不了屬於頁面 / 元件還是邏輯時,一律視為邏輯**:不動程式,寫進 MR 說明或報告交給 Claude。
 
 ### 10.9 Claude 子代理(Subagents)
 
