@@ -17,15 +17,15 @@
 安裝 k6(https://grafana.com/docs/k6/latest/set-up/install-k6/)後,於 `bff/test/k6`:
 
 ```bash
-k6 run -e BASE=https://giganexus-test.gigasolar.com.tw -e USER=Z99K6001 -e PASSWORD=<測試密碼> -e PATH_UNDER_TEST=/api/k6/ping proxy.js
+k6 run -e BASE=https://<測試區網域> -e USER=Z99K6001 -e PASSWORD=<測試密碼> -e PATH_UNDER_TEST=/api/k6/ping proxy.js
 ```
 
 ```bash
-k6 run -e BASE=https://giganexus-test.gigasolar.com.tw -e USER=Z99K6001 -e PASSWORD=<測試密碼> login.js
+k6 run -e BASE=https://<測試區網域> -e USER=Z99K6001 -e PASSWORD=<測試密碼> login.js
 ```
 
 ```bash
-k6 run -e BASE=https://giganexus-test.gigasolar.com.tw -e USER=Z99K6001 -e PASSWORD=<測試密碼> -e PATH_UNDER_TEST=/api/k6/ping permission.js
+k6 run -e BASE=https://<測試區網域> -e USER=Z99K6001 -e PASSWORD=<測試密碼> -e PATH_UNDER_TEST=/api/k6/ping permission.js
 ```
 
 - `RATE`(proxy.js,預設 1500)、`DURATION`(預設 1m)可調整;結果摘要與門檻是否通過由 k6 輸出,請貼到 IMPL-PLAN §8 的驗收紀錄。

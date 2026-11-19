@@ -47,7 +47,7 @@ npm run dev:worker
 ```
 
 - BFF 在 `http://localhost:3100`;worker 處理 Webhook、通知與部門同步佇列。設定 `MAIL_HOST` 時必須同時設定 `MAIL_REDIRECT_TO`(只填自己的信箱)。
-- 瀏覽器與跨專案驗證以測試區 `https://giganexus-test.gigasolar.com.tw` 為準:推送 `develop` 由 CI 部署(DEPLOYMENT.md)。
+- 瀏覽器與跨專案驗證以測試區 `https://<測試區網域>` 為準:推送 `develop` 由 CI 部署(DEPLOYMENT.md)。
 - 需要登入帳號時以假工號建立本機帳號(自行註冊 → `npm run gw -- local:approve --emp <工號>`),**不可使用真實員工的帳密**,測完刪除。
 
 ## 測試
@@ -59,7 +59,7 @@ npm run test:int    # 整合測試(Drizzle PoC;自動重建 giganexus_gw_test)
 npm run test:e2e    # 對測試區的端到端測試(需 ssh host2,見下方)
 ```
 
-E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CLI 與 Redis 經 `ssh host2` 在測試區容器內執行、資料庫以 `.env` 直連 `giganexus_gw_test`。測試自行建立假工號(`Z99E2E` 開頭)的本機帳號、角色與 API Key,結束時刪除;不使用真實員工帳密,也不執行會影響共用測試區的操作(停止容器、發佈所有草稿)。測試區需先部署要驗證的版本。
+E2E 從開發機經 `https://<測試區網域>` 呼叫測試區:CLI 與 Redis 經 `ssh host2` 在測試區容器內執行、資料庫以 `.env` 直連 `giganexus_gw_test`。測試自行建立假工號(`Z99E2E` 開頭)的本機帳號、角色與 API Key,結束時刪除;不使用真實員工帳密,也不執行會影響共用測試區的操作(停止容器、發佈所有草稿)。測試區需先部署要驗證的版本。
 
 後端樣本:`cd samples/node-backend && npm install && npm test`(OpenAPI 自我檢查、Token 驗證、部署區設定)。
 
@@ -99,4 +99,4 @@ E2E 從開發機經 `https://giganexus-test.gigasolar.com.tw` 呼叫測試區:CL
 - 斷路器狀態由各 BFF 實例在記憶體中維護(2026-10-02 決定維持;DATABASE.md §6 `gw:cb:{upstream}` 標為不使用)。
 - 角色權限、AD 群組對應、指派規則、部門樹變更時遞增全體使用者 `perm_version`;個別指派、停用、公司預設角色、人員同步只遞增受影響者(2026-10-02 決定,DATABASE.md §7.2 已對齊)。
 - `@giganexus/web-kit` 不發佈到 Package Registry,由 Pipeline 複製到同主機共用目錄供 SPA 建置(2026-10-02 決定,FRONTEND-GUIDE §6 已對齊)。
-- 測試區(主機 2)已由 `.gitlab-ci.yml` `develop` Pipeline 部署(2026-09-30,`https://giganexus-test.gigasolar.com.tw`);`deploy-prod` 與 `deploy/docker-compose.prod.yml` 待 2026-12 正式區(主機 3)建置後執行。
+- 測試區(主機 2)已由 `.gitlab-ci.yml` `develop` Pipeline 部署(2026-09-30,`https://<測試區網域>`);`deploy-prod` 與 `deploy/docker-compose.prod.yml` 待 2026-12 正式區(主機 3)建置後執行。
