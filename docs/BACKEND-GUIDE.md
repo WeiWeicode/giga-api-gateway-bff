@@ -85,6 +85,7 @@ flowchart LR
 | 51292 | NetOps | `netops-api`(NetOps,系統代碼 `netops`,SPA `/netops/`,API `/api/netops/*`) | HTTP | NetOps 負責人 | 測試區、正式區(2026-11-16) |
 | 51293 | NetOps | `netops-pa` Log 接收(HTTP Log Forwarding,PA-560 威脅 / URL 等 log;**不是 Gateway 上游**,只供 PA-560 連入,`NetOps/docs/PA-LIVE-PLAN.md`) | HTTP(S) | NetOps 負責人 | 規劃中 |
 | 51294 | NetOps | `netops-pa` Log 接收(Syslog,PA-560 TRAFFIC log;**不是 Gateway 上游**,只供 PA-560 連入) | Syslog TCP / TLS | NetOps 負責人 | 規劃中 |
+| 51295 | NetOps | `netops-ad-receiver` AD 事件接收(DC 上的 AD Agent 以 HTTP POST `/ad/v1/logs`、`/ad/v1/heartbeat` 回傳;**不是 Gateway 上游**,只供 DC 連入;每台 DC 一把 Token,來源限制寫在主機 Windows 防火牆,`NetOps/docs/AD-AGENT-PLAN.md` §4.1、ARCHITECTURE D49) | HTTP | NetOps 負責人 | 規劃中 |
 | 51241 | Endpoint | `endpoint-agent`(Agent 通道,Nginx `:9443` 轉入;2026-10-01 由 `endpoint-grpc` 改名;RustIt `ItAgentBack`,容器 `endpoint-server`) | HTTPS / WebSocket(TLS) | W6 負責人 | 測試區 |
 | 51271 | 員工入口網 | `portal-api`(giga-Portal,系統代碼 `portal`,API `/api/portal/*`;取代本機模擬 `portal-svc` 51270) | HTTP | 入口網負責人 | 規劃中 |
 | 51272 | 附件服務 | `file-api`(giga-file-service,系統代碼 `file`,API `/api/file/*`;上傳 `POST /api/file/files` 經 Nginx `auth_request` 直送,單檔 30 MB;資料表在 `giganexus_gw` schema `file_svc`) | HTTP | 附件服務負責人 | 測試區 |
