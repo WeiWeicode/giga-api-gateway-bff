@@ -70,6 +70,8 @@ flowchart LR
 | 51280–51289 | BI / 報表 |
 | 51290–51300 | 未分配(新系統申請) |
 
+> 下文範例中的 `go-mes` 是通用寫法示意,實際 MES 服務代碼為 `mes-api`(§3.3)。
+
 > 一個系統的服務超過 10 個時,向 Gateway 負責人申請 51290 之後的區段。
 
 ### 3.3 分配紀錄
@@ -79,7 +81,7 @@ flowchart LR
 | Port | 系統 | 服務代碼(`upstream.code`) | 協定 | 負責人 | 狀態 |
 | --- | --- | --- | --- | --- | --- |
 | 51201 | Gateway 平台 | `node-sample`(Node.js 後端樣本,`samples/node-backend`) | HTTP | Gateway 負責人 | 範例 |
-| 51210 | MES | `go-mes` | HTTP | MES 負責人 | 規劃中 |
+| 51210 | MES | `mes-api`(giga-MES,Node.js;系統代碼 `mes`,SPA `/mes/`,API `/api/mes/*`;2026-11-25 由原規劃的 Go `go-mes` 改為 Node.js `mes-api`,giga-MES `docs/MIGRATION-PLAN.md` §13 Q1) | HTTP | MES 負責人 | 規劃中 |
 | 51240 | Endpoint | `endpoint-api`(RustIt `ItAgentBack` 管理 API,系統代碼 `endpoint`,API `/api/endpoint/*`;軟體安裝檔上傳 `POST /api/endpoint/software/uploads` 經 Nginx `auth_request` 直送,單檔 4 GB) | HTTP | W6 負責人 | 測試區 |
 | 51291 | IT 管理系統 | `itapp-api`(GigaItApp,SPA `/it/`;目前 API `/it/api/*` 由 Nginx 直接轉入、不經 BFF 路由表,**規劃改為系統代碼 `it`、`/api/it/*` 經 BFF**,PRD §7.2.1 v0.7) | HTTP | IT 管理系統負責人 | 測試區 |
 | 51292 | NetOps | `netops-api`(NetOps,系統代碼 `netops`,SPA `/netops/`,API `/api/netops/*`) | HTTP | NetOps 負責人 | 測試區、正式區(2026-11-16) |

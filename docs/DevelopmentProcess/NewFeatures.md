@@ -2,6 +2,11 @@
 
 > 新紀錄加在最上方;格式見 `AGENT.md` §9。
 
+## 2026-11-25 文件:MES 服務代碼改為 mes-api、登記 giga-MES
+- 內容:配合 giga-MES(舊 wei_web 轉移)決定後端改用 Node.js。BACKEND-GUIDE §3.3 的 51210 由 `go-mes` 改為 `mes-api`(port 不變,系統代碼 `mes`、SPA `/mes/`、API `/api/mes/*`),§3.2 註明下文範例的 `go-mes` 只是示意;AGENT.md §10.2 專案登記、§10.3 相依關係加 giga-MES。程式不改。
+- 檔案:`docs/BACKEND-GUIDE.md`(§3.2、§3.3)、`AGENT.md`(§10.2、§10.3)
+- 驗證:文件審閱;配合 giga-MES `docs/mes-design` 分支(MIGRATION-PLAN §13 Q1)
+
 ## 2026-11-18 註冊「已有帳號」提示、人員註冊 / 登入紀錄 API
 - 內容:正式區問題 #2(需求方決定方案 A + C)。① `register()` 已有本機帳號(active / locked / pending_verify(IT 代建)/ pending_approval / disabled)改回新錯誤代碼 `REGISTRATION_ACCOUNT_EXISTS`(409,「此工號可能已有帳號,請直接登入或使用忘記密碼」);其他原因維持 `REGISTRATION_NOT_ALLOWED`;節流仍在判斷之前;auth_log 照舊記 `already_{狀態}`。PRD §8.1.1 已登記。② 新增 `GET /api/admin/users/:id/auth-logs`(`gw.admin.user.read`,:id 為 user_id 或工號,工號查無使用者也可查):username = 工號或 user_id 相同者,回 logId / occurredAt / authMethod / event / reason / ip / userAgent,新到舊、分頁;未指定區間預設 30 天,區間最長 366 天
 - 檔案:`bff/src/errors.ts`、`bff/src/modules/auth/local-account.ts`、`bff/src/modules/admin/users.ts`、`builtin-routes.generated.json`、`docs/PRD.md`、`bff/test/integration/register-auth-log.test.ts`、`bff/test/e2e/03-self-service.test.ts`

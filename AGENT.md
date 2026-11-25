@@ -237,6 +237,8 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | `RustIt` | 端點管理(2026-10-01 取代原規劃的 Go `giga-endpoint` 與 C# `giga-agent-watchdog`):Endpoint Server 於 2026-10-06 改為 Node.js〔`ItAgentBack/`,資料存 SQL Server `giganexus_It_Agent` + MongoDB + Redis〕,Rust 只做端點〔`RustAgent/`:Agent 與 Watchdog(Windows 服務)、托盤程式〕;Agent 以 HTTPS 回報、WebSocket 接收指令([docs/ENDPOINT-AGENT-GUIDE.md](docs/ENDPOINT-AGENT-GUIDE.md)) | `endpoint-api`(51240)、`endpoint-agent`(51241,HTTPS / WebSocket);Agent 經 `:9443` | W6 負責人 | `../RustIt/AGENT.md`、`../RustIt/docs/PROJECT-MAP.md` |
 | `NetOps` | 資訊網通管理系統:PA-560 防火牆 log、AD 事件、AI 問答、網通知識庫;已接入 Gateway 測試區(舊版仍在 IIS);規劃 PA 即時監控(Python `netops-pa` + Redis) | SPA `/netops/`;`netops-api`(51292,`/api/netops/*` 經 BFF);`netops-pa` log 接收 51293(HTTP)、51294(Syslog),不經 Gateway | NetOps 負責人 | `../NetOps/AGENT.md`、`../NetOps/docs/ARCHITECTURE.md` |
 
+| `giga-MES` | 製造執行系統(規劃中,2026-11-25 建立):舊 `wei_web` 儲能膠 MES 轉移,行為照抄、資料表重建並轉移舊資料(批號、儲能 / 改質站點、IPQC / FQC / IQC 判定、重工、留樣、總表匯出、I-MR 管制圖) | SPA `/mes/`;`mes-api`(51210,`/api/mes/*` 經 BFF);資料庫 `giganexus_mes`(schema `mes`) | MES 負責人 | `../giga-MES/AGENT.md`、`../giga-MES/docs/MIGRATION-PLAN.md` |
+
 新增 repo 時,先向 Gateway 負責人登記 port、服務代碼、系統代碼與 SPA 子路徑(BACKEND-GUIDE §3.3、PRD §7.2.1),再把資料夾名稱加到上表。
 
 ### 10.3 相依關係
@@ -248,6 +250,7 @@ GigaNexus 由多個獨立 repo 組成(Gateway、員工入口網、IT 管理系�
 | RustIt(`ItAgentBack` Endpoint Server / `RustAgent` Agent、Watchdog) | `:9443` 通道(HTTPS / WebSocket)、BFF 路由註冊、內部 Token(`docs/ENDPOINT-AGENT-GUIDE.md`) | 被 IT 管理系統經 BFF 呼叫;Agent 與 Watchdog、托盤以本機具名管道溝通 |
 | giga-file-service(規劃中) | BFF 路由 `/api/file/*`、內部 Token、自動註冊;Nginx `location = /api/file/files` 上傳直送(2026-10-08 實作,31m 只套該 location;BFF `/_auth/verify` 補驗 CSRF)、相容路由 `/api/file/compat/*` 內網白名單、CORS(皆待實作時另行同意,`giga-file-service/docs/DEPLOYMENT.md` §4) | 畫面在 GigaItApp「Gateway 管理 › 檔案管理」(權限節點 F3 登記);唯讀讀取 BPM NaNa / 5144、166 PortalSolar |
 | NetOps(規劃中) | Nginx `/netops/`(SPA 發佈到 `gw_www/netops`);BFF `/api/auth/*`、`/api/netops/*` → `netops-api`(內部 Token、自動註冊);AI 問答與即時監控的 SSE 需經 BFF 與 Nginx 實測(`NetOps/docs/IMPL-PLAN.md` S0) | 權限在 GigaItApp 設定;監控送 giga-observe;資料來源 FTP、AI 主機(10.10.130.46)、Qdrant 由 `netops-api` 直連,PA-560 由 `netops-pa` 直連(非平台系統) |
+| giga-MES(規劃中) | Nginx `/mes/`(SPA 發佈到 `gw_www/mes`);BFF `/api/auth/*`、`/api/mes/*` → `mes-api`(內部 Token、自動註冊);異常通知經 `/api/notify/send`(API Key,`notify.message.send`);Excel 匯出走工作模式,不延長逾時 | 權限節點在 GigaItApp 設定(前端 `deploy/gateway-rbac.yaml`);監控送 giga-observe;舊資料只在轉移時唯讀讀取 `WebAppDb` 複本,不直連其他系統 |
 | 其他系統 | SPA 子路徑、BFF 路由、內部 Token(FRONTEND-GUIDE、BACKEND-GUIDE) | **一律經 BFF** 呼叫其他系統(§10.4) |
 
 - **Gateway 的 `docs/` 是上位規範**。各 repo 自己的文件與之不一致時,先指出差異,不要自行決定以哪一邊為準。
